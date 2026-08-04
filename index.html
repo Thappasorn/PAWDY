@@ -33,10 +33,18 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   var sb = null, me = null, ready = false;
   var dataCbs = [], notifCbs = [], listCbs = [];
-  var snap = { tasks: [], spaces: null, members: [], notifs: [], ui: {} };
-  var known = { tasks: {}, spaces: null };
+  var snap = { tasks: [], spaces: null, fields: null, members: [], notifs: [], ui: {} };
+  var known = { tasks: {}, spaces: null, fields: null };
   var touched = {};            // task id -> ts of our own last write
+  var touchedMeta = { spaces: 0, fields: 0 };
+  var GUARD = 5000;            // local edits win over echoes for this long
   var saveTimer = null, pending = null, refetchTimer = null;
+  var statusCbs = [], syncStatus = 'saved';
+  function setStatus(st) {
+    if (syncStatus === st) return;
+    syncStatus = st;
+    statusCbs.forEach(function (f) { try { f(st); } catch (e) {} });
+  }
 
   try {
     var c = JSON.parse(localStorage.getItem(CACHE) || 'null');
@@ -53,13 +61,33 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     me: function () { return me || { n: 'Me', email: '', c: '#4f46e5' }; },
     online: function () { return ready; },
     onData: function (f) { dataCbs.push(f); if (ready) f(snap); },
+    onStatus: function (f) { statusCbs.push(f); f(syncStatus); },
     onNotif: function (f) { notifCbs.push(f); },
     onNotifList: function (f) { listCbs.push(f); if (ready) f(snap.notifs); },
     signOut: function () { if (sb) sb.auth.signOut().then(function () { localStorage.removeItem(CACHE); location.reload(); }); },
 
     save: function (state) {
       snap.ui = state.ui || snap.ui;          // view/list choice stays personal
+      var now = Date.now();
+      if (state.tasks) {
+        var cur = {};
+        state.tasks.forEach(function (t) {
+          cur[t.id] = 1;
+          if (known.tasks[t.id] !== JSON.stringify(t)) touched[t.id] = now;
+        });
+        Object.keys(known.tasks).forEach(function (id) { if (!cur[id]) touched[id] = now; });
+        snap.tasks = state.tasks;             // local state is the live truth
+      }
+      if (state.spaces) {
+        if (JSON.stringify(state.spaces) !== known.spaces) touchedMeta.spaces = now;
+        snap.spaces = state.spaces;
+      }
+      if (state.fields) {
+        if (JSON.stringify(state.fields) !== known.fields) touchedMeta.fields = now;
+        snap.fields = state.fields;
+      }
       pending = state;
+      setStatus('saving');
       clearTimeout(saveTimer);
       saveTimer = setTimeout(flush, 400);
       cache();
@@ -93,7 +121,8 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   // ---------- writing ----------
   function flush() {
-    if (!sb || !me || !pending) return;
+    if (!sb || !me) return;
+    if (!pending) { setStatus(navigator.onLine === false ? 'offline' : 'saved'); return; }
     var st = pending; pending = null;
     var now = Date.now();
 
@@ -112,14 +141,43 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       if (!cur[id]) { delete known.tasks[id]; touched[id] = now; dels.push(id); }
     });
 
-    if (ups.length) sb.from('tasks').upsert(ups).then(log);
-    if (dels.length) sb.from('tasks').delete().in('id', dels).then(log);
+    var ops = [];
+    if (ups.length) ops.push(sb.from('tasks').upsert(ups).then(function (r) {
+      if (r.error) { ups.forEach(function (u) { delete known.tasks[u.id]; }); throw r.error; }
+    }));
+    if (dels.length) ops.push(sb.from('tasks').delete().in('id', dels).then(function (r) {
+      if (r.error) { dels.forEach(function (id) { known.tasks[id] = '__retry_delete__'; }); throw r.error; }
+    }));
 
     var sp = JSON.stringify(st.spaces || null);
     if (st.spaces && sp !== known.spaces) {
+      var prevSp = known.spaces;
       known.spaces = sp;
-      sb.from('meta').upsert({ key: 'spaces', doc: st.spaces, updated_by: me.email }, { onConflict: 'key' }).then(log);
+      ops.push(sb.from('meta').upsert({ key: 'spaces', doc: st.spaces, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
+        if (r.error) { known.spaces = prevSp; throw r.error; }
+      }));
     }
+
+    var fd = JSON.stringify(st.fields || null);
+    if (st.fields && fd !== known.fields) {
+      var prevFd = known.fields;
+      known.fields = fd;
+      ops.push(sb.from('meta').upsert({ key: 'fields', doc: st.fields, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
+        if (r.error) { known.fields = prevFd; throw r.error; }
+      }));
+    }
+
+    if (!ops.length) { setStatus('saved'); return; }
+    setStatus('saving');
+    Promise.all(ops).then(function () {
+      setStatus(pending ? 'saving' : 'saved');
+    }).catch(function (e) {
+      console.error('[sync] save failed:', e && e.message ? e.message : e);
+      setStatus(navigator.onLine === false ? 'offline' : 'error');
+      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields };
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(flush, 3000);   // retry until it lands
+    });
   }
 
   // ---------- reading ----------
@@ -143,27 +201,34 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     var now = Date.now();
 
     var incoming = (r[0].data || []).map(function (x) { return x.doc; }).filter(Boolean);
-    var order = [], byId = {};
-    incoming.forEach(function (t) { byId[t.id] = t; order.push(t.id); });
+    var order = [], byId = {}, server = {};
+    incoming.forEach(function (t) { byId[t.id] = t; server[t.id] = JSON.stringify(t); order.push(t.id); });
 
     if (keepLocal) {
-      // A row we wrote in the last few seconds wins locally, so a realtime
+      // A row we edited in the last few seconds wins locally, so a realtime
       // echo can't yank a field out from under someone who is still typing.
+      var localIds = {};
+      snap.tasks.forEach(function (t) { localIds[t.id] = 1; });
       snap.tasks.forEach(function (t) {
-        if (touched[t.id] && now - touched[t.id] < 4000) {
+        if (touched[t.id] && now - touched[t.id] < GUARD) {
           if (!byId[t.id]) order.unshift(t.id);
           byId[t.id] = t;
         }
       });
+      // and a row we just deleted stays deleted until the server catches up
+      order = order.filter(function (id) {
+        return !(touched[id] && now - touched[id] < GUARD && !localIds[id]);
+      });
     }
     var tasks = order.map(function (id) { return byId[id]; });
 
-    known.tasks = {};
-    tasks.forEach(function (t) { known.tasks[t.id] = JSON.stringify(t); });
+    // diff future writes against what the server actually has
+    known.tasks = server;
 
     var meta = {};
     (r[1].data || []).forEach(function (m) { meta[m.key] = m.doc; });
     known.spaces = JSON.stringify(meta.spaces || null);
+    known.fields = JSON.stringify(meta.fields || null);
 
     var members = [{ n: 'Unassigned', c: '#9ca3af' }].concat(
       (r[2].data || []).map(function (m) { return { n: m.name || m.email, c: m.color || '#4f46e5', email: m.email }; })
@@ -171,7 +236,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
     var notifs = (r[3].data || []).map(rowToNotif);
 
-    snap = { tasks: tasks, spaces: meta.spaces || snap.spaces, members: members, notifs: notifs, ui: snap.ui || {} };
+    var spaces = (keepLocal && now - touchedMeta.spaces < GUARD && snap.spaces) ? snap.spaces : (meta.spaces || snap.spaces);
+    var fields = (keepLocal && now - touchedMeta.fields < GUARD && snap.fields) ? snap.fields : (meta.fields || snap.fields);
+
+    snap = { tasks: tasks, spaces: spaces, fields: fields, members: members, notifs: notifs, ui: snap.ui || {} };
     emit();
     listCbs.forEach(function (f) { try { f(notifs); } catch (e) {} });
   }
@@ -269,6 +337,20 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       if (r.data && r.data.session) start(r.data.session);
     });
   }
+
+  // never lose an edit: flush when the tab hides or closes, retry when back online
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { clearTimeout(saveTimer); flush(); } });
+  window.addEventListener('beforeunload', function () { clearTimeout(saveTimer); flush(); });
+  window.addEventListener('offline', function () { setStatus('offline'); });
+  window.addEventListener('online', function () {
+    if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields };
+    flush();
+    if (ready) fetchAll().then(function (r) { apply(r, true); });
+  });
+  // safety net: re-sync every 45s in case a realtime event was missed
+  setInterval(function () {
+    if (ready && !document.hidden) fetchAll().then(function (r) { apply(r, true); });
+  }, 45000);
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
@@ -2560,12 +2642,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
       <sc-for list="{{ spaces }}" as="space" hint-placeholder-count="3">
         <div style="display: flex; flex-direction: column; gap: 1px; margin-bottom: 3px;">
-          <div style="display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; border-radius: 6px; color: #e5e7eb; font-size: 12.5px; font-weight: 500;" style-hover="background: #1d202a;">
-            <button sc-camel-on-click="{{ space.onToggle }}" style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 0; color: inherit; font-size: 12.5px; font-weight: 500;">
+          <div style="{{ space.rowStyle }}" style-hover="background: #1d202a;">
+            <button sc-camel-on-click="{{ space.onToggle }}" title="พับ / ขยาย" style="background: transparent; border: 0; color: #5d636f; font-size: 10px; line-height: 1; cursor: pointer; padding: 0 1px; flex: 0 0 auto;" style-hover="color: #fff;">{{ space.caret }}</button>
+            <button sc-camel-on-click="{{ space.onSelect }}" title="ดูทุก list ใน space นี้" style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 0; color: inherit; font-size: 12.5px; font-weight: inherit;">
               <span style="{{ space.dotStyle }}"></span>
               <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ space.name }}</span>
-              <span style="color: #5d636f; font-size: 10px;">{{ space.caret }}</span>
             </button>
+            <span style="font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ space.count }}</span>
             <button sc-camel-on-click="{{ space.onRename }}" title="Rename space" style="background: transparent; border: 0; color: #4d525d; cursor: pointer; font-size: 10.5px; line-height: 1; padding: 0 1px;" style-hover="color: #fff;">✎</button>
             <button sc-camel-on-click="{{ space.onDelete }}" title="Delete space" style="background: transparent; border: 0; color: #4d525d; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 1px;" style-hover="color: #f87171;">×</button>
           </div>
@@ -2590,6 +2673,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       </sc-for>
     </nav>
 
+    <div style="padding: 4px 14px 6px;">
+      <span style="{{ syncStyle }}">{{ syncLabel }}</span>
+    </div>
     <div style="border-top: 1px solid #23262f; padding: 9px 12px; display: flex; align-items: center; gap: 8px;">
       <div style="{{ meAvatarStyle }}">{{ meInitials }}</div>
       <span style="font-size: 11.5px; color: #cbd2de;">{{ meName }}</span>
@@ -2743,7 +2829,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
-                  <div draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-click="{{ card.onOpen }}" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: #c7d2fe; box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                  <div draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: #c7d2fe; box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -2765,6 +2851,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </div>
                 </sc-for>
               </div>
+              <sc-if value="{{ col.composerOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+                  <textarea ref="{{ col.composerRef }}" data-sync="{{ col.composerText }}" value="{{ col.composerText }}" sc-camel-on-change="{{ col.onComposerText }}" sc-camel-on-key-down="{{ col.onComposerKey }}" rows="2" placeholder="พิมพ์ชื่องาน แล้วกด Enter…" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; resize: none; outline: 0; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <button sc-camel-on-click="{{ col.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">Add card</button>
+                    <button sc-camel-on-click="{{ col.onComposerClose }}" style="background: transparent; border: 0; color: #6b7280; font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px;" style-hover="color: #1f2430;">×</button>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ col.composerClosed }}" hint-placeholder-val="{{ true }}">
+                <button sc-camel-on-click="{{ col.onAdd }}" style="margin-top: 8px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px; color: #6b7280; cursor: pointer;" style-hover="background: #e2e4ea; color: #1f2430;">+ Add a card</button>
+              </sc-if>
             </div>
           </sc-for>
         </div>
@@ -2956,6 +3054,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <input ref="{{ detail.tagRef }}" data-sync="{{ detail.tagText }}" value="{{ detail.tagText }}" sc-camel-on-change="{{ detail.onTags }}" placeholder="comma, separated" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px;">
         </div>
 
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Custom Fields</span>
+            <button sc-camel-on-click="{{ onAddField }}" style="margin-left: auto; background: transparent; border: 1px dashed #d1d5db; border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: #6b7280; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Add field</button>
+          </div>
+          <sc-for list="{{ detail.customFields }}" as="cf" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+              <span style="width: 104px; flex: 0 0 104px; color: #8b91a0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ cf.label }}">{{ cf.label }}</span>
+              <sc-if value="{{ cf.isSelect }}" hint-placeholder-val="{{ false }}">
+                <sc-raw-select ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff; cursor: pointer;">
+                  <sc-for list="{{ cf.options }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
+                </sc-raw-select>
+              </sc-if>
+              <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
+                <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
+              </sc-if>
+              <button sc-camel-on-click="{{ cf.onRemove }}" title="Remove this field everywhere" style="background: transparent; border: 0; color: #c9ced8; cursor: pointer; font-size: 13px; flex: 0 0 auto;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Description</span>
           <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="3" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 7px 9px; font-size: 12px; line-height: 1.5; resize: vertical; outline: 0;" style-focus="border-color: #4f46e5;"></textarea>
@@ -3014,7 +3133,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
       <div style="border-top: 1px solid #e5e7eb; padding: 9px 14px; display: flex; align-items: center; gap: 8px;">
         <button sc-camel-on-click="{{ detail.onDelete }}" style="background: transparent; border: 1px solid #e5e7eb; color: #b91c1c; border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer;" style-hover="border-color: #dc2626; background: #fef2f2;">Delete task</button>
-        <span style="margin-left: auto; font-size: 11px; color: #9ca3af;">Saved locally</span>
+        <span style="margin-left: auto; font-size: 11px; color: #9ca3af;">Synced to workspace</span>
       </div>
     </aside>
   </sc-if>
@@ -3144,12 +3263,16 @@ class Component extends DCLogic {
       members: (snap.members && snap.members.length > 1) ? snap.members : JSON.parse(JSON.stringify(MEMBERS)),
       spaces: (snap.spaces && snap.spaces.length) ? snap.spaces : JSON.parse(JSON.stringify(SPACES)),
       tasks: snap.tasks || [],
+      fields: snap.fields || [],
       view: ui.view || 'table',
       list: ui.list || 'Q3 Campaigns',
       open: { Marketing: true, Product: true, Operations: true },
       query: '',
       selected: null,
       monthOffset: 0,
+      sync: 'saved',
+      composerCol: null,
+      composerText: '',
       newSubtask: '',
       newComment: ''
     };
@@ -3158,7 +3281,7 @@ class Component extends DCLogic {
 
   persist(next) {
     const st = Object.assign({}, this.state, next || {});
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, ui: { view: st.view, list: st.list } });
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, ui: { view: st.view, list: st.list } });
   }
 
   patch(id, field, value) {
@@ -3226,18 +3349,23 @@ class Component extends DCLogic {
     }, () => this.persist());
   }
 
-  addTask(status) {
+  addTask(status, intoList) {
     const id = 'T' + Math.floor(Math.random() * 90000 + 10000);
-    let list = this.state.list;
-    if (list === '__all') {
+    let list = intoList || this.state.list;
+    const scope = this.scopeLists();
+    if (!intoList && scope) list = scope[0] || 'Tasks';
+    if (list === '__all' || (list || '').indexOf('__space:') === 0) {
       const all = [];
       this.state.spaces.forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
       list = all[0] || 'Tasks';
     }
+    const stKey = status || 'Backlog';
+    let minPos = 0;
+    this.state.tasks.forEach(function (x) { if (x.status === stKey && (x.pos || 0) < minPos) minPos = x.pos || 0; });
     const t = {
-      id: id, list: list, name: 'New task', status: status || 'Backlog', assignee: 'Unassigned',
+      id: id, list: list, name: 'New task', status: stKey, assignee: 'Unassigned',
       start: TODAY, due: d(7), priority: 'Normal', tags: [], channel: '—', platform: '—',
-      cost: 0, qty: 1, subtasks: [], comments: [], attachments: [], desc: ''
+      cost: 0, qty: 1, pos: minPos - 1000, subtasks: [], comments: [], attachments: [], desc: ''
     };
     this.setState(function (s) { return { tasks: [t].concat(s.tasks), selected: id }; }, () => {
       this.persist();
@@ -3254,10 +3382,12 @@ class Component extends DCLogic {
         return {
           tasks: snap.tasks || [],
           spaces: (snap.spaces && snap.spaces.length) ? snap.spaces : st.spaces,
+          fields: snap.fields || st.fields || [],
           members: (snap.members && snap.members.length > 1) ? snap.members : st.members
         };
       });
     });
+    if (window.PawdySync.onStatus) window.PawdySync.onStatus(function (st) { self.setState({ sync: st }); });
     window.PawdySync.onNotifList(function (list) { self.setState({ notifs: list || [] }); });
     window.PawdySync.onNotif(function (n) {
       self.setState(function (st) { return { notifs: [n].concat(st.notifs).slice(0, 60), toast: n }; });
@@ -3265,6 +3395,109 @@ class Component extends DCLogic {
       self._toastTimer = setTimeout(function () {
         self.setState(function (s) { return s.toast && s.toast.id === n.id ? { toast: null } : {}; });
       }, 4200);
+    });
+  }
+
+  // ---- Trello-style board behaviours ----
+  openComposer(status) {
+    this._focusComposer = true;
+    this.setState({ composerCol: status, composerText: '' });
+  }
+
+  closeComposer() {
+    this.setState({ composerCol: null, composerText: '' });
+  }
+
+  addFromComposer(status) {
+    const name = (this.state.composerText || '').trim();
+    if (!name) { this.closeComposer(); return; }
+    let list = this.state.list;
+    const scope = this.scopeLists();
+    if (scope) list = scope[0] || 'Tasks';
+    if (list === '__all' || (list || '').indexOf('__space:') === 0) {
+      const all = [];
+      this.state.spaces.forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
+      list = all[0] || 'Tasks';
+    }
+    let maxPos = 0;
+    this.state.tasks.forEach(function (t) { if (t.status === status && (t.pos || 0) > maxPos) maxPos = t.pos || 0; });
+    const t = {
+      id: 'T' + Math.floor(Math.random() * 90000 + 10000),
+      list: list, name: name, status: status, assignee: 'Unassigned',
+      start: TODAY, due: d(7), priority: 'Normal', tags: [], channel: '—', platform: '—',
+      cost: 0, qty: 1, pos: maxPos + 1000, subtasks: [], comments: [], attachments: [], desc: ''
+    };
+    this._focusComposer = true;
+    this.setState(function (s) { return { tasks: s.tasks.concat([t]), composerText: '' }; }, () => this.persist());
+  }
+
+  moveCard(dragId, targetId, status) {
+    const prev = this.state.tasks.filter(function (t) { return t.id === dragId; })[0];
+    if (!prev) return;
+    this.setState(function (s) {
+      const dragged = s.tasks.filter(function (t) { return t.id === dragId; })[0];
+      if (!dragged) return {};
+      const col = s.tasks
+        .filter(function (t) { return t.status === status && t.id !== dragId; })
+        .sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
+      let idx = col.length;
+      if (targetId) {
+        const found = col.map(function (t) { return t.id; }).indexOf(targetId);
+        if (found >= 0) idx = found;
+      }
+      const arranged = col.slice(0, idx).concat([dragged]).concat(col.slice(idx));
+      const posMap = {};
+      arranged.forEach(function (t, i) { posMap[t.id] = (i + 1) * 1000; });
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (t.id === dragId) return Object.assign({}, t, { status: status, pos: posMap[t.id] });
+          if (posMap[t.id] !== undefined && posMap[t.id] !== t.pos) return Object.assign({}, t, { pos: posMap[t.id] });
+          return t;
+        })
+      };
+    }, () => {
+      this.persist();
+      if (prev.status !== status) this.notifyChange(prev, 'status', status);
+    });
+  }
+
+  addField() {
+    const name = window.prompt('ชื่อฟิลด์ใหม่ (เช่น Brief link, งบจริง, สถานะ QC)');
+    if (!name || !name.trim()) return;
+    let type = (window.prompt('ประเภทฟิลด์ — พิมพ์อย่างใดอย่างหนึ่ง: text / number / date / select', 'text') || 'text').trim().toLowerCase();
+    if (['text', 'number', 'date', 'select'].indexOf(type) < 0) type = 'text';
+    let options = [];
+    if (type === 'select') {
+      const raw = window.prompt('ตัวเลือกของ dropdown (คั่นด้วยเครื่องหมาย , )', '') || '';
+      options = raw.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      if (!options.length) type = 'text';
+    }
+    const f = { id: 'F' + Date.now(), label: name.trim(), type: type, options: options };
+    this.setState(function (st) { return { fields: (st.fields || []).concat([f]) }; }, () => this.persist());
+  }
+
+  removeField(id) {
+    const f = (this.state.fields || []).filter(function (x) { return x.id === id; })[0];
+    if (!f) return;
+    if (!window.confirm('ลบฟิลด์ "' + f.label + '" ออกจากทุก task ทั้ง workspace?')) return;
+    this.setState(function (st) {
+      return {
+        fields: (st.fields || []).filter(function (x) { return x.id !== id; }),
+        tasks: st.tasks.map(function (t) {
+          if (!t.custom || !(id in t.custom)) return t;
+          const c = Object.assign({}, t.custom);
+          delete c[id];
+          return Object.assign({}, t, { custom: c });
+        })
+      };
+    }, () => this.persist());
+  }
+
+  setCustom(taskId, fieldId, value) {
+    this.patchTask(taskId, function (t) {
+      t.custom = Object.assign({}, t.custom || {});
+      t.custom[fieldId] = value;
+      return t;
     });
   }
 
@@ -3354,12 +3587,27 @@ class Component extends DCLogic {
     return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   }
 
+  // '__all' = ทุกงาน / '__space:ชื่อ' = ทุก list ใน space นั้น / อื่นๆ = list เดียว
+  spaceSel() {
+    const v = this.state.list || '';
+    return v.indexOf('__space:') === 0 ? v.slice(8) : null;
+  }
+
+  scopeLists() {
+    const name = this.spaceSel();
+    if (!name) return null;
+    const sp = (this.state.spaces || []).filter(function (x) { return x.name === name; })[0];
+    return sp ? sp.lists : [];
+  }
+
   visibleTasks() {
     const s = this.state;
     const q = s.query.trim().toLowerCase();
     const hideDone = !!this.props.hideDone;
+    const scope = this.scopeLists();
     return s.tasks.filter(function (t) {
-      if (s.list !== '__all' && t.list !== s.list) return false;
+      if (scope) { if (scope.indexOf(t.list) < 0) return false; }
+      else if (s.list !== '__all' && t.list !== s.list) return false;
       if (hideDone && t.status === 'Done') return false;
       if (!q) return true;
       return (t.name + ' ' + t.assignee + ' ' + (t.tags || []).join(' ') + ' ' + t.channel + ' ' + t.platform).toLowerCase().indexOf(q) >= 0;
@@ -3375,6 +3623,7 @@ class Component extends DCLogic {
     const pct = t.subtasks.length ? Math.round(doneSubs / t.subtasks.length * 100) : 0;
     return {
       id: t.id, name: t.name, status: t.status, assignee: t.assignee, due: t.due,
+      pos: t.pos || 0,
       priority: t.priority, channel: t.channel, platform: t.platform,
       cost: String(t.cost), qty: String(t.qty),
       initials: this.initials(t.assignee),
@@ -3439,11 +3688,21 @@ class Component extends DCLogic {
 
     // sidebar — spaces hold any number of lists
     const spaces = s.spaces.map(function (sp, spIndex) {
+      const spActive = s.list === '__space:' + sp.name;
       return {
         name: sp.name,
         open: !!s.open[sp.name],
         caret: s.open[sp.name] ? '▾' : '▸',
+        count: s.tasks.filter(function (t) { return sp.lists.indexOf(t.list) >= 0; }).length,
+        rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;font-size:12.5px;font-weight:' + (spActive ? '600' : '500') + ';background:' + (spActive ? '#2a2e3b' : 'transparent') + ';color:' + (spActive ? '#fff' : '#e5e7eb') + ';',
         dotStyle: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + sp.color + ';',
+        onSelect: function () {
+          self.setState(function (st) {
+            const o = Object.assign({}, st.open);
+            o[sp.name] = true;
+            return { list: '__space:' + sp.name, open: o, selected: null };
+          }, () => self.persist());
+        },
         onToggle: function () {
           self.setState(function (st) {
             const o = Object.assign({}, st.open);
@@ -3471,7 +3730,7 @@ class Component extends DCLogic {
             return {
               spaces: spaces,
               tasks: st.tasks.filter(function (t) { return sp.lists.indexOf(t.list) < 0; }),
-              list: sp.lists.indexOf(st.list) >= 0 ? (remaining[0] || '__all') : st.list,
+              list: (sp.lists.indexOf(st.list) >= 0 || st.list === '__space:' + sp.name) ? (remaining[0] || '__all') : st.list,
               selected: null
             };
           }, () => self.persist());
@@ -3536,21 +3795,27 @@ class Component extends DCLogic {
     });
 
     // table groups — grouped by the groupBy prop
+    const spaceName = this.spaceSel();
+    const scopeLists = this.scopeLists();
     const groupBy = this.props.groupBy || 'Status';
-    const groupField = { Status: 'status', Assignee: 'assignee', Priority: 'priority', Channel: 'channel' }[groupBy] || 'status';
-    const groupKeys = {
+    let groupField = { Status: 'status', Assignee: 'assignee', Priority: 'priority', Channel: 'channel' }[groupBy] || 'status';
+    let groupKeys = {
       status: STATUSES.map(function (x) { return x.k; }),
       assignee: s.members.map(function (x) { return x.n; }),
       priority: PRIORITIES.map(function (x) { return x.k; }),
       channel: CHANNELS
     }[groupField];
+    if (spaceName) { groupField = 'list'; groupKeys = scopeLists || []; }
+    const spaceColor = spaceName ? ((s.spaces.filter(function (x) { return x.name === spaceName; })[0] || {}).color || '#4f46e5') : '#4f46e5';
     const groups = groupKeys.map(function (key) {
-      const list = vms.filter(function (v) { return v[groupField] === key; });
+      const list = vms.filter(function (v) { return v[groupField] === key; }).sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
       const cost = visible.filter(function (t) { return t[groupField] === key; }).reduce(function (a, t) { return a + (t.cost || 0); }, 0);
       let chipStyle;
       if (groupField === 'status') chipStyle = self.chip(key);
       else {
-        const c = groupField === 'assignee' ? self.memberMeta(key).c : (groupField === 'priority' ? self.prioMeta(key).c : '#4f46e5');
+        const c = groupField === 'assignee' ? self.memberMeta(key).c
+          : (groupField === 'priority' ? self.prioMeta(key).c
+          : (groupField === 'list' ? spaceColor : '#4f46e5'));
         chipStyle = 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + c + '15;color:' + c + ';white-space:nowrap;';
       }
       return {
@@ -3559,22 +3824,54 @@ class Component extends DCLogic {
         tasks: list,
         costLabel: cost ? self.baht(cost) + ' budgeted' : '',
         chipStyle: chipStyle,
-        onAdd: function () { self.addTask(groupField === 'status' ? key : 'Backlog'); }
+        onAdd: function () {
+          if (groupField === 'list') self.addTask('Backlog', key);
+          else self.addTask(groupField === 'status' ? key : 'Backlog');
+        }
       };
-    }).filter(function (g) { return g.count > 0 || (groupField === 'status' && s.query === ''); });
+    }).filter(function (g) { return g.count > 0 || ((groupField === 'status' || groupField === 'list') && s.query === ''); });
 
-    // board columns
+    // board columns — Trello-style: ordered cards, drop-to-position, inline composer
     const columns = STATUSES.map(function (st) {
-      const list = vms.filter(function (v) { return v.status === st.k; });
+      const list = vms
+        .filter(function (v) { return v.status === st.k; })
+        .sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); })
+        .map(function (v) {
+          return Object.assign({}, v, {
+            onDragOverCard: function (e) { e.preventDefault(); },
+            onDropCard: function (e) {
+              e.preventDefault();
+              if (e.stopPropagation) e.stopPropagation();
+              if (self.dragId) { self.moveCard(self.dragId, v.id, st.k); self.dragId = null; }
+            }
+          });
+        });
+      const composerOpen = s.composerCol === st.k;
       return {
         status: st.k, count: list.length, tasks: list,
         chipStyle: self.chip(st.k),
         style: 'flex:0 0 258px;width:258px;background:#f1f2f5;border:1px solid #e5e7eb;border-radius:10px;padding:10px;',
-        onAdd: function () { self.addTask(st.k); },
+        onAdd: function () { self.openComposer(st.k); },
+        composerOpen: composerOpen,
+        composerClosed: !composerOpen,
+        composerText: composerOpen ? s.composerText : '',
+        composerRef: function (el) {
+          if (!el) return;
+          const v = composerOpen ? s.composerText : '';
+          if (el.value !== v) el.value = v;
+          if (composerOpen && self._focusComposer) { el.focus(); self._focusComposer = false; }
+        },
+        onComposerText: function (e) { self.setState({ composerText: e.target.value }); },
+        onComposerKey: function (e) {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.addFromComposer(st.k); }
+          if (e.key === 'Escape') self.closeComposer();
+        },
+        onComposerAdd: function () { self.addFromComposer(st.k); },
+        onComposerClose: function () { self.closeComposer(); },
         onDragOver: function (e) { e.preventDefault(); },
         onDrop: function (e) {
           e.preventDefault();
-          if (self.dragId) { self.patch(self.dragId, 'status', st.k); self.dragId = null; }
+          if (self.dragId) { self.moveCard(self.dragId, null, st.k); self.dragId = null; }
         }
       };
     });
@@ -3735,6 +4032,20 @@ class Component extends DCLogic {
         tagRef: this.syncRef((sel.tags || []).join(', ')),
         descRef: this.syncRef(sel.desc),
         desc: sel.desc,
+        customFields: (s.fields || []).map(function (f) {
+          const val = (sel.custom && sel.custom[f.id] !== undefined && sel.custom[f.id] !== null) ? sel.custom[f.id] : '';
+          return {
+            label: f.label,
+            isSelect: f.type === 'select',
+            isInput: f.type !== 'select',
+            inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
+            options: [''].concat(f.options || []),
+            value: String(val),
+            valueRef: self.syncRef(String(val)),
+            onValue: function (e) { self.setCustom(sel.id, f.id, e.target.value); },
+            onRemove: function () { self.removeField(f.id); }
+          };
+        }),
         attachments: sel.attachments.map(function (a, ai) {
           return {
             name: a.name,
@@ -3886,18 +4197,18 @@ class Component extends DCLogic {
           };
         }, () => self.persist());
       },
-      canRename: s.list !== '__all',
+      canRename: s.list !== '__all' && !spaceName,
       viewTabs: tabs,
       totalCount: s.tasks.length,
       query: s.query,
       queryRef: self.syncRef(s.query),
       onQuery: function (e) { self.setState({ query: e.target.value }); },
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
-      breadcrumb: s.list === '__all' ? 'Workspace' : (listMeta ? listMeta.name + ' /' : ''),
+      breadcrumb: s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : '')),
       allLists: allLists,
-      listTitle: s.list === '__all' ? 'Everything' : s.list,
-      listTitleRef: self.syncRef(s.list === '__all' ? 'Everything' : s.list),
-      isEverything: s.list === '__all',
+      listTitle: s.list === '__all' ? 'Everything' : (spaceName || s.list),
+      listTitleRef: self.syncRef(s.list === '__all' ? 'Everything' : (spaceName || s.list)),
+      isEverything: s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
       memberChips: s.members.slice(1, 6).map(function (m) {
         return {
@@ -3983,7 +4294,10 @@ class Component extends DCLogic {
           return t;
         });
       },
-      onCloseDetail: function () { self.setState({ selected: null }); }
+      onCloseDetail: function () { self.setState({ selected: null }); },
+      onAddField: function () { self.addField(); },
+      syncLabel: ({ saving: 'กำลังบันทึก…', saved: '✓ บันทึกครบแล้ว', error: 'บันทึกไม่สำเร็จ — กำลังลองใหม่', offline: 'ออฟไลน์ — จะบันทึกเมื่อเน็ตกลับมา' })[s.sync] || '',
+      syncStyle: 'font-size:10.5px;color:' + (({ saving: '#9ca3af', saved: '#34d399', error: '#f87171', offline: '#fbbf24' })[s.sync] || '#9ca3af') + ';'
     };
   }
 }
