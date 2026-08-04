@@ -18,6 +18,220 @@ window.PAWDY_CONFIG = {
   anonKey: 'sb_publishable_FOqsERcwCXxA2LdPwVqpiA_0bmQye9r'
 };
 window.__resources = {};  /* template ฝังในไฟล์แล้ว ไม่ต้อง fetch หน้าตัวเองซ้ำ */
+
+/* ---------------- theme: light / dark / ตามระบบ ---------------- */
+(function () {
+  var KEY = 'pawdy.theme';
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var cbs = [];
+  function pref() {
+    try { var v = localStorage.getItem(KEY); return (v === 'light' || v === 'dark' || v === 'system') ? v : 'system'; }
+    catch (e) { return 'system'; }
+  }
+  function resolved() {
+    var p = pref();
+    if (p === 'system') return (mq && mq.matches) ? 'dark' : 'light';
+    return p;
+  }
+  function paint() {
+    var r = resolved();
+    document.documentElement.setAttribute('data-pw-theme', r);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', r === 'dark' ? '#0f1115' : '#f7f8fa');
+    cbs.forEach(function (f) { try { f(pref(), r); } catch (e) {} });
+  }
+  window.PawdyTheme = {
+    pref: pref,
+    resolved: resolved,
+    set: function (v) { try { localStorage.setItem(KEY, v); } catch (e) {} paint(); },
+    cycle: function () { var order = ['light', 'dark', 'system']; this.set(order[(order.indexOf(pref()) + 1) % 3]); return pref(); },
+    onChange: function (f) { cbs.push(f); }
+  };
+  if (mq && mq.addEventListener) mq.addEventListener('change', function () { if (pref() === 'system') paint(); });
+  paint();
+})();
+
+/* ---------------- xlsx writer: ไฟล์ Excel จริง ไทยไม่เพี้ยน ---------------- */
+(function () {
+  var TBL = (function () {
+    var t = [];
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(buf) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < buf.length; i++) c = TBL[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function utf8(str) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str);
+    var s = unescape(encodeURIComponent(str)), a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+  function esc(s) {
+    return String(s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function colName(n) {              // 1 -> A, 27 -> AA
+    var s = '';
+    while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = (n - m - 1) / 26; }
+    return s;
+  }
+  function serialDate(iso) {         // 'YYYY-MM-DD' -> Excel serial
+    var p = String(iso).split('-');
+    if (p.length !== 3) return null;
+    var ms = Date.UTC(+p[0], +p[1] - 1, +p[2]);
+    if (isNaN(ms)) return null;
+    return ms / 86400000 + 25569;
+  }
+
+  // zip แบบ store (ไม่บีบอัด) — Excel อ่านได้ปกติ
+  function zip(files) {
+    var chunks = [], central = [], offset = 0;
+    files.forEach(function (f) {
+      var name = utf8(f.name), data = f.data, crc = crc32(data);
+      var lh = new Uint8Array(30 + name.length), dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true);
+      dv.setUint16(8, 0, true); dv.setUint16(10, 0, true); dv.setUint16(12, 0, true);
+      dv.setUint32(14, crc, true); dv.setUint32(18, data.length, true); dv.setUint32(22, data.length, true);
+      dv.setUint16(26, name.length, true); dv.setUint16(28, 0, true);
+      lh.set(name, 30);
+      chunks.push(lh, data);
+      var cd = new Uint8Array(46 + name.length), cv = new DataView(cd.buffer);
+      cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+      cv.setUint32(16, crc, true); cv.setUint32(20, data.length, true); cv.setUint32(24, data.length, true);
+      cv.setUint16(28, name.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+      cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true);
+      cv.setUint32(42, offset, true);
+      cd.set(name, 46);
+      central.push(cd);
+      offset += lh.length + data.length;
+    });
+    var cdSize = central.reduce(function (a, c) { return a + c.length; }, 0);
+    var eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+    var total = offset + cdSize + 22, out = new Uint8Array(total), p = 0;
+    chunks.concat(central).concat([eocd]).forEach(function (c) { out.set(c, p); p += c.length; });
+    return out;
+  }
+
+  // sheets: [{ name, columns:[{label,width,type}], rows:[[...]] }]
+  function build(sheets) {
+    var files = [];
+    files.push({ name: '[Content_Types].xml', data: utf8(
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') +
+      '</Types>') });
+
+    files.push({ name: '_rels/.rels', data: utf8(
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>') });
+
+    files.push({ name: 'xl/workbook.xml', data: utf8(
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+      sheets.map(function (s, i) { return '<sheet name="' + esc((s.name || ('Sheet' + (i + 1))).slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') +
+      '</sheets></workbook>') });
+
+    files.push({ name: 'xl/_rels/workbook.xml.rels', data: utf8(
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
+      '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>') });
+
+    // 0 = ปกติ, 1 = หัวตารางตัวหนา, 2 = วันที่, 3 = ตัวเลขมีคอมมา
+    files.push({ name: 'xl/styles.xml', data: utf8(
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></numFmts>' +
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF4F46E5"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+      '<borders count="1"><border/></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="4">' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '<xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '</cellXfs>' +
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      '</styleSheet>') });
+
+    sheets.forEach(function (sh, si) {
+      var cols = sh.columns || [];
+      var xml = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'];
+      xml.push('<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>');
+      if (cols.length) {
+        xml.push('<cols>' + cols.map(function (c, i) {
+          return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + (c.width || 16) + '" customWidth="1"/>';
+        }).join('') + '</cols>');
+      }
+      xml.push('<sheetData>');
+      xml.push('<row r="1">' + cols.map(function (c, i) {
+        return '<c r="' + colName(i + 1) + '1" s="1" t="inlineStr"><is><t>' + esc(c.label == null ? '' : c.label) + '</t></is></c>';
+      }).join('') + '</row>');
+      (sh.rows || []).forEach(function (row, ri) {
+        var r = ri + 2;
+        var cells = row.map(function (v, i) {
+          var ref = colName(i + 1) + r;
+          var type = (cols[i] && cols[i].type) || 'text';
+          if (v === null || v === undefined || v === '') return '';
+          if (type === 'number') {
+            var n = Number(v);
+            if (isNaN(n)) return '<c r="' + ref + '" t="inlineStr"><is><t>' + esc(v) + '</t></is></c>';
+            return '<c r="' + ref + '" s="3"><v>' + n + '</v></c>';
+          }
+          if (type === 'date') {
+            var sd = serialDate(v);
+            if (sd === null) return '<c r="' + ref + '" t="inlineStr"><is><t>' + esc(v) + '</t></is></c>';
+            return '<c r="' + ref + '" s="2"><v>' + sd + '</v></c>';
+          }
+          return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+        }).join('');
+        xml.push('<row r="' + r + '">' + cells + '</row>');
+      });
+      xml.push('</sheetData>');
+      if (cols.length && (sh.rows || []).length) {
+        xml.push('<autoFilter ref="A1:' + colName(cols.length) + (sh.rows.length + 1) + '"/>');
+      }
+      xml.push('</worksheet>');
+      files.push({ name: 'xl/worksheets/sheet' + (si + 1) + '.xml', data: utf8(xml.join('')) });
+    });
+
+    return zip(files);
+  }
+
+  window.PawdyXlsx = {
+    build: build,
+    download: function (filename, sheets) {
+      var bytes = build(sheets);
+      var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }
+  };
+})();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -33,13 +247,14 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   var sb = null, me = null, ready = false;
   var dataCbs = [], notifCbs = [], listCbs = [];
-  var snap = { tasks: [], spaces: null, fields: null, members: [], notifs: [], ui: {} };
-  var known = { tasks: {}, spaces: null, fields: null };
+  var snap = { tasks: [], spaces: null, fields: null, config: null, members: [], notifs: [], ui: {} };
+  var known = { tasks: {}, spaces: null, fields: null, config: null };
   var touched = {};            // task id -> ts of our own last write
-  var touchedMeta = { spaces: 0, fields: 0 };
+  var touchedMeta = { spaces: 0, fields: 0, config: 0 };
   var GUARD = 5000;            // local edits win over echoes for this long
   var saveTimer = null, pending = null, refetchTimer = null;
   var statusCbs = [], syncStatus = 'saved';
+  var presenceCbs = [], online = [], presCh = null;
   function setStatus(st) {
     if (syncStatus === st) return;
     syncStatus = st;
@@ -62,9 +277,14 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     online: function () { return ready; },
     onData: function (f) { dataCbs.push(f); if (ready) f(snap); },
     onStatus: function (f) { statusCbs.push(f); f(syncStatus); },
+    onPresence: function (f) { presenceCbs.push(f); f(online); },
+    onlineNow: function () { return online; },
     onNotif: function (f) { notifCbs.push(f); },
     onNotifList: function (f) { listCbs.push(f); if (ready) f(snap.notifs); },
-    signOut: function () { if (sb) sb.auth.signOut().then(function () { localStorage.removeItem(CACHE); location.reload(); }); },
+    signOut: function () {
+      if (presCh) { try { presCh.untrack(); } catch (e) {} }
+      if (sb) sb.auth.signOut().then(function () { localStorage.removeItem(CACHE); location.reload(); });
+    },
 
     save: function (state) {
       snap.ui = state.ui || snap.ui;          // view/list choice stays personal
@@ -86,6 +306,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
         if (JSON.stringify(state.fields) !== known.fields) touchedMeta.fields = now;
         snap.fields = state.fields;
       }
+      if (state.config) {
+        if (JSON.stringify(state.config) !== known.config) touchedMeta.config = now;
+        snap.config = state.config;
+      }
       pending = state;
       setStatus('saving');
       clearTimeout(saveTimer);
@@ -99,6 +323,19 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
         to_email: n.to, to_name: n.toName || '', from_email: me.email,
         subject: n.subject || '', line: n.line || '', detail: n.detail || ''
       }).then(log);
+
+      // ส่งอีเมลจริงผ่าน Supabase Edge Function ชื่อ 'notify'
+      // ถ้ายังไม่ได้ deploy function นี้ จะเงียบไปเอง กล่องแจ้งเตือนในแอปยังทำงานปกติ
+      if (sb.functions && sb.functions.invoke) {
+        sb.functions.invoke('notify', {
+          body: {
+            to: n.to, toName: n.toName || '', fromName: me.n || me.email,
+            subject: n.subject || '', line: n.line || '', detail: n.detail || ''
+          }
+        }).then(function (r) {
+          if (r && r.error) console.warn('[mail] ยังส่งอีเมลไม่ได้:', r.error.message || r.error);
+        }).catch(function () {});
+      }
     },
 
     addMember: function (m) {
@@ -167,6 +404,15 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       }));
     }
 
+    var cf = JSON.stringify(st.config || null);
+    if (st.config && cf !== known.config) {
+      var prevCf = known.config;
+      known.config = cf;
+      ops.push(sb.from('meta').upsert({ key: 'config', doc: st.config, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
+        if (r.error) { known.config = prevCf; throw r.error; }
+      }));
+    }
+
     if (!ops.length) { setStatus('saved'); return; }
     setStatus('saving');
     Promise.all(ops).then(function () {
@@ -174,7 +420,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }).catch(function (e) {
       console.error('[sync] save failed:', e && e.message ? e.message : e);
       setStatus(navigator.onLine === false ? 'offline' : 'error');
-      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields };
+      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields, config: snap.config };
       clearTimeout(saveTimer);
       saveTimer = setTimeout(flush, 3000);   // retry until it lands
     });
@@ -229,6 +475,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     (r[1].data || []).forEach(function (m) { meta[m.key] = m.doc; });
     known.spaces = JSON.stringify(meta.spaces || null);
     known.fields = JSON.stringify(meta.fields || null);
+    known.config = JSON.stringify(meta.config || null);
 
     var members = [{ n: 'Unassigned', c: '#9ca3af' }].concat(
       (r[2].data || []).map(function (m) { return { n: m.name || m.email, c: m.color || '#4f46e5', email: m.email }; })
@@ -238,8 +485,9 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
     var spaces = (keepLocal && now - touchedMeta.spaces < GUARD && snap.spaces) ? snap.spaces : (meta.spaces || snap.spaces);
     var fields = (keepLocal && now - touchedMeta.fields < GUARD && snap.fields) ? snap.fields : (meta.fields || snap.fields);
+    var config = (keepLocal && now - touchedMeta.config < GUARD && snap.config) ? snap.config : (meta.config || snap.config);
 
-    snap = { tasks: tasks, spaces: spaces, fields: fields, members: members, notifs: notifs, ui: snap.ui || {} };
+    snap = { tasks: tasks, spaces: spaces, fields: fields, config: config, members: members, notifs: notifs, ui: snap.ui || {} };
     emit();
     listCbs.forEach(function (f) { try { f(notifs); } catch (e) {} });
   }
@@ -249,7 +497,26 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     refetchTimer = setTimeout(function () { fetchAll().then(function (r) { apply(r, true); }); }, 250);
   }
 
+  function subscribePresence() {
+    if (presCh) return;
+    presCh = sb.channel('pawdy-presence', { config: { presence: { key: me.email } } });
+    presCh.on('presence', { event: 'sync' }, function () {
+      var st = presCh.presenceState() || {};
+      var out = [];
+      Object.keys(st).forEach(function (k) {
+        var arr = st[k];
+        if (arr && arr.length) out.push({ email: (arr[0].email || k), name: arr[0].name || k, color: arr[0].color || '#4f46e5' });
+      });
+      online = out;
+      presenceCbs.forEach(function (f) { try { f(out); } catch (e) {} });
+    });
+    presCh.subscribe(function (status) {
+      if (status === 'SUBSCRIBED') presCh.track({ email: me.email, name: me.n, color: me.c, at: Date.now() });
+    });
+  }
+
   function subscribe() {
+    subscribePresence();
     sb.channel('pawdy-workspace')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meta' }, scheduleRefetch)
@@ -340,10 +607,13 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   // never lose an edit: flush when the tab hides or closes, retry when back online
   document.addEventListener('visibilitychange', function () { if (document.hidden) { clearTimeout(saveTimer); flush(); } });
-  window.addEventListener('beforeunload', function () { clearTimeout(saveTimer); flush(); });
+  window.addEventListener('beforeunload', function () {
+    clearTimeout(saveTimer); flush();
+    if (presCh) { try { presCh.untrack(); } catch (e) {} }
+  });
   window.addEventListener('offline', function () { setStatus('offline'); });
   window.addEventListener('online', function () {
-    if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields };
+    if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields, config: snap.config };
     flush();
     if (ready) fetchAll().then(function (r) { apply(r, true); });
   });
@@ -2598,19 +2868,57 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 <helmet>
 
 <style>
-  html, body { margin: 0; padding: 0; background: #f7f8fa; }
+  :root {
+    --pw-bg: #f7f8fa;
+    --pw-surface: #ffffff;
+    --pw-surface2: #fbfbfc;
+    --pw-surface3: #f1f2f5;
+    --pw-hover: #fafafe;
+    --pw-border: #e5e7eb;
+    --pw-line: #f3f4f6;
+    --pw-faint: #c9ced8;
+    --pw-text: #1f2430;
+    --pw-text2: #374151;
+    --pw-muted: #6b7280;
+    --pw-label: #8b91a0;
+    --pw-muted2: #9ca3af;
+    --pw-accent-soft: #eef2ff;
+    --pw-accent-soft2: #c7d2fe;
+    --pw-danger-soft: #fef2f2;
+    color-scheme: light;
+  }
+  :root[data-pw-theme="dark"] {
+    --pw-bg: #0f1115;
+    --pw-surface: #191c23;
+    --pw-surface2: #15181e;
+    --pw-surface3: #22262f;
+    --pw-hover: #1e222b;
+    --pw-border: #2b303b;
+    --pw-line: #232830;
+    --pw-faint: #4b5261;
+    --pw-text: #e7e9ee;
+    --pw-text2: #c6ccd7;
+    --pw-muted: #98a0af;
+    --pw-label: #8a92a2;
+    --pw-muted2: #8e96a5;
+    --pw-accent-soft: #232748;
+    --pw-accent-soft2: #3a3f7a;
+    --pw-danger-soft: #2b1a1c;
+    color-scheme: dark;
+  }
+  html, body { margin: 0; padding: 0; background: var(--pw-bg); }
   * { box-sizing: border-box; }
   a { color: #4f46e5; text-decoration: none; }
   a:hover { color: #3730a3; text-decoration: underline; }
   input, select, textarea, button { font-family: inherit; font-size: inherit; color: inherit; }
   select { appearance: none; -webkit-appearance: none; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 6px; border: 3px solid #f7f8fa; }
+  ::-webkit-scrollbar-thumb { background: var(--pw-faint); border-radius: 6px; border: 3px solid var(--pw-bg); }
   ::-webkit-scrollbar-track { background: transparent; }
 </style>
 </helmet>
 
-<div style="display: flex; height: 100vh; width: 100%; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1f2430; background: #f7f8fa; font-size: 13px;">
+<div style="display: flex; height: 100vh; width: 100%; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--pw-text); background: var(--pw-bg); font-size: 13px;">
 
   <aside style="width: 232px; flex: 0 0 232px; background: #14161c; color: #a7adba; display: flex; flex-direction: column; overflow: hidden;">
     <div style="display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-bottom: 1px solid #23262f;">
@@ -2624,7 +2932,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     <div style="padding: 10px 10px 6px;">
       <div style="display: flex; align-items: center; gap: 7px; background: #1d202a; border: 1px solid #262a35; border-radius: 6px; padding: 5px 8px;">
         <span style="color: #6c7280; font-size: 12px;">⌕</span>
-        <input ref="{{ queryRef }}" data-sync="{{ query }}" value="{{ query }}" sc-camel-on-change="{{ onQuery }}" placeholder="Search tasks" style="background: transparent; border: 0; outline: 0; color: #e5e7eb; width: 100%; font-size: 12px;">
+        <input ref="{{ queryRef }}" data-sync="{{ query }}" value="{{ query }}" sc-camel-on-change="{{ onQuery }}" placeholder="Search tasks" style="background: transparent; border: 0; outline: 0; color: var(--pw-border); width: 100%; font-size: 12px;">
       </div>
     </div>
 
@@ -2685,24 +2993,32 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   <main style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
 
-    <header style="background: #fff; border-bottom: 1px solid #e5e7eb; padding: 10px 16px 0; display: flex; flex-direction: column; gap: 9px; flex: 0 0 auto;">
+    <header style="background: var(--pw-surface); border-bottom: 1px solid var(--pw-border); padding: 10px 16px 0; display: flex; flex-direction: column; gap: 9px; flex: 0 0 auto;">
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div style="display: flex; align-items: baseline; gap: 8px; min-width: 0;">
-          <span style="font-size: 11px; color: #9ca3af;">{{ breadcrumb }}</span>
+          <span style="font-size: 11px; color: var(--pw-muted2);">{{ breadcrumb }}</span>
         </div>
         <sc-if value="{{ canRename }}" hint-placeholder-val="{{ true }}">
-          <input ref="{{ listTitleRef }}" data-sync="{{ listTitle }}" value="{{ listTitle }}" sc-camel-on-change="{{ onRenameList }}" title="Rename this list" style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px; border: 0; outline: 0; background: transparent; padding: 3px 6px; border-radius: 6px; width: 300px;" style-hover="background: #f7f8fa;" style-focus="background: #f7f8fa; box-shadow: 0 0 0 1.5px #4f46e5;">
+          <input ref="{{ listTitleRef }}" data-sync="{{ listTitle }}" value="{{ listTitle }}" sc-camel-on-change="{{ onRenameList }}" title="Rename this list" style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px; border: 0; outline: 0; background: transparent; padding: 3px 6px; border-radius: 6px; width: 300px;" style-hover="background: var(--pw-bg);" style-focus="background: var(--pw-bg); box-shadow: 0 0 0 1.5px #4f46e5;">
         </sc-if>
         <sc-if value="{{ isEverything }}" hint-placeholder-val="{{ false }}">
           <h1 style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px;">{{ listTitle }}</h1>
         </sc-if>
-        <span style="font-size: 11.5px; color: #6b7280; font-family: 'IBM Plex Mono', monospace;">{{ filteredCount }} tasks</span>
+        <span style="font-size: 11.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace;">{{ filteredCount }} tasks</span>
         <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
           <div style="display: flex; align-items: center;">
             <sc-for list="{{ memberChips }}" as="m" hint-placeholder-count="4">
-              <div title="{{ m.title }}" style="{{ m.style }}">{{ m.initials }}</div>
+              <div title="{{ m.title }}" style="{{ m.wrapStyle }}">
+                <div style="{{ m.style }}">{{ m.initials }}</div>
+                <sc-if value="{{ m.isOnline }}" hint-placeholder-val="{{ false }}">
+                  <span style="{{ m.dotStyle }}"></span>
+                </sc-if>
+              </div>
             </sc-for>
-            <button sc-camel-on-click="{{ onInviteMember }}" title="Add a member by email" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed #c9ced8; background: #fff; color: #6b7280; margin-left: -6px; cursor: pointer; font-size: 13px; line-height: 1; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
+            <span title="{{ onlineTitle }}" style="margin-left: 10px; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pw-muted); white-space: nowrap;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e;"></span>{{ onlineLabel }}
+            </span>
+            <button sc-camel-on-click="{{ onInviteMember }}" title="Add a member by email" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--pw-faint); background: var(--pw-surface); color: var(--pw-muted); margin-left: -6px; cursor: pointer; font-size: 13px; line-height: 1; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
           </div>
           <div style="position: relative; display: flex; align-items: center;">
             <button sc-camel-on-click="{{ onToggleNotif }}" title="Email notifications" style="{{ notifBellStyle }}">✉
@@ -2711,15 +3027,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </sc-if>
             </button>
             <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
-              <div style="position: absolute; top: 36px; right: 0; width: 372px; max-height: 62vh; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16); z-index: 30; display: flex; flex-direction: column; overflow: hidden;">
-                <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; background: #fbfbfc;">
+              <div style="position: absolute; top: 36px; right: 0; width: 372px; max-height: 62vh; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16); z-index: 30; display: flex; flex-direction: column; overflow: hidden;">
+                <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
                   <span style="font-size: 12px; font-weight: 600;">Email notifications</span>
-                  <span style="font-size: 10.5px; color: #9ca3af;">sent on every change</span>
-                  <button sc-camel-on-click="{{ onClearNotif }}" style="margin-left: auto; background: transparent; border: 0; color: #6b7280; font-size: 11px; cursor: pointer;" style-hover="color: #dc2626;">Clear</button>
+                  <span style="font-size: 10.5px; color: var(--pw-muted2);">sent on every change</span>
+                  <button sc-camel-on-click="{{ onClearNotif }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted); font-size: 11px; cursor: pointer;" style-hover="color: #dc2626;">Clear</button>
                 </div>
                 <div style="overflow-y: auto;">
                   <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}">
-                    <div style="padding: 22px 14px; text-align: center; font-size: 12px; color: #9ca3af;">No emails yet. Change a status, assignee, due date or priority and the update is mailed to the assignee.</div>
+                    <div style="padding: 22px 14px; text-align: center; font-size: 12px; color: var(--pw-muted2);">No emails yet. Change a status, assignee, due date or priority and the update is mailed to the assignee.</div>
                   </sc-if>
                   <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="3">
                     <div style="{{ n.rowStyle }}">
@@ -2727,15 +3043,42 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
                         <div style="display: flex; align-items: baseline; gap: 8px;">
                           <span style="font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.to }}</span>
-                          <span style="margin-left: auto; font-size: 10.5px; color: #9ca3af; font-family: 'IBM Plex Mono', monospace; flex: 0 0 auto;">{{ n.when }}</span>
+                          <span style="margin-left: auto; font-size: 10.5px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace; flex: 0 0 auto;">{{ n.when }}</span>
                         </div>
-                        <span style="font-size: 12px; color: #1f2430; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.subject }}</span>
+                        <span style="font-size: 12px; color: var(--pw-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.subject }}</span>
                         <span style="font-size: 11.5px; color: #4f46e5; font-weight: 500;">{{ n.line }}</span>
-                        <span style="font-size: 11px; color: #9ca3af; line-height: 1.4;">{{ n.detail }}</span>
+                        <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.4;">{{ n.detail }}</span>
                       </div>
                     </div>
                   </sc-for>
                 </div>
+              </div>
+            </sc-if>
+          </div>
+          <button sc-camel-on-click="{{ onToggleTheme }}" title="{{ themeTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ themeIcon }}</button>
+          <button sc-camel-on-click="{{ onExport }}" title="ดาวน์โหลดงานที่เห็นอยู่เป็นไฟล์ Excel (.xlsx)" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">⤓</button>
+          <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}">
+            <button sc-camel-on-click="{{ onToggleSettings }}" title="ตั้งค่า workspace (admin)" style="{{ settingsBtnStyle }}">⚙</button>
+          </sc-if>
+          <div style="position: relative; display: flex; align-items: center;">
+            <button sc-camel-on-click="{{ onToggleMeMenu }}" title="{{ meTitle }}" style="{{ meBtnStyle }}">
+              <span style="{{ meChipStyle }}">{{ meInitials }}</span>
+              <span style="font-size: 12px; font-weight: 500; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ meName }}</span>
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></span>
+            </button>
+            <sc-if value="{{ meMenuOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position: absolute; top: 38px; right: 0; width: 244px; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16); z-index: 40; overflow: hidden;">
+                <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
+                  <span style="{{ meAvatarStyle }}">{{ meInitials }}</span>
+                  <div style="display: flex; flex-direction: column; min-width: 0;">
+                    <span style="font-size: 12.5px; font-weight: 600;">{{ meName }}</span>
+                    <span style="font-size: 10.5px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ meEmail }}</span>
+                  </div>
+                </div>
+                <div style="padding: 8px 12px; display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--pw-muted);">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e;"></span>{{ meRoleLabel }}
+                </div>
+                <button sc-camel-on-click="{{ onSignOut }}" style="width: 100%; text-align: left; background: transparent; border: 0; border-top: 1px solid var(--pw-line); padding: 10px 12px; font-size: 12px; color: #b91c1c; cursor: pointer;" style-hover="background: var(--pw-danger-soft);">ออกจากระบบ</button>
               </div>
             </sc-if>
           </div>
@@ -2757,59 +3100,57 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     <section style="flex: 1; min-height: 0; overflow: auto; padding: 0;">
 
       <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
-        <div style="min-width: 1500px;">
-          <div style="display: grid; grid-template-columns: 26px minmax(240px, 2fr) 126px 136px 110px 102px 158px 132px 114px 112px 90px 56px 92px; align-items: center; gap: 0; padding: 0 12px; height: 32px; background: #fbfbfc; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 3; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">
-            <span></span><span>Task name</span><span>Status</span><span>Assignee</span><span>Due date</span><span>Priority</span><span>Tags</span><span>List</span><span>Channel</span><span>Platform</span><span style="text-align: right; padding-right: 10px;">Cost (฿)</span><span style="text-align: right; padding-right: 8px;">Qty</span><span style="text-align: right;">Activity</span>
+        <div style="{{ tableWrapStyle }}">
+          <div style="{{ tableGridStyle }}">
+            <span></span><span>Task name</span>
+            <sc-for list="{{ tableCols }}" as="hc" hint-placeholder-count="11">
+              <span draggable="true" sc-camel-on-drag-start="{{ hc.onDragStart }}" sc-camel-on-drag-over="{{ hc.onDragOver }}" sc-camel-on-drop="{{ hc.onDrop }}" sc-camel-on-drag-end="{{ hc.onDragEnd }}" title="ลากเพื่อย้ายคอลัมน์" style="{{ hc.style }}">
+                <span style="opacity: 0.45; font-size: 9px; letter-spacing: -1px;">⠿</span>{{ hc.label }}
+              </span>
+            </sc-for>
           </div>
 
           <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
             <div style="display: flex; flex-direction: column;">
-              <div style="display: flex; align-items: center; gap: 9px; padding: 7px 12px; background: #fff; border-bottom: 1px solid #eef0f3; position: sticky; top: 32px; z-index: 2;">
+              <div style="display: flex; align-items: center; gap: 9px; padding: 7px 12px; background: var(--pw-surface); border-bottom: 1px solid var(--pw-line); position: sticky; top: 32px; z-index: 2;">
                 <span style="{{ group.chipStyle }}">{{ group.status }}</span>
-                <span style="font-size: 11px; color: #9ca3af; font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
-                <span style="font-size: 11px; color: #9ca3af;">{{ group.costLabel }}</span>
-                <button sc-camel-on-click="{{ group.onAdd }}" style="background: transparent; border: 0; color: #9ca3af; cursor: pointer; font-size: 11.5px; padding: 2px 6px; border-radius: 4px;" style-hover="background: #f1f2f5; color: #4f46e5;">+ Add task</button>
+                <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
+                <span style="font-size: 11px; color: var(--pw-muted2);">{{ group.costLabel }}</span>
+                <button sc-camel-on-click="{{ group.onAdd }}" style="background: transparent; border: 0; color: var(--pw-muted2); cursor: pointer; font-size: 11.5px; padding: 2px 6px; border-radius: 4px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+ Add task</button>
               </div>
 
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
-                <div draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: #fafafe;">
+                <div draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button sc-camel-on-click="{{ row.onCycleStatus }}" title="Advance status" style="{{ row.checkStyle }}"></button>
                   <div style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px;">
-                    <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: #fff; box-shadow: 0 0 0 1.5px #4f46e5;">
-                    <button sc-camel-on-click="{{ row.onOpen }}" style="flex: 0 0 auto; background: transparent; border: 1px solid #e5e7eb; color: #6b7280; border-radius: 4px; font-size: 10.5px; padding: 2px 6px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
+                    <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                    <button sc-camel-on-click="{{ row.onOpen }}" style="flex: 0 0 auto; background: transparent; border: 1px solid var(--pw-border); color: var(--pw-muted); border-radius: 4px; font-size: 10.5px; padding: 2px 6px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
                   </div>
-                  <sc-raw-select ref="{{ row.statusRef }}" data-sync="{{ row.status }}" value="{{ row.status }}" sc-camel-on-change="{{ row.onStatus }}" style="{{ row.statusStyle }}">
-                    <sc-for list="{{ statusNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
-                  </sc-raw-select>
-                  <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
-                    <span style="{{ row.avatarStyle }}">{{ row.initials }}</span>
-                    <sc-raw-select ref="{{ row.assigneeRef }}" data-sync="{{ row.assignee }}" value="{{ row.assignee }}" sc-camel-on-change="{{ row.onAssignee }}" style="background: transparent; border: 0; outline: 0; font-size: 12px; color: #374151; cursor: pointer; max-width: 88px;">
-                      <sc-for list="{{ memberNames }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-                    </sc-raw-select>
-                  </div>
-                  <input ref="{{ row.dueRef }}" data-sync="{{ row.due }}" type="date" value="{{ row.due }}" sc-camel-on-change="{{ row.onDue }}" style="{{ row.dueInputStyle }}">
-                  <sc-raw-select ref="{{ row.priorityRef }}" data-sync="{{ row.priority }}" value="{{ row.priority }}" sc-camel-on-change="{{ row.onPriority }}" style="{{ row.priorityStyle }}">
-                    <sc-for list="{{ priorityNames }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
-                  </sc-raw-select>
-                  <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; padding-right: 8px;">
-                    <input ref="{{ row.tagRef }}" data-sync="{{ row.tagText }}" value="{{ row.tagText }}" sc-camel-on-change="{{ row.onTagsText }}" placeholder="+ tag" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 11.5px; color: #4f46e5; padding: 3px 5px; border-radius: 4px;" style-focus="background: #fff; box-shadow: 0 0 0 1.5px #4f46e5; color: #1f2430;">
-                  </div>
-                  <sc-raw-select ref="{{ row.listRef }}" data-sync="{{ row.list }}" value="{{ row.list }}" sc-camel-on-change="{{ row.onList }}" title="Move to another list" style="background: transparent; border: 0; outline: 0; font-size: 12px; color: #374151; cursor: pointer; max-width: 124px;">
-                    <sc-for list="{{ allLists }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-                  </sc-raw-select>
-                  <sc-raw-select ref="{{ row.channelRef }}" data-sync="{{ row.channel }}" value="{{ row.channel }}" sc-camel-on-change="{{ row.onChannel }}" style="background: transparent; border: 0; outline: 0; font-size: 12px; color: #374151; cursor: pointer; max-width: 108px;">
-                    <sc-for list="{{ channelNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
-                  </sc-raw-select>
-                  <sc-raw-select ref="{{ row.platformRef }}" data-sync="{{ row.platform }}" value="{{ row.platform }}" sc-camel-on-change="{{ row.onPlatform }}" style="background: transparent; border: 0; outline: 0; font-size: 12px; color: #374151; cursor: pointer; max-width: 106px;">
-                    <sc-for list="{{ platformNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
-                  </sc-raw-select>
-                  <input ref="{{ row.costRef }}" data-sync="{{ row.cost }}" value="{{ row.cost }}" sc-camel-on-change="{{ row.onCost }}" style="width: 100%; background: transparent; border: 0; outline: 0; text-align: right; padding-right: 10px; font-size: 12px; font-family: 'IBM Plex Mono', monospace;" style-focus="background: #fff; box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
-                  <input ref="{{ row.qtyRef }}" data-sync="{{ row.qty }}" value="{{ row.qty }}" sc-camel-on-change="{{ row.onQty }}" style="width: 100%; background: transparent; border: 0; outline: 0; text-align: right; padding-right: 8px; font-size: 12px; font-family: 'IBM Plex Mono', monospace;" style-focus="background: #fff; box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
-                  <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: #9ca3af; font-size: 11px; font-family: 'IBM Plex Mono', monospace;">
-                    <span title="Subtasks">☑ {{ row.subLabel }}</span>
-                    <span title="Comments">💬 {{ row.commentCount }}</span>
-                    <button sc-camel-on-click="{{ row.onDelete }}" title="Delete task" style="background: transparent; border: 0; color: #c9ced8; cursor: pointer; font-size: 13px; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
-                  </div>
+                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="8">
+                    <sc-if value="{{ cell.isSelect }}" hint-placeholder-val="{{ true }}">
+                      <sc-raw-select ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" value="{{ cell.value }}" sc-camel-on-change="{{ cell.onChange }}" style="{{ cell.style }}">
+                        <sc-for list="{{ cell.options }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+                    <sc-if value="{{ cell.isAssignee }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                        <span style="{{ cell.avatarStyle }}">{{ cell.initials }}</span>
+                        <sc-raw-select ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" value="{{ cell.value }}" sc-camel-on-change="{{ cell.onChange }}" style="{{ cell.style }}">
+                          <sc-for list="{{ cell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+                        </sc-raw-select>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ cell.isInput }}" hint-placeholder-val="{{ false }}">
+                      <input ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" type="{{ cell.inputType }}" value="{{ cell.value }}" placeholder="{{ cell.placeholder }}" sc-camel-on-change="{{ cell.onChange }}" sc-camel-on-click="{{ cell.onPick }}" style="{{ cell.style }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px; color: var(--pw-text);">
+                    </sc-if>
+                    <sc-if value="{{ cell.isActivity }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--pw-muted2); font-size: 11px; font-family: 'IBM Plex Mono', monospace;">
+                        <span title="Subtasks">☑ {{ cell.subLabel }}</span>
+                        <span title="Comments">💬 {{ cell.commentCount }}</span>
+                        <button sc-camel-on-click="{{ cell.onDelete }}" title="Delete task" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+                      </div>
+                    </sc-if>
+                  </sc-for>
                 </div>
               </sc-for>
             </div>
@@ -2824,12 +3165,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <div sc-camel-on-drag-over="{{ col.onDragOver }}" sc-camel-on-drop="{{ col.onDrop }}" style="{{ col.style }}">
               <div style="display: flex; align-items: center; gap: 8px; padding: 2px 2px 10px;">
                 <span style="{{ col.chipStyle }}">{{ col.status }}</span>
-                <span style="font-size: 11px; color: #9ca3af; font-family: 'IBM Plex Mono', monospace;">{{ col.count }}</span>
-                <button sc-camel-on-click="{{ col.onAdd }}" style="margin-left: auto; background: transparent; border: 0; color: #9ca3af; cursor: pointer; font-size: 15px; line-height: 1;" style-hover="color: #4f46e5;">+</button>
+                <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ col.count }}</span>
+                <button sc-camel-on-click="{{ col.onAdd }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); cursor: pointer; font-size: 15px; line-height: 1;" style-hover="color: #4f46e5;">+</button>
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
-                  <div draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: #c7d2fe; box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                  <div draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -2839,13 +3180,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                         <span style="{{ tag.style }}">{{ tag.label }}</span>
                       </sc-for>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 9px; color: #9ca3af; font-size: 10.5px; font-family: 'IBM Plex Mono', monospace;">
+                    <div style="display: flex; align-items: center; gap: 9px; color: var(--pw-muted2); font-size: 10.5px; font-family: 'IBM Plex Mono', monospace;">
                       <span style="{{ card.avatarStyle }}">{{ card.initials }}</span>
                       <span style="{{ card.dueStyle }}">{{ card.dueLabel }}</span>
                       <span style="margin-left: auto;">☑ {{ card.subLabel }}</span>
                       <span>💬 {{ card.commentCount }}</span>
                     </div>
-                    <div style="height: 3px; border-radius: 3px; background: #eef0f3; overflow: hidden;">
+                    <div style="height: 3px; border-radius: 3px; background: var(--pw-line); overflow: hidden;">
                       <div style="{{ card.progressStyle }}"></div>
                     </div>
                   </div>
@@ -2853,15 +3194,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <sc-if value="{{ col.composerOpen }}" hint-placeholder-val="{{ false }}">
                 <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
-                  <textarea ref="{{ col.composerRef }}" data-sync="{{ col.composerText }}" value="{{ col.composerText }}" sc-camel-on-change="{{ col.onComposerText }}" sc-camel-on-key-down="{{ col.onComposerKey }}" rows="2" placeholder="พิมพ์ชื่องาน แล้วกด Enter…" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; resize: none; outline: 0; background: #fff; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
+                  <textarea ref="{{ col.composerRef }}" data-sync="{{ col.composerText }}" value="{{ col.composerText }}" sc-camel-on-change="{{ col.onComposerText }}" sc-camel-on-key-down="{{ col.onComposerKey }}" rows="2" placeholder="พิมพ์ชื่องาน แล้วกด Enter…" style="border: 1px solid var(--pw-border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; resize: none; outline: 0; background: var(--pw-surface); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <button sc-camel-on-click="{{ col.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">Add card</button>
-                    <button sc-camel-on-click="{{ col.onComposerClose }}" style="background: transparent; border: 0; color: #6b7280; font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px;" style-hover="color: #1f2430;">×</button>
+                    <button sc-camel-on-click="{{ col.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted); font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px;" style-hover="color: var(--pw-text);">×</button>
                   </div>
                 </div>
               </sc-if>
               <sc-if value="{{ col.composerClosed }}" hint-placeholder-val="{{ true }}">
-                <button sc-camel-on-click="{{ col.onAdd }}" style="margin-top: 8px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px; color: #6b7280; cursor: pointer;" style-hover="background: #e2e4ea; color: #1f2430;">+ Add a card</button>
+                <button sc-camel-on-click="{{ col.onAdd }}" style="margin-top: 8px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 6px 8px; font-size: 12px; color: var(--pw-muted); cursor: pointer;" style-hover="background: var(--pw-surface3); color: var(--pw-text);">+ Add a card</button>
               </sc-if>
             </div>
           </sc-for>
@@ -2871,14 +3212,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ true }}">
         <div style="padding: 14px 16px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-            <button sc-camel-on-click="{{ onPrevMonth }}" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: #6b7280;" style-hover="border-color: #4f46e5; color: #4f46e5;">‹</button>
+            <button sc-camel-on-click="{{ onPrevMonth }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">‹</button>
             <span style="font-size: 13.5px; font-weight: 600;">{{ monthLabel }}</span>
-            <button sc-camel-on-click="{{ onNextMonth }}" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: #6b7280;" style-hover="border-color: #4f46e5; color: #4f46e5;">›</button>
-            <span style="font-size: 11px; color: #9ca3af;">Drag a task onto a day to reschedule it</span>
+            <button sc-camel-on-click="{{ onNextMonth }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">›</button>
+            <span style="font-size: 11px; color: var(--pw-muted2);">Drag a task onto a day to reschedule it</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden;">
             <sc-for list="{{ weekdayNames }}" as="wd" hint-placeholder-count="7">
-              <div style="padding: 7px 9px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600; border-bottom: 1px solid #e5e7eb; background: #fbfbfc;">{{ wd }}</div>
+              <div style="padding: 7px 9px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">{{ wd }}</div>
             </sc-for>
             <sc-for list="{{ calendarDays }}" as="day" hint-placeholder-count="35">
               <div sc-camel-on-drag-over="{{ day.onDragOver }}" sc-camel-on-drop="{{ day.onDrop }}" style="{{ day.style }}">
@@ -2898,28 +3239,34 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
       <sc-if value="{{ isTimeline }}" hint-placeholder-val="{{ true }}">
         <div style="padding: 14px 16px;">
-          <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; min-width: 900px;">
-            <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid #e5e7eb; background: #fbfbfc;">
-              <div style="padding: 8px 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Task</div>
+          <div style="font-size: 11px; color: var(--pw-muted2); margin-bottom: 8px;">ลากขอบซ้าย/ขวาของแถบเพื่อย่อ-ขยายวัน · ลากกลางแถบเพื่อเลื่อนทั้งงาน</div>
+          <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden; min-width: 900px;">
+            <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
+              <div style="padding: 8px 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Task</div>
               <div style="display: flex;">
                 <sc-for list="{{ timelineWeeks }}" as="wk" hint-placeholder-count="8">
-                  <div style="flex: 1; padding: 8px 8px; font-size: 10.5px; color: #8b91a0; font-weight: 600; border-left: 1px solid #eef0f3;">{{ wk.label }}</div>
+                  <div style="flex: 1; padding: 8px 8px; font-size: 10.5px; color: var(--pw-label); font-weight: 600; border-left: 1px solid var(--pw-line);">{{ wk.label }}</div>
                 </sc-for>
               </div>
             </div>
             <sc-for list="{{ ganttRows }}" as="g" hint-placeholder-count="10">
-              <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid #f3f4f6; align-items: center;">
+              <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: center;">
                 <div style="display: flex; align-items: center; gap: 7px; padding: 6px 12px; min-width: 0;">
                   <span style="{{ g.dot }}"></span>
                   <span style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ g.name }}</span>
                 </div>
-                <div style="position: relative; height: 30px;">
+                <div data-gantt-track="1" style="position: relative; height: 30px;">
                   <div style="position: absolute; inset: 0; display: flex;">
                     <sc-for list="{{ timelineWeeks }}" as="wk" hint-placeholder-count="8">
-                      <div style="flex: 1; border-left: 1px solid #f3f4f6;"></div>
+                      <div style="flex: 1; border-left: 1px solid var(--pw-line);"></div>
                     </sc-for>
                   </div>
-                  <div sc-camel-on-click="{{ g.onOpen }}" style="{{ g.barStyle }}" title="{{ g.rangeLabel }}">{{ g.barLabel }}</div>
+                  <div sc-camel-on-click="{{ g.onOpen }}" sc-camel-on-pointer-down="{{ g.onBarDown }}" style="{{ g.barStyle }}" title="{{ g.rangeLabel }}">
+                    <div sc-camel-on-pointer-down="{{ g.onLeftDown }}" title="ลากเพื่อปรับวันเริ่ม" style="{{ g.handleLeftStyle }}"></div>
+                    {{ g.barLabel }}
+                    <div sc-camel-on-pointer-down="{{ g.onRightDown }}" title="ลากเพื่อปรับวันครบกำหนด" style="{{ g.handleRightStyle }}"></div>
+                  </div>
+                  <span style="{{ g.outsideStyle }}">{{ g.outsideLabel }}</span>
                 </div>
               </div>
             </sc-for>
@@ -2931,8 +3278,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
             <sc-for list="{{ statCards }}" as="c" hint-placeholder-count="4">
-              <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 13px 14px; display: flex; flex-direction: column; gap: 5px;">
-                <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">{{ c.label }}</span>
+              <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 13px 14px; display: flex; flex-direction: column; gap: 5px;">
+                <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">{{ c.label }}</span>
                 <span style="font-size: 25px; font-weight: 600; letter-spacing: -0.5px; font-family: 'IBM Plex Mono', monospace;">{{ c.value }}</span>
                 <span style="{{ c.subStyle }}">{{ c.sub }}</span>
               </div>
@@ -2940,11 +3287,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;">
-            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;">
+            <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 14px;">
               <h3 style="margin: 0 0 12px; font-size: 12.5px; font-weight: 600;">Tasks by status</h3>
               <div style="display: flex; align-items: center; gap: 18px;">
                 <div style="{{ donutStyle }}">
-                  <div style="position: absolute; inset: 22px; background: #fff; border-radius: 50%; display: grid; place-items: center; flex-direction: column;">
+                  <div style="position: absolute; inset: 22px; background: var(--pw-surface); border-radius: 50%; display: grid; place-items: center; flex-direction: column;">
                     <span style="font-size: 19px; font-weight: 600; font-family: 'IBM Plex Mono', monospace;">{{ donutTotal }}</span>
                   </div>
                 </div>
@@ -2953,46 +3300,46 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
                       <span style="{{ s.dot }}"></span>
                       <span>{{ s.label }}</span>
-                      <span style="margin-left: auto; color: #6b7280; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;">{{ s.value }}</span>
+                      <span style="margin-left: auto; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;">{{ s.value }}</span>
                     </div>
                   </sc-for>
                 </div>
               </div>
             </div>
 
-            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;">
+            <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 14px;">
               <h3 style="margin: 0 0 12px; font-size: 12.5px; font-weight: 600;">Workload by assignee</h3>
               <div style="display: flex; flex-direction: column; gap: 9px;">
                 <sc-for list="{{ workload }}" as="w" hint-placeholder-count="5">
                   <div style="display: flex; align-items: center; gap: 9px;">
-                    <span style="font-size: 11.5px; width: 74px; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ w.name }}</span>
-                    <div style="flex: 1; height: 8px; background: #f1f2f5; border-radius: 5px; overflow: hidden;">
+                    <span style="font-size: 11.5px; width: 74px; color: var(--pw-text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ w.name }}</span>
+                    <div style="flex: 1; height: 8px; background: var(--pw-surface3); border-radius: 5px; overflow: hidden;">
                       <div style="{{ w.barStyle }}"></div>
                     </div>
-                    <span style="font-size: 11.5px; color: #6b7280; font-family: 'IBM Plex Mono', monospace; width: 22px; text-align: right;">{{ w.count }}</span>
+                    <span style="font-size: 11.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace; width: 22px; text-align: right;">{{ w.count }}</span>
                   </div>
                 </sc-for>
               </div>
             </div>
 
-            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;">
+            <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 14px;">
               <h3 style="margin: 0 0 12px; font-size: 12.5px; font-weight: 600;">Budget by channel</h3>
               <div style="display: flex; align-items: flex-end; gap: 10px; height: 148px;">
                 <sc-for list="{{ channelBars }}" as="b" hint-placeholder-count="5">
                   <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
-                    <span style="font-size: 10.5px; color: #6b7280; font-family: 'IBM Plex Mono', monospace;">{{ b.value }}</span>
+                    <span style="font-size: 10.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace;">{{ b.value }}</span>
                     <div style="{{ b.barStyle }}"></div>
-                    <span style="font-size: 10.5px; color: #8b91a0; text-align: center; line-height: 1.2;">{{ b.label }}</span>
+                    <span style="font-size: 10.5px; color: var(--pw-label); text-align: center; line-height: 1.2;">{{ b.label }}</span>
                   </div>
                 </sc-for>
               </div>
             </div>
 
-            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px;">
+            <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 14px;">
               <h3 style="margin: 0 0 12px; font-size: 12.5px; font-weight: 600;">Needs attention</h3>
               <div style="display: flex; flex-direction: column; gap: 1px;">
                 <sc-for list="{{ attention }}" as="a" hint-placeholder-count="5">
-                  <button sc-camel-on-click="{{ a.onOpen }}" style="display: flex; align-items: center; gap: 9px; background: transparent; border: 0; border-bottom: 1px solid #f3f4f6; padding: 7px 2px; cursor: pointer; text-align: left; width: 100%;" style-hover="background: #fafafe;">
+                  <button sc-camel-on-click="{{ a.onOpen }}" style="display: flex; align-items: center; gap: 9px; background: transparent; border: 0; border-bottom: 1px solid var(--pw-line); padding: 7px 2px; cursor: pointer; text-align: left; width: 100%;" style-hover="background: var(--pw-hover);">
                     <span style="{{ a.dot }}"></span>
                     <span style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ a.name }}</span>
                     <span style="margin-left: auto; font-size: 11px; color: #dc2626; font-family: 'IBM Plex Mono', monospace; flex: 0 0 auto;">{{ a.note }}</span>
@@ -3007,139 +3354,234 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </main>
 
   <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
-    <aside style="width: 400px; flex: 0 0 400px; background: #fff; border-left: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; box-shadow: -8px 0 24px rgba(16, 24, 40, 0.06);">
-      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid #e5e7eb;">
+    <aside style="width: 400px; flex: 0 0 400px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden; box-shadow: -8px 0 24px rgba(16, 24, 40, 0.06);">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border);">
         <span style="{{ detail.statusChip }}">{{ detail.status }}</span>
-        <span style="font-size: 11px; color: #9ca3af; font-family: 'IBM Plex Mono', monospace;">{{ detail.code }}</span>
-        <button sc-camel-on-click="{{ onCloseDetail }}" style="margin-left: auto; background: transparent; border: 0; font-size: 17px; color: #9ca3af; cursor: pointer; line-height: 1;" style-hover="color: #1f2430;">×</button>
+        <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ detail.code }}</span>
+        <button sc-camel-on-click="{{ onCloseDetail }}" style="margin-left: auto; background: transparent; border: 0; font-size: 17px; color: var(--pw-muted2); cursor: pointer; line-height: 1;" style-hover="color: var(--pw-text);">×</button>
       </div>
 
       <div style="flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 16px;">
-        <input ref="{{ detail.nameRef }}" data-sync="{{ detail.name }}" value="{{ detail.name }}" sc-camel-on-change="{{ detail.onName }}" style="border: 0; outline: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px; padding: 4px 6px; border-radius: 6px; background: transparent;" style-focus="background: #f7f8fa; box-shadow: 0 0 0 1.5px #4f46e5;">
+        <input ref="{{ detail.nameRef }}" data-sync="{{ detail.name }}" value="{{ detail.name }}" sc-camel-on-change="{{ detail.onName }}" style="border: 0; outline: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px; padding: 4px 6px; border-radius: 6px; background: transparent;" style-focus="background: var(--pw-bg); box-shadow: 0 0 0 1.5px #4f46e5;">
 
         <div style="display: grid; grid-template-columns: 88px 1fr; gap: 8px 10px; align-items: center; font-size: 12px;">
-          <span style="color: #8b91a0;">List</span>
-          <sc-raw-select ref="{{ detail.listRef }}" data-sync="{{ detail.list }}" value="{{ detail.list }}" sc-camel-on-change="{{ detail.onList }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff; cursor: pointer;">
+          <span style="color: var(--pw-label);">List</span>
+          <sc-raw-select ref="{{ detail.listRef }}" data-sync="{{ detail.list }}" value="{{ detail.list }}" sc-camel-on-change="{{ detail.onList }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
             <sc-for list="{{ allLists }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
-          <span style="color: #8b91a0;">Status</span>
+          <span style="color: var(--pw-label);">Status</span>
           <sc-raw-select ref="{{ detail.statusRef }}" data-sync="{{ detail.status }}" value="{{ detail.status }}" sc-camel-on-change="{{ detail.onStatus }}" style="{{ detail.statusSelect }}">
             <sc-for list="{{ statusNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
-          <span style="color: #8b91a0;">Assignee</span>
-          <sc-raw-select ref="{{ detail.assigneeRef }}" data-sync="{{ detail.assignee }}" value="{{ detail.assignee }}" sc-camel-on-change="{{ detail.onAssignee }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff; cursor: pointer;">
+          <span style="color: var(--pw-label);">Assignee</span>
+          <sc-raw-select ref="{{ detail.assigneeRef }}" data-sync="{{ detail.assignee }}" value="{{ detail.assignee }}" sc-camel-on-change="{{ detail.onAssignee }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
             <sc-for list="{{ memberNames }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
-          <span style="color: #8b91a0;">Priority</span>
+          <span style="color: var(--pw-label);">Priority</span>
           <sc-raw-select ref="{{ detail.priorityRef }}" data-sync="{{ detail.priority }}" value="{{ detail.priority }}" sc-camel-on-change="{{ detail.onPriority }}" style="{{ detail.prioritySelect }}">
             <sc-for list="{{ priorityNames }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
-          <span style="color: #8b91a0;">Start date</span>
-          <input ref="{{ detail.startRef }}" data-sync="{{ detail.start }}" type="date" value="{{ detail.start }}" sc-camel-on-change="{{ detail.onStart }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff;">
-          <span style="color: #8b91a0;">Due date</span>
-          <input ref="{{ detail.dueRef }}" data-sync="{{ detail.due }}" type="date" value="{{ detail.due }}" sc-camel-on-change="{{ detail.onDue }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff;">
-          <span style="color: #8b91a0;">Channel</span>
-          <sc-raw-select ref="{{ detail.channelRef }}" data-sync="{{ detail.channel }}" value="{{ detail.channel }}" sc-camel-on-change="{{ detail.onChannel }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff; cursor: pointer;">
+          <span style="color: var(--pw-label);">Start date</span>
+          <input ref="{{ detail.startRef }}" data-sync="{{ detail.start }}" type="date" value="{{ detail.start }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onStart }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface);">
+          <span style="color: var(--pw-label);">Due date</span>
+          <input ref="{{ detail.dueRef }}" data-sync="{{ detail.due }}" type="date" value="{{ detail.due }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onDue }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface);">
+          <span style="color: var(--pw-label);">Channel</span>
+          <sc-raw-select ref="{{ detail.channelRef }}" data-sync="{{ detail.channel }}" value="{{ detail.channel }}" sc-camel-on-change="{{ detail.onChannel }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
             <sc-for list="{{ channelNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
-          <span style="color: #8b91a0;">Platform</span>
-          <sc-raw-select ref="{{ detail.platformRef }}" data-sync="{{ detail.platform }}" value="{{ detail.platform }}" sc-camel-on-change="{{ detail.onPlatform }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff; cursor: pointer;">
+          <span style="color: var(--pw-label);">Platform</span>
+          <sc-raw-select ref="{{ detail.platformRef }}" data-sync="{{ detail.platform }}" value="{{ detail.platform }}" sc-camel-on-change="{{ detail.onPlatform }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
             <sc-for list="{{ platformNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
-          <span style="color: #8b91a0;">Cost (฿)</span>
-          <input ref="{{ detail.costRef }}" data-sync="{{ detail.cost }}" value="{{ detail.cost }}" sc-camel-on-change="{{ detail.onCost }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
-          <span style="color: #8b91a0;">Quantity</span>
-          <input ref="{{ detail.qtyRef }}" data-sync="{{ detail.qty }}" value="{{ detail.qty }}" sc-camel-on-change="{{ detail.onQty }}" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
-          <span style="color: #8b91a0;">Tags</span>
-          <input ref="{{ detail.tagRef }}" data-sync="{{ detail.tagText }}" value="{{ detail.tagText }}" sc-camel-on-change="{{ detail.onTags }}" placeholder="comma, separated" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px;">
+          <span style="color: var(--pw-label);">Cost (฿)</span>
+          <input ref="{{ detail.costRef }}" data-sync="{{ detail.cost }}" value="{{ detail.cost }}" sc-camel-on-change="{{ detail.onCost }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
+          <span style="color: var(--pw-label);">Quantity</span>
+          <input ref="{{ detail.qtyRef }}" data-sync="{{ detail.qty }}" value="{{ detail.qty }}" sc-camel-on-change="{{ detail.onQty }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
+          <span style="color: var(--pw-label);">Tags</span>
+          <input ref="{{ detail.tagRef }}" data-sync="{{ detail.tagText }}" value="{{ detail.tagText }}" sc-camel-on-change="{{ detail.onTags }}" placeholder="comma, separated" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px;">
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Custom Fields</span>
-            <button sc-camel-on-click="{{ onAddField }}" style="margin-left: auto; background: transparent; border: 1px dashed #d1d5db; border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: #6b7280; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Add field</button>
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Custom Fields</span>
+            <button sc-camel-on-click="{{ onAddField }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Add field</button>
           </div>
           <sc-for list="{{ detail.customFields }}" as="cf" hint-placeholder-count="2">
             <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
-              <span style="width: 104px; flex: 0 0 104px; color: #8b91a0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ cf.label }}">{{ cf.label }}</span>
+              <span style="width: 104px; flex: 0 0 104px; color: var(--pw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ cf.label }}">{{ cf.label }}</span>
               <sc-if value="{{ cf.isSelect }}" hint-placeholder-val="{{ false }}">
-                <sc-raw-select ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; background: #fff; cursor: pointer;">
+                <sc-raw-select ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
                   <sc-for list="{{ cf.options }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
                 </sc-raw-select>
               </sc-if>
               <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
-                <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
+                <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-click="{{ cf.onPick }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
               </sc-if>
-              <button sc-camel-on-click="{{ cf.onRemove }}" title="Remove this field everywhere" style="background: transparent; border: 0; color: #c9ced8; cursor: pointer; font-size: 13px; flex: 0 0 auto;" style-hover="color: #dc2626;">×</button>
+              <button sc-camel-on-click="{{ cf.onRemove }}" title="Remove this field everywhere" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; flex: 0 0 auto;" style-hover="color: #dc2626;">×</button>
             </div>
           </sc-for>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 6px;">
-          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Description</span>
-          <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="3" style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 7px 9px; font-size: 12px; line-height: 1.5; resize: vertical; outline: 0;" style-focus="border-color: #4f46e5;"></textarea>
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Description</span>
+          <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="3" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 7px 9px; font-size: 12px; line-height: 1.5; resize: vertical; outline: 0;" style-focus="border-color: #4f46e5;"></textarea>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Subtasks</span>
-            <span style="font-size: 11px; color: #9ca3af; font-family: 'IBM Plex Mono', monospace;">{{ detail.subLabel }}</span>
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Subtasks</span>
+            <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ detail.subLabel }}</span>
           </div>
           <sc-for list="{{ detail.subtasks }}" as="st" hint-placeholder-count="3">
             <div style="display: flex; align-items: center; gap: 8px; padding: 3px 0;">
               <button sc-camel-on-click="{{ st.onToggle }}" style="{{ st.boxStyle }}">{{ st.mark }}</button>
               <input ref="{{ st.titleRef }}" data-sync="{{ st.title }}" value="{{ st.title }}" sc-camel-on-change="{{ st.onTitle }}" style="{{ st.textStyle }}">
-              <button sc-camel-on-click="{{ st.onDelete }}" style="background: transparent; border: 0; color: #c9ced8; cursor: pointer; font-size: 13px;" style-hover="color: #dc2626;">×</button>
+              <button sc-camel-on-click="{{ st.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px;" style-hover="color: #dc2626;">×</button>
             </div>
           </sc-for>
           <div style="display: flex; gap: 6px;">
-            <input ref="{{ newSubtaskRef }}" data-sync="{{ newSubtask }}" value="{{ newSubtask }}" sc-camel-on-change="{{ onNewSubtask }}" sc-camel-on-key-down="{{ onSubtaskKey }}" placeholder="Add a subtask…" style="flex: 1; border: 1px solid #e5e7eb; border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
-            <button sc-camel-on-click="{{ onAddSubtask }}" style="background: #f1f2f5; border: 0; border-radius: 6px; padding: 5px 11px; font-size: 12px; cursor: pointer; color: #374151;" style-hover="background: #e5e7eb;">Add</button>
+            <input ref="{{ newSubtaskRef }}" data-sync="{{ newSubtask }}" value="{{ newSubtask }}" sc-camel-on-change="{{ onNewSubtask }}" sc-camel-on-key-down="{{ onSubtaskKey }}" placeholder="Add a subtask…" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
+            <button sc-camel-on-click="{{ onAddSubtask }}" style="background: var(--pw-surface3); border: 0; border-radius: 6px; padding: 5px 11px; font-size: 12px; cursor: pointer; color: var(--pw-text2);" style-hover="background: var(--pw-border);">Add</button>
           </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
-          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Attachments</span>
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Attachments</span>
           <div style="display: flex; flex-wrap: wrap; gap: 6px;">
             <sc-for list="{{ detail.attachments }}" as="att" hint-placeholder-count="2">
-              <span style="display: flex; align-items: center; gap: 6px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 8px; font-size: 11.5px; color: #374151; background: #fbfbfc;">
-                <span style="color: #9ca3af;">🖇</span>
-                <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="border: 0; outline: 0; background: transparent; font-size: 11.5px; width: 96px;" style-focus="background: #fff; box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
-                <button sc-camel-on-click="{{ att.onDelete }}" style="background: transparent; border: 0; color: #c9ced8; cursor: pointer; font-size: 12px; line-height: 1;" style-hover="color: #dc2626;">×</button>
+              <span style="display: flex; align-items: center; gap: 6px; border: 1px solid var(--pw-border); border-radius: 6px; padding: 4px 8px; font-size: 11.5px; color: var(--pw-text2); background: var(--pw-surface2);">
+                <span style="color: var(--pw-muted2);">🖇</span>
+                <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="border: 0; outline: 0; background: transparent; font-size: 11.5px; width: 96px;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
+                <button sc-camel-on-click="{{ att.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 12px; line-height: 1;" style-hover="color: #dc2626;">×</button>
               </span>
             </sc-for>
-            <button sc-camel-on-click="{{ onAddAttachment }}" style="border: 1px dashed #d1d5db; background: transparent; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; color: #6b7280; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Attach file</button>
+            <button sc-camel-on-click="{{ onAddAttachment }}" style="border: 1px dashed var(--pw-faint); background: transparent; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Attach file</button>
           </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 9px;">
-          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #8b91a0; font-weight: 600;">Activity</span>
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Activity</span>
           <sc-for list="{{ detail.comments }}" as="cm" hint-placeholder-count="2">
             <div style="display: flex; gap: 9px;">
               <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>
               <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
-                <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span style="color: #9ca3af;">{{ cm.when }}</span></span>
-                <textarea ref="{{ cm.textRef }}" data-sync="{{ cm.text }}" value="{{ cm.text }}" sc-camel-on-change="{{ cm.onText }}" rows="2" style="border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; font-size: 12px; line-height: 1.5; color: #374151; background: transparent; resize: vertical; outline: 0; width: 100%;" style-focus="border-color: #4f46e5; background: #fff;"></textarea>
+                <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
+                <textarea ref="{{ cm.textRef }}" data-sync="{{ cm.text }}" value="{{ cm.text }}" sc-camel-on-change="{{ cm.onText }}" rows="2" style="border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; font-size: 12px; line-height: 1.5; color: var(--pw-text2); background: transparent; resize: vertical; outline: 0; width: 100%;" style-focus="border-color: #4f46e5; background: var(--pw-surface);"></textarea>
               </div>
-              <button sc-camel-on-click="{{ cm.onDelete }}" title="Delete comment" style="background: transparent; border: 0; color: #c9ced8; cursor: pointer; font-size: 13px; line-height: 1; height: 16px;" style-hover="color: #dc2626;">×</button>
+              <button sc-camel-on-click="{{ cm.onDelete }}" title="Delete comment" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1; height: 16px;" style-hover="color: #dc2626;">×</button>
             </div>
           </sc-for>
           <div style="display: flex; gap: 6px;">
-            <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="Write a comment…" style="flex: 1; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 9px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
+            <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="Write a comment…" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 6px; padding: 6px 9px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
             <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">Send</button>
           </div>
         </div>
       </div>
 
-      <div style="border-top: 1px solid #e5e7eb; padding: 9px 14px; display: flex; align-items: center; gap: 8px;">
-        <button sc-camel-on-click="{{ detail.onDelete }}" style="background: transparent; border: 1px solid #e5e7eb; color: #b91c1c; border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer;" style-hover="border-color: #dc2626; background: #fef2f2;">Delete task</button>
-        <span style="margin-left: auto; font-size: 11px; color: #9ca3af;">Synced to workspace</span>
+      <div style="border-top: 1px solid var(--pw-border); padding: 9px 14px; display: flex; align-items: center; gap: 8px;">
+        <button sc-camel-on-click="{{ detail.onDelete }}" style="background: transparent; border: 1px solid var(--pw-border); color: #b91c1c; border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer;" style-hover="border-color: #dc2626; background: var(--pw-danger-soft);">Delete task</button>
+        <span style="margin-left: auto; font-size: 11px; color: var(--pw-muted2);">Synced to workspace</span>
+      </div>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+    <aside style="width: 356px; flex: 0 0 356px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
+        <span style="font-size: 13px; font-weight: 600;">ตั้งค่า workspace</span>
+        <span style="font-size: 10.5px; color: var(--pw-muted2);">admin เท่านั้น · ทุกคนเห็นผลทันที</span>
+        <button sc-camel-on-click="{{ onCloseSettings }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 16px; line-height: 1; cursor: pointer;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 18px;">
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Status</span>
+            <button sc-camel-on-click="{{ settings.onAddStatus }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่ม</button>
+          </div>
+          <sc-for list="{{ settings.statuses }}" as="st" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <span style="{{ st.chipStyle }}">{{ st.label }}</span>
+              <button sc-camel-on-click="{{ st.onMarkDone }}" title="ให้ถือว่าสถานะนี้คือเสร็จงาน" style="{{ st.doneStyle }}">{{ st.doneMark }}</button>
+              <button sc-camel-on-click="{{ st.onRename }}" title="เปลี่ยนชื่อ" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 11px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">✎</button>
+              <button sc-camel-on-click="{{ st.onDelete }}" title="ลบ" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Priority</span>
+            <button sc-camel-on-click="{{ settings.onAddPriority }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่ม</button>
+          </div>
+          <sc-for list="{{ settings.priorities }}" as="pr" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <span style="{{ pr.chipStyle }}">{{ pr.label }}</span>
+              <button sc-camel-on-click="{{ pr.onRename }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 11px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">✎</button>
+              <button sc-camel-on-click="{{ pr.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Channel</span>
+            <button sc-camel-on-click="{{ settings.onAddChannel }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่ม</button>
+          </div>
+          <sc-for list="{{ settings.channels }}" as="ch" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 7px; font-size: 12px;">
+              <span>{{ ch.label }}</span>
+              <button sc-camel-on-click="{{ ch.onRename }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 11px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">✎</button>
+              <button sc-camel-on-click="{{ ch.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Platform</span>
+            <button sc-camel-on-click="{{ settings.onAddPlatform }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่ม</button>
+          </div>
+          <sc-for list="{{ settings.platforms }}" as="pf" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 7px; font-size: 12px;">
+              <span>{{ pf.label }}</span>
+              <button sc-camel-on-click="{{ pf.onRename }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 11px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">✎</button>
+              <button sc-camel-on-click="{{ pf.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">คอลัมน์ในหน้า Table</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <sc-for list="{{ settings.columns }}" as="cl" hint-placeholder-count="11">
+              <button sc-camel-on-click="{{ cl.onToggle }}" style="{{ cl.style }}">{{ cl.mark }} {{ cl.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">สิทธิ์ทีม</span>
+          <sc-if value="{{ settings.adminsUnset }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 11px; color: #d97706; line-height: 1.45;">ยังไม่ได้กำหนด admin — ตอนนี้ทุกคนแก้ตั้งค่าได้ กดปุ่มด้านล่างเพื่อกำหนดว่าใครเป็น admin</span>
+          </sc-if>
+          <sc-for list="{{ settings.admins }}" as="ad" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+              <div style="display: flex; flex-direction: column; min-width: 0;">
+                <span style="font-weight: 500;">{{ ad.name }}</span>
+                <span style="font-size: 10.5px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ad.email }}</span>
+              </div>
+              <button sc-camel-on-click="{{ ad.onToggle }}" style="{{ ad.style }}">{{ ad.mark }}</button>
+            </div>
+          </sc-for>
+        </div>
+
       </div>
     </aside>
   </sc-if>
 
   <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
-    <div style="position: fixed; bottom: 18px; right: 18px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; background: #14161c; color: #e5e7eb; border: 1px solid #2a2e3b; border-radius: 10px; padding: 11px 13px; max-width: 340px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);">
+    <div style="position: fixed; bottom: 18px; right: 18px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; background: #14161c; color: var(--pw-border); border: 1px solid #2a2e3b; border-radius: 10px; padding: 11px 13px; max-width: 340px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);">
       <span style="width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 12px;">✉</span>
       <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
         <span style="font-size: 11.5px; font-weight: 600; color: #fff;">Email sent to {{ toast.to }}</span>
@@ -3158,9 +3600,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const STATUSES = [
   { k: 'Backlog', c: '#94a3b8', bg: '#f1f5f9' },
-  { k: 'In Progress', c: '#4f46e5', bg: '#eef2ff' },
+  { k: 'In Progress', c: '#4f46e5', bg: 'var(--pw-accent-soft)' },
   { k: 'Review', c: '#d97706', bg: '#fffbeb' },
-  { k: 'Blocked', c: '#dc2626', bg: '#fef2f2' },
+  { k: 'Blocked', c: '#dc2626', bg: 'var(--pw-danger-soft)' },
   { k: 'Done', c: '#059669', bg: '#ecfdf5' }
 ];
 const PRIORITIES = [
@@ -3170,7 +3612,7 @@ const PRIORITIES = [
   { k: 'Low', c: '#64748b' }
 ];
 const MEMBERS = [
-  { n: 'Unassigned', c: '#9ca3af' },
+  { n: 'Unassigned', c: 'var(--pw-muted2)' },
   { n: 'Nan P.', c: '#7c3aed', email: 'nan.p@pawdy.co.th' },
   { n: 'Beam S.', c: '#0891b2', email: 'beam.s@pawdy.co.th' },
   { n: 'Ploy T.', c: '#db2777', email: 'ploy.t@pawdy.co.th' },
@@ -3179,6 +3621,22 @@ const MEMBERS = [
 ];
 const CHANNELS = ['—', 'Shopee', 'Lazada', 'TikTok Shop', 'Website', 'Retail', 'LINE OA'];
 const PLATFORMS = ['—', 'Instagram', 'Facebook', 'TikTok', 'Email', 'YouTube'];
+const COL_DEFS = [
+  { k: 'status',   label: 'Status',     w: 126 },
+  { k: 'assignee', label: 'Assignee',   w: 136 },
+  { k: 'due',      label: 'Due date',   w: 110 },
+  { k: 'priority', label: 'Priority',   w: 102 },
+  { k: 'tags',     label: 'Tags',       w: 158 },
+  { k: 'list',     label: 'List',       w: 132 },
+  { k: 'channel',  label: 'Channel',    w: 114 },
+  { k: 'platform', label: 'Platform',   w: 112 },
+  { k: 'cost',     label: 'Cost (฿)',   w: 90 },
+  { k: 'qty',      label: 'Qty',        w: 56 },
+  { k: 'activity', label: 'Activity',   w: 92 }
+];
+const COL_KEYS = COL_DEFS.map(function (c) { return c.k; });
+function colDef(k) { return COL_DEFS.filter(function (c) { return c.k === k; })[0]; }
+
 const TAG_COLORS = ['#4f46e5', '#0891b2', '#db2777', '#059669', '#d97706', '#7c3aed', '#dc2626'];
 
 const SPACES = [
@@ -3264,6 +3722,12 @@ class Component extends DCLogic {
       spaces: (snap.spaces && snap.spaces.length) ? snap.spaces : JSON.parse(JSON.stringify(SPACES)),
       tasks: snap.tasks || [],
       fields: snap.fields || [],
+      config: snap.config || null,
+      settingsOpen: false,
+      colDrag: null,
+      meMenuOpen: false,
+      theme: (window.PawdyTheme ? window.PawdyTheme.pref() : 'system'),
+      online: (window.PawdySync.onlineNow ? window.PawdySync.onlineNow() : []),
       view: ui.view || 'table',
       list: ui.list || 'Q3 Campaigns',
       open: { Marketing: true, Product: true, Operations: true },
@@ -3281,7 +3745,7 @@ class Component extends DCLogic {
 
   persist(next) {
     const st = Object.assign({}, this.state, next || {});
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, ui: { view: st.view, list: st.list } });
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, ui: { view: st.view, list: st.list } });
   }
 
   patch(id, field, value) {
@@ -3383,11 +3847,14 @@ class Component extends DCLogic {
           tasks: snap.tasks || [],
           spaces: (snap.spaces && snap.spaces.length) ? snap.spaces : st.spaces,
           fields: snap.fields || st.fields || [],
+          config: snap.config || st.config || null,
           members: (snap.members && snap.members.length > 1) ? snap.members : st.members
         };
       });
     });
     if (window.PawdySync.onStatus) window.PawdySync.onStatus(function (st) { self.setState({ sync: st }); });
+    if (window.PawdySync.onPresence) window.PawdySync.onPresence(function (list) { self.setState({ online: list || [] }); });
+    if (window.PawdyTheme) window.PawdyTheme.onChange(function (pref) { self.setState({ theme: pref }); });
     window.PawdySync.onNotifList(function (list) { self.setState({ notifs: list || [] }); });
     window.PawdySync.onNotif(function (n) {
       self.setState(function (st) { return { notifs: [n].concat(st.notifs).slice(0, 60), toast: n }; });
@@ -3461,6 +3928,269 @@ class Component extends DCLogic {
     });
   }
 
+  // ---- export ไป Excel (.xlsx จริง ไม่ใช่ CSV เปลี่ยนนามสกุล) ----
+  exportXlsx() {
+    if (!window.PawdyXlsx) { window.alert('ตัวสร้างไฟล์ Excel โหลดไม่สำเร็จ ลอง refresh หน้าเว็บ'); return; }
+    const self = this;
+    const fields = this.state.fields || [];
+    const spaceOf = function (listName) {
+      const sp = (self.state.spaces || []).filter(function (x) { return x.lists.indexOf(listName) >= 0; })[0];
+      return sp ? sp.name : '';
+    };
+    const columns = [
+      { label: 'รหัสงาน', width: 11 },
+      { label: 'Space', width: 16 },
+      { label: 'List', width: 20 },
+      { label: 'ชื่องาน', width: 46 },
+      { label: 'สถานะ', width: 14 },
+      { label: 'ผู้รับผิดชอบ', width: 16 },
+      { label: 'ความสำคัญ', width: 12 },
+      { label: 'วันเริ่ม', width: 12, type: 'date' },
+      { label: 'วันครบกำหนด', width: 13, type: 'date' },
+      { label: 'เลยกำหนด', width: 10 },
+      { label: 'Tags', width: 22 },
+      { label: 'Channel', width: 14 },
+      { label: 'Platform', width: 14 },
+      { label: 'งบ (฿)', width: 12, type: 'number' },
+      { label: 'จำนวน', width: 9, type: 'number' },
+      { label: 'Subtask เสร็จ', width: 11, type: 'number' },
+      { label: 'Subtask ทั้งหมด', width: 12, type: 'number' },
+      { label: 'คอมเมนต์', width: 9, type: 'number' },
+      { label: 'ไฟล์แนบ', width: 26 },
+      { label: 'รายละเอียด', width: 50 }
+    ].concat(fields.map(function (f) { return { label: f.label, width: 18, type: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text') }; }));
+
+    const rows = this.visibleTasks().map(function (t) {
+      const done = (t.subtasks || []).filter(function (x) { return x.done; }).length;
+      const base = [
+        t.id, spaceOf(t.list), t.list, t.name, t.status, t.assignee, t.priority,
+        t.start, t.due,
+        (t.due < TODAY && !self.isDone(t.status)) ? 'ใช่' : '',
+        (t.tags || []).join(', '), t.channel, t.platform,
+        t.cost || 0, t.qty || 0,
+        done, (t.subtasks || []).length, (t.comments || []).length,
+        (t.attachments || []).map(function (a) { return a.name; }).join(', '),
+        t.desc || ''
+      ];
+      return base.concat(fields.map(function (f) {
+        const v = t.custom ? t.custom[f.id] : '';
+        return (v === undefined || v === null) ? '' : v;
+      }));
+    });
+
+    const scope = this.state.list === '__all' ? 'ทุกงาน' : (this.spaceSel() || this.state.list);
+    const safe = String(scope).replace(/[\\/:*?"<>|]/g, '-');
+    const stamp = TODAY;
+    window.PawdyXlsx.download('Pawdy_' + safe + '_' + stamp + '.xlsx', [{ name: 'Tasks', columns: columns, rows: rows }]);
+  }
+
+  // ---- ลากปรับวันบน Timeline: ขอบซ้าย = วันเริ่ม, ขอบขวา = วันครบกำหนด, กลาง = เลื่อนทั้งงาน ----
+  beginGantt(e, id, mode, totalDays) {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+    const node = e.currentTarget;
+    const track = node && node.closest ? node.closest('[data-gantt-track]') : null;
+    const width = track ? track.getBoundingClientRect().width : 0;
+    if (!width) return;
+    const pxPerDay = width / totalDays;
+    const t0 = this.state.tasks.filter(function (t) { return t.id === id; })[0];
+    if (!t0) return;
+
+    const self = this;
+    const orig = { start: t0.start, due: t0.due };
+    const startX = e.clientX;
+    let lastDelta = 0;
+    self._ganttMoved = false;
+
+    const shift = function (base, days) {
+      const dt = new Date(base + 'T00:00:00');
+      dt.setDate(dt.getDate() + days);
+      return dt.toISOString().slice(0, 10);
+    };
+
+    const onMove = function (ev) {
+      const delta = Math.round((ev.clientX - startX) / pxPerDay);
+      if (delta === lastDelta) return;
+      lastDelta = delta;
+      if (delta !== 0) self._ganttMoved = true;
+      let ns = orig.start, nd = orig.due;
+      if (mode === 'move') { ns = shift(orig.start, delta); nd = shift(orig.due, delta); }
+      else if (mode === 'left') { ns = shift(orig.start, delta); if (ns > nd) ns = nd; }
+      else { nd = shift(orig.due, delta); if (nd < ns) nd = ns; }
+      self.patchTask(id, function (t) { t.start = ns; t.due = nd; return t; });
+    };
+
+    const onUp = function () {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      const t1 = self.state.tasks.filter(function (t) { return t.id === id; })[0];
+      if (t1 && t1.due !== orig.due) {
+        self.notifyChange(Object.assign({}, t1, { due: orig.due }), 'due', t1.due);
+      }
+    };
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  }
+
+  // ---- admin: option sets, columns, admins ----
+  guardAdmin() {
+    if (this.isAdmin()) return true;
+    window.alert('เฉพาะ admin เท่านั้นที่แก้ส่วนนี้ได้');
+    return false;
+  }
+
+  addStatus() {
+    if (!this.guardAdmin()) return;
+    const name = (window.prompt('ชื่อสถานะใหม่') || '').trim();
+    if (!name) return;
+    const L = this.statuses();
+    if (L.filter(function (x) { return x.k === name; }).length) { window.alert('มีสถานะชื่อนี้อยู่แล้ว'); return; }
+    const pal = [['#4f46e5', 'var(--pw-accent-soft)'], ['#0891b2', '#ecfeff'], ['#d97706', '#fffbeb'], ['#dc2626', 'var(--pw-danger-soft)'],
+                 ['#059669', '#ecfdf5'], ['#7c3aed', '#f5f3ff'], ['#db2777', '#fdf2f8'], ['#64748b', '#f1f5f9']];
+    const p = pal[L.length % pal.length];
+    this.saveCfg({ statuses: L.concat([{ k: name, c: p[0], bg: p[1] }]) });
+  }
+
+  renameStatus(oldKey) {
+    if (!this.guardAdmin()) return;
+    const name = (window.prompt('เปลี่ยนชื่อสถานะ', oldKey) || '').trim();
+    if (!name || name === oldKey) return;
+    const L = this.statuses();
+    if (L.filter(function (x) { return x.k === name; }).length) { window.alert('มีสถานะชื่อนี้อยู่แล้ว'); return; }
+    const wasDone = this.doneKey() === oldKey;
+    this.setState(function (s) {
+      return { tasks: s.tasks.map(function (t) { return t.status === oldKey ? Object.assign({}, t, { status: name }) : t; }) };
+    }, () => {
+      this.saveCfg({
+        statuses: L.map(function (x) { return x.k === oldKey ? Object.assign({}, x, { k: name }) : x; }),
+        doneStatus: wasDone ? name : this.doneKey()
+      });
+    });
+  }
+
+  removeStatus(key) {
+    if (!this.guardAdmin()) return;
+    const L = this.statuses();
+    if (L.length < 2) { window.alert('ต้องเหลือสถานะไว้อย่างน้อย 1 อัน'); return; }
+    const n = this.state.tasks.filter(function (t) { return t.status === key; }).length;
+    const rest = L.filter(function (x) { return x.k !== key; });
+    if (!window.confirm('ลบสถานะ "' + key + '"?' + (n ? ' งาน ' + n + ' ชิ้นจะถูกย้ายไป "' + rest[0].k + '"' : ''))) return;
+    this.setState(function (s) {
+      return { tasks: s.tasks.map(function (t) { return t.status === key ? Object.assign({}, t, { status: rest[0].k }) : t; }) };
+    }, () => {
+      this.saveCfg({ statuses: rest, doneStatus: this.doneKey() === key ? rest[rest.length - 1].k : this.doneKey() });
+    });
+  }
+
+  markDone(key) {
+    if (!this.guardAdmin()) return;
+    this.saveCfg({ doneStatus: key });
+  }
+
+  addPriority() {
+    if (!this.guardAdmin()) return;
+    const name = (window.prompt('ชื่อระดับความสำคัญใหม่') || '').trim();
+    if (!name) return;
+    const L = this.priorities();
+    if (L.filter(function (x) { return x.k === name; }).length) return;
+    const pal = ['#dc2626', '#ea580c', '#2563eb', '#64748b', '#7c3aed', '#059669'];
+    this.saveCfg({ priorities: L.concat([{ k: name, c: pal[L.length % pal.length] }]) });
+  }
+
+  renamePriority(oldKey) {
+    if (!this.guardAdmin()) return;
+    const name = (window.prompt('เปลี่ยนชื่อระดับความสำคัญ', oldKey) || '').trim();
+    if (!name || name === oldKey) return;
+    const L = this.priorities();
+    this.setState(function (s) {
+      return { tasks: s.tasks.map(function (t) { return t.priority === oldKey ? Object.assign({}, t, { priority: name }) : t; }) };
+    }, () => this.saveCfg({ priorities: L.map(function (x) { return x.k === oldKey ? Object.assign({}, x, { k: name }) : x; }) }));
+  }
+
+  removePriority(key) {
+    if (!this.guardAdmin()) return;
+    const L = this.priorities();
+    if (L.length < 2) { window.alert('ต้องเหลือไว้อย่างน้อย 1 อัน'); return; }
+    const rest = L.filter(function (x) { return x.k !== key; });
+    const n = this.state.tasks.filter(function (t) { return t.priority === key; }).length;
+    if (!window.confirm('ลบ "' + key + '"?' + (n ? ' งาน ' + n + ' ชิ้นจะย้ายไป "' + rest[0].k + '"' : ''))) return;
+    this.setState(function (s) {
+      return { tasks: s.tasks.map(function (t) { return t.priority === key ? Object.assign({}, t, { priority: rest[0].k }) : t; }) };
+    }, () => this.saveCfg({ priorities: rest }));
+  }
+
+  // channels / platforms เป็น array ของ string โดยตัวแรกคือ '—'
+  addOption(which) {
+    if (!this.guardAdmin()) return;
+    const label = which === 'channels' ? 'ช่องทางขาย' : 'แพลตฟอร์ม';
+    const name = (window.prompt('เพิ่ม' + label + 'ใหม่') || '').trim();
+    if (!name) return;
+    const L = which === 'channels' ? this.channels() : this.platforms();
+    if (L.indexOf(name) >= 0) return;
+    const part = {};
+    part[which] = L.concat([name]);
+    this.saveCfg(part);
+  }
+
+  renameOption(which, oldVal) {
+    if (!this.guardAdmin()) return;
+    if (oldVal === '—') return;
+    const name = (window.prompt('เปลี่ยนชื่อ', oldVal) || '').trim();
+    if (!name || name === oldVal) return;
+    const L = which === 'channels' ? this.channels() : this.platforms();
+    const field = which === 'channels' ? 'channel' : 'platform';
+    this.setState(function (s) {
+      return { tasks: s.tasks.map(function (t) { return t[field] === oldVal ? Object.assign({}, t, ((o) => { o[field] = name; return o; })({})) : t; }) };
+    }, () => {
+      const part = {};
+      part[which] = L.map(function (x) { return x === oldVal ? name : x; });
+      this.saveCfg(part);
+    });
+  }
+
+  removeOption(which, val) {
+    if (!this.guardAdmin()) return;
+    if (val === '—') { window.alert('ตัวเลือก "—" (ไม่ระบุ) ลบไม่ได้'); return; }
+    const L = which === 'channels' ? this.channels() : this.platforms();
+    const field = which === 'channels' ? 'channel' : 'platform';
+    const n = this.state.tasks.filter(function (t) { return t[field] === val; }).length;
+    if (!window.confirm('ลบ "' + val + '"?' + (n ? ' งาน ' + n + ' ชิ้นจะกลับเป็น "—"' : ''))) return;
+    this.setState(function (s) {
+      return { tasks: s.tasks.map(function (t) { return t[field] === val ? Object.assign({}, t, ((o) => { o[field] = '—'; return o; })({})) : t; }) };
+    }, () => {
+      const part = {};
+      part[which] = L.filter(function (x) { return x !== val; });
+      this.saveCfg(part);
+    });
+  }
+
+  toggleCol(key) {
+    if (!this.guardAdmin()) return;
+    const c = this.cols();
+    const next = Object.assign({}, c);
+    next[key] = !c[key];
+    this.saveCfg({ cols: next });
+  }
+
+  toggleAdmin(email) {
+    if (!this.guardAdmin()) return;
+    const e = String(email || '').toLowerCase();
+    if (!e) return;
+    const a = this.adminList();
+    let next;
+    if (a.indexOf(e) >= 0) {
+      if (a.length < 2) { window.alert('ต้องมี admin เหลืออย่างน้อย 1 คน'); return; }
+      next = a.filter(function (x) { return x !== e; });
+    } else {
+      next = a.concat([e]);
+    }
+    this.saveCfg({ admins: next });
+  }
+
   addField() {
     const name = window.prompt('ชื่อฟิลด์ใหม่ (เช่น Brief link, งบจริง, สถานะ QC)');
     if (!name || !name.trim()) return;
@@ -3501,6 +4231,13 @@ class Component extends DCLogic {
     });
   }
 
+  // คลิกที่ตัวเลขวันที่ = เปิดปฏิทินให้เลย ไม่ต้องเล็งไอคอน
+  openPicker(e) {
+    const el = e && e.currentTarget;
+    if (!el) return;
+    try { if (el.showPicker) el.showPicker(); } catch (err) {}
+  }
+
   me() { return window.PawdySync.me(); }
   componentDidUpdate() { this.syncDom(); }
 
@@ -3520,8 +4257,84 @@ class Component extends DCLogic {
     return function (el) { if (el && el.value !== val) el.value = val; };
   }
 
-  statusMeta(k) { return STATUSES.filter(function (s) { return s.k === k; })[0] || STATUSES[0]; }
-  prioMeta(k) { return PRIORITIES.filter(function (p) { return p.k === k; })[0] || PRIORITIES[2]; }
+  // ---- shared, admin-editable configuration ----
+  cfg() { return this.state.config || {}; }
+  statuses() { const v = this.cfg().statuses; return (v && v.length) ? v : STATUSES; }
+  priorities() { const v = this.cfg().priorities; return (v && v.length) ? v : PRIORITIES; }
+  channels() { const v = this.cfg().channels; return (v && v.length) ? v : CHANNELS; }
+  platforms() { const v = this.cfg().platforms; return (v && v.length) ? v : PLATFORMS; }
+  doneKey() { return this.cfg().doneStatus || 'Done'; }
+  isDone(st) { return st === this.doneKey(); }
+  cols() {
+    return Object.assign({
+      status: true, assignee: true, due: true, priority: true, tags: true,
+      list: true, channel: true, platform: true, cost: true, qty: true, activity: true
+    }, this.cfg().cols || {});
+  }
+  colOrder() {
+    const saved = (this.cfg().colOrder || []).filter(function (k) { return COL_KEYS.indexOf(k) >= 0; });
+    const rest = COL_KEYS.filter(function (k) { return saved.indexOf(k) < 0; });
+    return saved.concat(rest);
+  }
+  activeCols() {
+    const c = this.cols();
+    return this.colOrder().filter(function (k) { return !!c[k]; });
+  }
+  gridCols() {
+    const parts = ['26px', 'minmax(240px, 2fr)'];
+    this.activeCols().forEach(function (k) { parts.push(colDef(k).w + 'px'); });
+    return parts.join(' ');
+  }
+  tableWidth() {
+    let sum = 26 + 240 + 40;
+    this.activeCols().forEach(function (k) { sum += colDef(k).w; });
+    return sum;
+  }
+  // ย้ายคอลัมน์ — ทุกคนทำได้ ไม่ต้องเป็น admin
+  moveCol(fromKey, toKey) {
+    if (!fromKey || fromKey === toKey) return;
+    const order = this.colOrder().filter(function (k) { return k !== fromKey; });
+    const at = toKey ? order.indexOf(toKey) : order.length;
+    order.splice(at < 0 ? order.length : at, 0, fromKey);
+    this.saveCfg({ colOrder: order });
+  }
+  buildOpts() {
+    const allLists = [];
+    (this.state.spaces || []).forEach(function (sp) { sp.lists.forEach(function (l) { allLists.push(l); }); });
+    this._opt = {
+      status: this.statuses().map(function (x) { return x.k; }),
+      priority: this.priorities().map(function (x) { return x.k; }),
+      members: (this.state.members || []).map(function (x) { return x.n; }).concat([ADD_MEMBER]),
+      lists: allLists,
+      channels: this.channels(),
+      platforms: this.platforms()
+    };
+    return this._opt;
+  }
+  adminList() {
+    const a = this.cfg().admins;
+    return (a && a.length) ? a.map(function (x) { return String(x).toLowerCase(); }) : [];
+  }
+  adminsUnset() { return this.adminList().length === 0; }
+  isAdmin() {
+    const a = this.adminList();
+    if (!a.length) return true;   // ยังไม่กำหนด = ทุกคนเป็น admin กันล็อกตัวเองออก
+    return a.indexOf(String(this.me().email || '').toLowerCase()) >= 0;
+  }
+  saveCfg(part) {
+    const cur = this.adminList();
+    const mine = String(this.me().email || '').toLowerCase();
+    const base = Object.assign({
+      statuses: this.statuses(), priorities: this.priorities(),
+      channels: this.channels(), platforms: this.platforms(),
+      cols: this.cols(), colOrder: this.colOrder(), doneStatus: this.doneKey(),
+      admins: cur.length ? cur : (mine ? [mine] : [])   // คนแรกที่ตั้งค่า = admin คนแรก
+    }, part || {});
+    this.setState({ config: base }, () => this.persist());
+  }
+
+  statusMeta(k) { const L = this.statuses(); return L.filter(function (s) { return s.k === k; })[0] || L[0]; }
+  prioMeta(k) { const L = this.priorities(); return L.filter(function (p) { return p.k === k; })[0] || L[Math.min(2, L.length - 1)]; }
   memberMeta(n) {
     const list = this.state.members || MEMBERS;
     return list.filter(function (m) { return m.n === n; })[0] || list[0];
@@ -3577,9 +4390,10 @@ class Component extends DCLogic {
     return '฿' + n;
   }
   dueMeta(due, status) {
-    const overdue = due < TODAY && status !== 'Done';
-    const soon = !overdue && due <= d(2) && status !== 'Done';
-    return { overdue: overdue, color: overdue ? '#dc2626' : (soon ? '#d97706' : '#6b7280') };
+    const done = this.isDone(status);
+    const overdue = due < TODAY && !done;
+    const soon = !overdue && due <= d(2) && !done;
+    return { overdue: overdue, color: overdue ? '#dc2626' : (soon ? '#d97706' : 'var(--pw-muted)') };
   }
   shortDate(s) {
     if (!s) return '—';
@@ -3604,11 +4418,12 @@ class Component extends DCLogic {
     const s = this.state;
     const q = s.query.trim().toLowerCase();
     const hideDone = !!this.props.hideDone;
+    const doneKey = this.doneKey();
     const scope = this.scopeLists();
     return s.tasks.filter(function (t) {
       if (scope) { if (scope.indexOf(t.list) < 0) return false; }
       else if (s.list !== '__all' && t.list !== s.list) return false;
-      if (hideDone && t.status === 'Done') return false;
+      if (hideDone && t.status === doneKey) return false;
       if (!q) return true;
       return (t.name + ' ' + t.assignee + ' ' + (t.tags || []).join(' ') + ' ' + t.channel + ' ' + t.platform).toLowerCase().indexOf(q) >= 0;
     });
@@ -3649,16 +4464,17 @@ class Component extends DCLogic {
       dueInputStyle: 'background:transparent;border:0;outline:0;font-size:11.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm.color + ';width:104px;cursor:pointer;' + (dm.overdue ? 'font-weight:600;' : ''),
       priorityDot: 'width:7px;height:7px;border-radius:50%;flex:0 0 7px;margin-top:5px;background:' + pm.c + ';',
       progressStyle: 'height:100%;width:' + pct + '%;background:' + sm.c + ';border-radius:3px;',
-      rowStyle: 'display:grid;grid-template-columns:26px minmax(240px,2fr) 126px 136px 110px 102px 158px 132px 114px 112px 90px 56px 92px;align-items:center;padding:0 12px;height:' + (this.props.density === 'Comfortable' ? 42 : 32) + 'px;border-bottom:1px solid #f3f4f6;background:#fff;cursor:default;',
-      checkStyle: 'width:14px;height:14px;border-radius:50%;border:1.5px solid ' + sm.c + ';background:' + (t.status === 'Done' ? sm.c : 'transparent') + ';cursor:pointer;padding:0;',
+      rowStyle: 'display:grid;grid-template-columns:' + this.gridCols() + ';align-items:center;padding:0 12px;height:' + (this.props.density === 'Comfortable' ? 42 : 32) + 'px;border-bottom:1px solid var(--pw-line);background:var(--pw-surface);cursor:default;',
+      checkStyle: 'width:14px;height:14px;border-radius:50%;border:1.5px solid ' + sm.c + ';background:' + (this.isDone(t.status) ? sm.c : 'transparent') + ';cursor:pointer;padding:0;',
       statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + sm.bg + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;width:110px;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
       onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '' }); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
       onCycleStatus: function () {
-        const i = STATUSES.map(function (s) { return s.k; }).indexOf(t.status);
-        self.patch(t.id, 'status', STATUSES[(i + 1) % STATUSES.length].k);
+        const L = self.statuses();
+        const i = L.map(function (s) { return s.k; }).indexOf(t.status);
+        self.patch(t.id, 'status', L[(i + 1) % L.length].k);
       },
       onName: function (e) { self.patch(t.id, 'name', e.target.value); },
       onStatus: function (e) { self.patch(t.id, 'status', e.target.value); },
@@ -3676,7 +4492,79 @@ class Component extends DCLogic {
       onTagsText: function (e) {
         self.patch(t.id, 'tags', e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean));
       },
-      onList: function (e) { self.patch(t.id, 'list', e.target.value); }
+      onList: function (e) { self.patch(t.id, 'list', e.target.value); },
+      cells: (function () {
+        const O = self._opt || self.buildOpts();
+        const dm2 = self.dueMeta(t.due, t.status);
+        const numStyle = 'width:100%;background:transparent;border:0;outline:0;text-align:right;padding-right:9px;font-size:12px;font-family:\'IBM Plex Mono\',monospace;color:var(--pw-text);';
+        const sel = 'background:transparent;border:0;outline:0;font-size:12px;color:var(--pw-text2);cursor:pointer;';
+        const mk = {
+          status: function () {
+            return { key: 'status', isSelect: true, options: O.status, value: t.status,
+              valueRef: self.syncRef(t.status), onChange: function (e) { self.patch(t.id, 'status', e.target.value); },
+              style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + sm.bg + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;width:110px;' };
+          },
+          assignee: function () {
+            return { key: 'assignee', isAssignee: true, options: O.members, value: t.assignee,
+              valueRef: self.syncRef(t.assignee), initials: self.initials(t.assignee), avatarStyle: self.avatar(t.assignee, 20),
+              onChange: function (e) {
+                const v = e.target.value;
+                if (v === ADD_MEMBER) { self.promptMember(function (n) { self.patch(t.id, 'assignee', n); }); return; }
+                self.patch(t.id, 'assignee', v);
+              },
+              style: sel + 'max-width:88px;' };
+          },
+          due: function () {
+            return { key: 'due', isInput: true, inputType: 'date', value: t.due, valueRef: self.syncRef(t.due),
+              onChange: function (e) { self.patch(t.id, 'due', e.target.value); },
+              onPick: function (e) { self.openPicker(e); },
+              placeholder: '',
+              style: 'background:transparent;border:0;outline:0;font-size:11.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm2.color + ';width:104px;cursor:pointer;' + (dm2.overdue ? 'font-weight:600;' : '') };
+          },
+          priority: function () {
+            return { key: 'priority', isSelect: true, options: O.priority, value: t.priority,
+              valueRef: self.syncRef(t.priority), onChange: function (e) { self.patch(t.id, 'priority', e.target.value); },
+              style: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;' };
+          },
+          tags: function () {
+            return { key: 'tags', isInput: true, inputType: 'text', value: (t.tags || []).join(', '),
+              valueRef: self.syncRef((t.tags || []).join(', ')), placeholder: '+ tag',
+              onChange: function (e) { self.patch(t.id, 'tags', e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean)); },
+              style: 'width:100%;background:transparent;border:0;outline:0;font-size:11.5px;color:#4f46e5;padding:3px 5px;border-radius:4px;' };
+          },
+          list: function () {
+            return { key: 'list', isSelect: true, options: O.lists, value: t.list,
+              valueRef: self.syncRef(t.list), onChange: function (e) { self.patch(t.id, 'list', e.target.value); },
+              style: sel + 'max-width:124px;' };
+          },
+          channel: function () {
+            return { key: 'channel', isSelect: true, options: O.channels, value: t.channel,
+              valueRef: self.syncRef(t.channel), onChange: function (e) { self.patch(t.id, 'channel', e.target.value); },
+              style: sel + 'max-width:108px;' };
+          },
+          platform: function () {
+            return { key: 'platform', isSelect: true, options: O.platforms, value: t.platform,
+              valueRef: self.syncRef(t.platform), onChange: function (e) { self.patch(t.id, 'platform', e.target.value); },
+              style: sel + 'max-width:106px;' };
+          },
+          cost: function () {
+            return { key: 'cost', isInput: true, inputType: 'text', value: String(t.cost), valueRef: self.syncRef(t.cost),
+              placeholder: '', onChange: function (e) { self.patch(t.id, 'cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
+              style: numStyle };
+          },
+          qty: function () {
+            return { key: 'qty', isInput: true, inputType: 'text', value: String(t.qty), valueRef: self.syncRef(t.qty),
+              placeholder: '', onChange: function (e) { self.patch(t.id, 'qty', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
+              style: numStyle };
+          },
+          activity: function () {
+            return { key: 'activity', isActivity: true,
+              subLabel: doneSubs + '/' + t.subtasks.length, commentCount: t.comments.length,
+              onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); } };
+          }
+        };
+        return self.activeCols().map(function (k) { return mk[k] ? mk[k]() : { key: k }; });
+      })()
     };
   }
 
@@ -3694,7 +4582,7 @@ class Component extends DCLogic {
         open: !!s.open[sp.name],
         caret: s.open[sp.name] ? '▾' : '▸',
         count: s.tasks.filter(function (t) { return sp.lists.indexOf(t.list) >= 0; }).length,
-        rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;font-size:12.5px;font-weight:' + (spActive ? '600' : '500') + ';background:' + (spActive ? '#2a2e3b' : 'transparent') + ';color:' + (spActive ? '#fff' : '#e5e7eb') + ';',
+        rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;font-size:12.5px;font-weight:' + (spActive ? '600' : '500') + ';background:' + (spActive ? '#2a2e3b' : 'transparent') + ';color:' + (spActive ? '#fff' : 'var(--pw-border)') + ';',
         dotStyle: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + sp.color + ';',
         onSelect: function () {
           self.setState(function (st) {
@@ -3789,21 +4677,25 @@ class Component extends DCLogic {
       const active = s.view === t.k;
       return {
         label: t.label, icon: t.icon,
-        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') + ';color:' + (active ? '#1f2430' : '#6b7280') + ';font-weight:' + (active ? '600' : '500') + ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;',
+        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') + ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') + ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;',
         onSelect: function () { self.setState({ view: t.k }, () => self.persist()); }
       };
     });
 
     // table groups — grouped by the groupBy prop
+    const cols = this.cols();
+    this.buildOpts();
+    const onlineEmails = (s.online || []).map(function (x) { return String(x.email || '').toLowerCase(); });
+    const onlineNames = (s.online || []).map(function (x) { return x.name || x.email; });
     const spaceName = this.spaceSel();
     const scopeLists = this.scopeLists();
     const groupBy = this.props.groupBy || 'Status';
     let groupField = { Status: 'status', Assignee: 'assignee', Priority: 'priority', Channel: 'channel' }[groupBy] || 'status';
     let groupKeys = {
-      status: STATUSES.map(function (x) { return x.k; }),
+      status: this.statuses().map(function (x) { return x.k; }),
       assignee: s.members.map(function (x) { return x.n; }),
-      priority: PRIORITIES.map(function (x) { return x.k; }),
-      channel: CHANNELS
+      priority: this.priorities().map(function (x) { return x.k; }),
+      channel: this.channels()
     }[groupField];
     if (spaceName) { groupField = 'list'; groupKeys = scopeLists || []; }
     const spaceColor = spaceName ? ((s.spaces.filter(function (x) { return x.name === spaceName; })[0] || {}).color || '#4f46e5') : '#4f46e5';
@@ -3832,7 +4724,7 @@ class Component extends DCLogic {
     }).filter(function (g) { return g.count > 0 || ((groupField === 'status' || groupField === 'list') && s.query === ''); });
 
     // board columns — Trello-style: ordered cards, drop-to-position, inline composer
-    const columns = STATUSES.map(function (st) {
+    const columns = this.statuses().map(function (st) {
       const list = vms
         .filter(function (v) { return v.status === st.k; })
         .sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); })
@@ -3850,7 +4742,7 @@ class Component extends DCLogic {
       return {
         status: st.k, count: list.length, tasks: list,
         chipStyle: self.chip(st.k),
-        style: 'flex:0 0 258px;width:258px;background:#f1f2f5;border:1px solid #e5e7eb;border-radius:10px;padding:10px;',
+        style: 'flex:0 0 258px;width:258px;background:var(--pw-surface3);border:1px solid var(--pw-border);border-radius:10px;padding:10px;',
         onAdd: function () { self.openComposer(st.k); },
         composerOpen: composerOpen,
         composerClosed: !composerOpen,
@@ -3901,10 +4793,10 @@ class Component extends DCLogic {
       calendarDays.push({
         num: dt.getDate(),
         tasks: dayTasks,
-        style: 'min-height:96px;padding:6px 7px;border-bottom:1px solid #f3f4f6;border-right:1px solid #f3f4f6;background:' + (inMonth ? '#fff' : '#fbfbfc') + ';',
+        style: 'min-height:96px;padding:6px 7px;border-bottom:1px solid var(--pw-line);border-right:1px solid var(--pw-line);background:' + (inMonth ? 'var(--pw-surface)' : 'var(--pw-surface2)') + ';',
         numStyle: isToday
           ? 'width:19px;height:19px;border-radius:50%;background:#4f46e5;color:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:600;font-family:\'IBM Plex Mono\',monospace;'
-          : 'font-size:11px;color:' + (inMonth ? '#6b7280' : '#c9ced8') + ';font-family:\'IBM Plex Mono\',monospace;',
+          : 'font-size:11px;color:' + (inMonth ? 'var(--pw-muted)' : 'var(--pw-faint)') + ';font-family:\'IBM Plex Mono\',monospace;',
         onDragOver: function (e) { e.preventDefault(); },
         onDrop: function (e) {
           e.preventDefault();
@@ -3931,33 +4823,47 @@ class Component extends DCLogic {
       const left = a / totalDays * 100;
       const width = Math.max(1.4, (b - a) / totalDays * 100);
       const vm = self.taskVM(t);
+      const range = self.shortDate(t.start) + ' → ' + self.shortDate(t.due);
+      // แถบกว้างพอ = ใส่ช่วงวันไว้ในแถบ, แคบ = ใส่วันเริ่มอันเดียว, แคบมาก = ไปแปะข้างแถบ
+      const wide = width >= 13, mid = width >= 7;
       return {
         name: t.name,
         dot: 'width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:' + sm.c + ';',
-        rangeLabel: self.shortDate(t.start) + ' → ' + self.shortDate(t.due),
-        barLabel: width > 9 ? self.initials(t.assignee) : '',
-        barStyle: 'position:absolute;top:6px;height:18px;left:' + left + '%;width:' + width + '%;background:' + sm.c + ';border-radius:5px;cursor:pointer;color:#fff;font-size:9.5px;font-weight:600;display:flex;align-items:center;justify-content:center;letter-spacing:0.03em;',
-        onOpen: vm.onOpen
+        rangeLabel: range + ' · ' + t.assignee,
+        barLabel: wide ? range : (mid ? self.shortDate(t.start) : ''),
+        barStyle: 'position:absolute;top:6px;height:18px;left:' + left + '%;width:' + width + '%;background:' + sm.c + ';border-radius:5px;cursor:grab;color:#fff;font-size:9.5px;font-weight:600;display:flex;align-items:center;justify-content:center;letter-spacing:0.02em;overflow:hidden;white-space:nowrap;padding:0 9px;touch-action:none;user-select:none;',
+        handleLeftStyle: 'position:absolute;left:0;top:0;bottom:0;width:9px;cursor:ew-resize;border-radius:5px 0 0 5px;background:rgba(255,255,255,0.28);touch-action:none;',
+        handleRightStyle: 'position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;border-radius:0 5px 5px 0;background:rgba(255,255,255,0.28);touch-action:none;',
+        outsideLabel: (wide || mid) ? '' : range,
+        outsideStyle: 'position:absolute;top:9px;left:calc(' + (left + width) + '% + 6px);font-size:9.5px;font-weight:600;color:' + sm.c + ';white-space:nowrap;pointer-events:none;font-family:\'IBM Plex Mono\',monospace;',
+        onBarDown: function (e) { self.beginGantt(e, t.id, 'move', totalDays); },
+        onLeftDown: function (e) { self.beginGantt(e, t.id, 'left', totalDays); },
+        onRightDown: function (e) { self.beginGantt(e, t.id, 'right', totalDays); },
+        onOpen: function () {
+          if (self._ganttMoved) { self._ganttMoved = false; return; }   // เพิ่งลาก ไม่ต้องเปิดรายละเอียด
+          vm.onOpen();
+        }
       };
     });
 
     // dashboard
     const total = visible.length;
-    const doneCount = visible.filter(function (t) { return t.status === 'Done'; }).length;
-    const overdue = visible.filter(function (t) { return t.due < TODAY && t.status !== 'Done'; });
+    const dKey = this.doneKey();
+    const doneCount = visible.filter(function (t) { return t.status === dKey; }).length;
+    const overdue = visible.filter(function (t) { return t.due < TODAY && t.status !== dKey; });
     const totalCost = visible.reduce(function (a, t) { return a + (t.cost || 0); }, 0);
     const statCards = [
-      { label: 'Open tasks', value: String(total - doneCount), sub: total + ' total in view', tone: '#6b7280' },
+      { label: 'Open tasks', value: String(total - doneCount), sub: total + ' total in view', tone: 'var(--pw-muted)' },
       { label: 'Completed', value: (total ? Math.round(doneCount / total * 100) : 0) + '%', sub: doneCount + ' done', tone: '#059669' },
       { label: 'Overdue', value: String(overdue.length), sub: overdue.length ? 'needs rescheduling' : 'all on track', tone: overdue.length ? '#dc2626' : '#059669' },
-      { label: 'Budget in view', value: self.baht(totalCost), sub: 'across ' + total + ' tasks', tone: '#6b7280' }
+      { label: 'Budget in view', value: self.baht(totalCost), sub: 'across ' + total + ' tasks', tone: 'var(--pw-muted)' }
     ].map(function (c) {
       return { label: c.label, value: c.value, sub: c.sub, subStyle: 'font-size:11px;color:' + c.tone + ';' };
     });
 
     let acc = 0;
     const stops = [];
-    const statusLegend = STATUSES.map(function (st) {
+    const statusLegend = this.statuses().map(function (st) {
       const n = visible.filter(function (t) { return t.status === st.k; }).length;
       const pct = total ? n / total * 100 : 0;
       stops.push(st.c + ' ' + acc.toFixed(2) + '% ' + (acc + pct).toFixed(2) + '%');
@@ -3967,10 +4873,10 @@ class Component extends DCLogic {
         dot: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + st.c + ';'
       };
     });
-    const donutStyle = 'position:relative;width:126px;height:126px;flex:0 0 126px;border-radius:50%;background:conic-gradient(' + (stops.length ? stops.join(',') : '#e5e7eb 0% 100%') + ');';
+    const donutStyle = 'position:relative;width:126px;height:126px;flex:0 0 126px;border-radius:50%;background:conic-gradient(' + (stops.length ? stops.join(',') : 'var(--pw-border) 0% 100%') + ');';
 
     const counts = s.members.slice(1).map(function (m) {
-      return { name: m.n, c: m.c, count: visible.filter(function (t) { return t.assignee === m.n && t.status !== 'Done'; }).length };
+      return { name: m.n, c: m.c, count: visible.filter(function (t) { return t.assignee === m.n && t.status !== dKey; }).length };
     });
     const maxLoad = Math.max.apply(null, counts.map(function (c) { return c.count; }).concat([1]));
     const workload = counts.map(function (c) {
@@ -3980,7 +4886,7 @@ class Component extends DCLogic {
       };
     });
 
-    const chanTotals = CHANNELS.slice(1).map(function (ch) {
+    const chanTotals = this.channels().slice(1).map(function (ch) {
       return { label: ch, v: visible.filter(function (t) { return t.channel === ch; }).reduce(function (a, t) { return a + (t.cost || 0); }, 0) };
     });
     const maxChan = Math.max.apply(null, chanTotals.map(function (c) { return c.v; }).concat([1]));
@@ -3992,7 +4898,7 @@ class Component extends DCLogic {
     });
 
     const attention = visible.filter(function (t) {
-      return t.status === 'Blocked' || (t.due < TODAY && t.status !== 'Done');
+      return t.status === 'Blocked' || (t.due < TODAY && t.status !== dKey);
     }).slice(0, 6).map(function (t) {
       const sm = self.statusMeta(t.status);
       const days = Math.round((new Date(TODAY) - new Date(t.due)) / 86400000);
@@ -4043,6 +4949,7 @@ class Component extends DCLogic {
             value: String(val),
             valueRef: self.syncRef(String(val)),
             onValue: function (e) { self.setCustom(sel.id, f.id, e.target.value); },
+            onPick: function (e) { if (f.type === 'date') self.openPicker(e); },
             onRemove: function () { self.removeField(f.id); }
           };
         }),
@@ -4068,14 +4975,14 @@ class Component extends DCLogic {
         subLabel: doneSubs + '/' + sel.subtasks.length,
         statusChip: this.chip(sel.status),
         statusSelect: 'border:0;border-radius:6px;padding:5px 8px;font-weight:600;font-size:12px;background:' + sm.bg + ';color:' + sm.c + ';cursor:pointer;',
-        prioritySelect: 'border:1px solid #e5e7eb;border-radius:6px;padding:5px 8px;background:#fff;cursor:pointer;font-weight:500;color:' + pm.c + ';',
+        prioritySelect: 'border:1px solid var(--pw-border);border-radius:6px;padding:5px 8px;background:var(--pw-surface);cursor:pointer;font-weight:500;color:' + pm.c + ';',
         subtasks: sel.subtasks.map(function (st, i) {
           return {
             title: st.title,
             titleRef: self.syncRef(st.title),
             mark: st.done ? '✓' : '',
-            boxStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:4px;border:1.5px solid ' + (st.done ? '#059669' : '#d1d5db') + ';background:' + (st.done ? '#059669' : '#fff') + ';color:#fff;font-size:9px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;',
-            textStyle: 'flex:1;border:0;outline:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:4px;color:' + (st.done ? '#9ca3af' : '#1f2430') + ';text-decoration:' + (st.done ? 'line-through' : 'none') + ';',
+            boxStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:4px;border:1.5px solid ' + (st.done ? '#059669' : 'var(--pw-faint)') + ';background:' + (st.done ? '#059669' : '#fff') + ';color:#fff;font-size:9px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;',
+            textStyle: 'flex:1;border:0;outline:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:4px;color:' + (st.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';text-decoration:' + (st.done ? 'line-through' : 'none') + ';',
             onToggle: function () {
               self.patchTask(sel.id, function (t) {
                 t.subtasks = t.subtasks.map(function (x, j) { return j === i ? { title: x.title, done: !x.done } : x; });
@@ -4128,6 +5035,7 @@ class Component extends DCLogic {
           self.patch(sel.id, 'assignee', v);
         },
         onPriority: function (e) { self.patch(sel.id, 'priority', e.target.value); },
+        onDatePick: function (e) { self.openPicker(e); },
         onStart: function (e) { self.patch(sel.id, 'start', e.target.value); },
         onDue: function (e) { self.patch(sel.id, 'due', e.target.value); },
         onChannel: function (e) { self.patch(sel.id, 'channel', e.target.value); },
@@ -4210,11 +5118,15 @@ class Component extends DCLogic {
       listTitleRef: self.syncRef(s.list === '__all' ? 'Everything' : (spaceName || s.list)),
       isEverything: s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
-      memberChips: s.members.slice(1, 6).map(function (m) {
+      memberChips: s.members.slice(1, 7).map(function (m) {
+        const isOn = onlineEmails.indexOf(String(m.email || '').toLowerCase()) >= 0;
         return {
           initials: self.initials(m.n),
-          title: m.n + (m.email ? ' · ' + m.email : ''),
-          style: self.avatar(m.n, 24) + 'border:2px solid #fff;margin-left:-6px;'
+          title: m.n + (m.email ? ' · ' + m.email : '') + (isOn ? ' · ออนไลน์' : ' · ออฟไลน์'),
+          wrapStyle: 'position:relative;margin-left:-6px;',
+          style: self.avatar(m.n, 24) + 'border:2px solid var(--pw-surface);opacity:' + (isOn ? '1' : '0.45') + ';',
+          isOnline: isOn,
+          dotStyle: 'position:absolute;right:-1px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:#22c55e;border:1.5px solid #fff;'
         };
       }),
       onAddTask: function () { self.addTask('Backlog'); },
@@ -4222,7 +5134,7 @@ class Component extends DCLogic {
       notifOpen: s.notifOpen,
       notifUnread: s.notifs.filter(function (n) { return !n.read; }).length,
       hasUnread: s.notifs.filter(function (n) { return !n.read; }).length > 0,
-      notifBellStyle: 'position:relative;width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.notifOpen ? '#4f46e5' : '#e5e7eb') + ';background:' + (s.notifOpen ? '#eef2ff' : '#fff') + ';color:' + (s.notifOpen ? '#4f46e5' : '#6b7280') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
+      notifBellStyle: 'position:relative;width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.notifOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.notifOpen ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (s.notifOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
       notifEmpty: s.notifs.length === 0,
       notifs: s.notifs.map(function (n) {
         const mins = Math.floor((Date.now() - n.at) / 60000);
@@ -4231,7 +5143,7 @@ class Component extends DCLogic {
           when: mins < 1 ? 'just now' : (mins < 60 ? mins + 'm ago' : Math.floor(mins / 60) + 'h ago'),
           initials: self.initials(n.toName),
           avatarStyle: self.avatar(n.toName, 26),
-          rowStyle: 'display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid #f3f4f6;background:' + (n.read ? '#fff' : '#fafaff') + ';'
+          rowStyle: 'display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--pw-line);background:' + (n.read ? '#fff' : 'var(--pw-hover)') + ';'
         };
       }),
       onToggleNotif: function () {
@@ -4255,12 +5167,12 @@ class Component extends DCLogic {
       isDashboard: s.view === 'dashboard',
       groups: groups,
       columns: columns,
-      statusNames: STATUSES.map(function (x) { return x.k; }),
-      priorityNames: PRIORITIES.map(function (x) { return x.k; }),
+      statusNames: self.statuses().map(function (x) { return x.k; }),
+      priorityNames: self.priorities().map(function (x) { return x.k; }),
       memberNames: s.members.map(function (x) { return x.n; }).concat([ADD_MEMBER]),
       onInviteMember: function () { self.promptMember(); },
-      channelNames: CHANNELS,
-      platformNames: PLATFORMS,
+      channelNames: self.channels(),
+      platformNames: self.platforms(),
       weekdayNames: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       monthLabel: monthLabel,
       calendarDays: calendarDays,
@@ -4296,8 +5208,110 @@ class Component extends DCLogic {
       },
       onCloseDetail: function () { self.setState({ selected: null }); },
       onAddField: function () { self.addField(); },
+      isAdmin: self.isAdmin(),
+      onExport: function () { self.exportXlsx(); },
+      meEmail: self.me().email || '',
+      meTitle: self.me().n + (self.me().email ? ' · ' + self.me().email : '') + ' — กำลังใช้งานอยู่',
+      meRoleLabel: (self.isAdmin() ? 'Admin' : 'Member') + ' · กำลังใช้งานอยู่',
+      meMenuOpen: s.meMenuOpen,
+      onToggleMeMenu: function () { self.setState(function (st) { return { meMenuOpen: !st.meMenuOpen }; }); },
+      meBtnStyle: 'display:flex;align-items:center;gap:7px;background:' + (s.meMenuOpen ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';border:1px solid ' + (s.meMenuOpen ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:20px;padding:3px 10px 3px 3px;cursor:pointer;color:var(--pw-text);',
+      meChipStyle: self.avatar(self.me().n, 22),
+      themeIcon: ({ light: '☀', dark: '☾', system: '◑' })[s.theme] || '◑',
+      themeTitle: ({ light: 'ธีม: สว่าง — กดเพื่อเปลี่ยนเป็นมืด', dark: 'ธีม: มืด — กดเพื่อใช้ตามระบบ', system: 'ธีม: ตามระบบ — กดเพื่อเปลี่ยนเป็นสว่าง' })[s.theme] || '',
+      onToggleTheme: function () {
+        if (!window.PawdyTheme) return;
+        self.setState({ theme: window.PawdyTheme.cycle() });
+      },
+      onlineCount: onlineNames.length,
+      onlineLabel: onlineNames.length ? (onlineNames.length + ' คนออนไลน์') : '',
+      onlineTitle: onlineNames.length ? ('ออนไลน์: ' + onlineNames.join(', ')) : 'ยังไม่มีใครออนไลน์',
+      settingsOpen: s.settingsOpen,
+      onToggleSettings: function () { self.setState(function (st) { return { settingsOpen: !st.settingsOpen }; }); },
+      onCloseSettings: function () { self.setState({ settingsOpen: false }); },
+      settingsBtnStyle: 'width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.settingsOpen ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
+      tableCols: self.activeCols().map(function (k) {
+        const d = colDef(k);
+        const dragging = s.colDrag === k;
+        return {
+          label: d.label,
+          style: 'display:flex;align-items:center;gap:5px;cursor:grab;user-select:none;opacity:' + (dragging ? '0.4' : '1') + ';padding-right:6px;' + (d.k === 'cost' || d.k === 'qty' || d.k === 'activity' ? 'justify-content:flex-end;' : ''),
+          onDragStart: function (e) {
+            self._colDrag = k;
+            if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', k); } catch (err) {} }
+            self.setState({ colDrag: k });
+          },
+          onDragOver: function (e) { e.preventDefault(); },
+          onDrop: function (e) {
+            e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+            const from = self._colDrag;
+            self._colDrag = null;
+            self.setState({ colDrag: null }, function () { self.moveCol(from, k); });
+          },
+          onDragEnd: function () { self._colDrag = null; self.setState({ colDrag: null }); }
+        };
+      }),
+      tableGridStyle: 'display: grid; grid-template-columns: ' + self.gridCols() + '; align-items: center; gap: 0; padding: 0 12px; height: 32px; background: var(--pw-surface2); border-bottom: 1px solid var(--pw-border); position: sticky; top: 0; z-index: 3; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;',
+      tableWrapStyle: 'min-width: ' + self.tableWidth() + 'px;',
+      colStatus: cols.status, colAssignee: cols.assignee, colDue: cols.due, colPriority: cols.priority,
+      colTags: cols.tags, colList: cols.list, colChannel: cols.channel, colPlatform: cols.platform,
+      colCost: cols.cost, colQty: cols.qty, colActivity: cols.activity,
+      settings: {
+        statuses: self.statuses().map(function (x) {
+          const isDone = self.doneKey() === x.k;
+          return {
+            label: x.k,
+            chipStyle: 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + x.bg + ';color:' + x.c + ';white-space:nowrap;',
+            doneMark: isDone ? '✓ นับเป็นเสร็จ' : 'ตั้งเป็นเสร็จ',
+            doneStyle: 'background:transparent;border:0;color:' + (isDone ? '#059669' : 'var(--pw-faint)') + ';font-size:10.5px;cursor:pointer;padding:0 2px;',
+            onRename: function () { self.renameStatus(x.k); },
+            onDelete: function () { self.removeStatus(x.k); },
+            onMarkDone: function () { self.markDone(x.k); }
+          };
+        }),
+        onAddStatus: function () { self.addStatus(); },
+        priorities: self.priorities().map(function (x) {
+          return {
+            label: x.k,
+            chipStyle: 'font-size:11.5px;font-weight:600;color:' + x.c + ';',
+            onRename: function () { self.renamePriority(x.k); },
+            onDelete: function () { self.removePriority(x.k); }
+          };
+        }),
+        onAddPriority: function () { self.addPriority(); },
+        channels: self.channels().map(function (x) {
+          return { label: x, onRename: function () { self.renameOption('channels', x); }, onDelete: function () { self.removeOption('channels', x); } };
+        }),
+        onAddChannel: function () { self.addOption('channels'); },
+        platforms: self.platforms().map(function (x) {
+          return { label: x, onRename: function () { self.renameOption('platforms', x); }, onDelete: function () { self.removeOption('platforms', x); } };
+        }),
+        onAddPlatform: function () { self.addOption('platforms'); },
+        columns: [['status', 'Status'], ['assignee', 'Assignee'], ['due', 'Due date'], ['priority', 'Priority'],
+                  ['tags', 'Tags'], ['list', 'List'], ['channel', 'Channel'], ['platform', 'Platform'],
+                  ['cost', 'Cost'], ['qty', 'Qty'], ['activity', 'Activity']].map(function (c) {
+          const on = !!cols[c[0]];
+          return {
+            label: c[1],
+            mark: on ? '✓' : '',
+            style: 'display:flex;align-items:center;gap:6px;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (on ? '#4f46e5' : 'var(--pw-muted2)') + ';border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;',
+            onToggle: function () { self.toggleCol(c[0]); }
+          };
+        }),
+        adminsUnset: self.adminsUnset(),
+        admins: s.members.filter(function (m) { return !!m.email; }).map(function (m) {
+          const on = self.adminList().indexOf(String(m.email).toLowerCase()) >= 0;
+          return {
+            name: m.n, email: m.email,
+            mark: on ? 'Admin' : 'Member',
+            style: 'margin-left:auto;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (on ? '#4f46e5' : 'var(--pw-muted)') + ';border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;',
+            onToggle: function () { self.toggleAdmin(m.email); }
+          };
+        })
+      },
       syncLabel: ({ saving: 'กำลังบันทึก…', saved: '✓ บันทึกครบแล้ว', error: 'บันทึกไม่สำเร็จ — กำลังลองใหม่', offline: 'ออฟไลน์ — จะบันทึกเมื่อเน็ตกลับมา' })[s.sync] || '',
-      syncStyle: 'font-size:10.5px;color:' + (({ saving: '#9ca3af', saved: '#34d399', error: '#f87171', offline: '#fbbf24' })[s.sync] || '#9ca3af') + ';'
+      syncStyle: 'font-size:10.5px;color:' + (({ saving: 'var(--pw-muted2)', saved: '#34d399', error: '#f87171', offline: '#fbbf24' })[s.sync] || 'var(--pw-muted2)') + ';'
     };
   }
 }
