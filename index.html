@@ -9,9 +9,9 @@
 <script>
 /* ==================================================================
    FILL THESE IN — Supabase → Project Settings → API
-   PUBLIC NO-LOGIN MODE. The Publishable key is intentionally used in
-   the browser. Database access is controlled by the companion public
-   RLS policies file. Anyone with the site URL can read and edit data.
+   The anon key is safe to ship in the page: every table is protected
+   by row-level security, so only accounts listed in `members` can
+   read or write anything.
 ================================================================== */
 window.PAWDY_CONFIG = {
   url:     'https://zkdhwgulkwzxajinqsis.supabase.co',
@@ -54,7 +54,7 @@ window.PAWDY_CONFIG = {
     onData: function (f) { dataCbs.push(f); if (ready) f(snap); },
     onNotif: function (f) { notifCbs.push(f); },
     onNotifList: function (f) { listCbs.push(f); if (ready) f(snap.notifs); },
-    signOut: function () { localStorage.removeItem(CACHE); location.reload(); },
+    signOut: function () { if (sb) sb.auth.signOut().then(function () { localStorage.removeItem(CACHE); location.reload(); }); },
 
     save: function (state) {
       snap.ui = state.ui || snap.ui;          // view/list choice stays personal
@@ -81,12 +81,12 @@ window.PAWDY_CONFIG = {
       if (!sb || !me) return;
       snap.notifs = [];
       cache();
-      sb.from('notifs').delete().neq('id', '00000000-0000-0000-0000-000000000000').then(log);
+      sb.from('notifs').delete().eq('to_email', me.email).then(log);
     },
 
     markRead: function () {
       if (!sb || !me) return;
-      sb.from('notifs').update({ read: true }).eq('read', false).then(log);
+      sb.from('notifs').update({ read: true }).eq('to_email', me.email).eq('read', false).then(log);
     }
   };
 
@@ -134,7 +134,7 @@ window.PAWDY_CONFIG = {
       sb.from('tasks').select('id,doc,created_at').order('created_at', { ascending: false }),
       sb.from('meta').select('key,doc'),
       sb.from('members').select('email,name,color').order('created_at', { ascending: true }),
-      sb.from('notifs').select('*').order('created_at', { ascending: false }).limit(60)
+      sb.from('notifs').select('*').eq('to_email', me.email).order('created_at', { ascending: false }).limit(60)
     ]);
   }
 
@@ -185,7 +185,7 @@ window.PAWDY_CONFIG = {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meta' }, scheduleRefetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, scheduleRefetch)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifs' }, function (p) {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifs', filter: 'to_email=eq.' + me.email }, function (p) {
         var n = rowToNotif(p.new);
         snap.notifs = [n].concat(snap.notifs).slice(0, 60);
         cache();
@@ -194,69 +194,79 @@ window.PAWDY_CONFIG = {
       .subscribe();
   }
 
-  // ---------- public boot: no sign-in required ----------
-  var bootEl = null;
-
-  function showBoot(message, isError) {
-    if (!bootEl) {
-      bootEl = document.createElement('div');
-      bootEl.id = 'pw-boot';
-      bootEl.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#14161c;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;padding:20px;';
-      bootEl.innerHTML = '<div id="pw-boot-msg" style="max-width:520px;background:#fff;border-radius:14px;padding:22px 24px;color:#1f2430;font-size:13px;line-height:1.55;box-shadow:0 20px 60px rgba(0,0,0,.4)"></div>';
-      document.body.appendChild(bootEl);
-    }
-    var m = bootEl.querySelector('#pw-boot-msg');
-    m.textContent = message || '';
-    m.style.color = isError ? '#dc2626' : '#1f2430';
+  // ---------- sign-in screen ----------
+  var el = {};
+  function buildOverlay() {
+    var wrap = document.createElement('div');
+    wrap.id = 'pw-auth';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#14161c;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;padding:20px;';
+    wrap.innerHTML =
+      '<div style="width:100%;max-width:340px;background:#fff;border-radius:14px;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">' +
+      '<div style="width:30px;height:30px;border-radius:8px;background:#4f46e5;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px">PW</div>' +
+      '<div style="line-height:1.2"><div style="font-weight:600;font-size:14px;color:#1f2430">Pawdy Workspace</div>' +
+      '<div style="font-size:11px;color:#9ca3af">Sign in to continue</div></div></div>' +
+      '<input id="pw-email" type="email" placeholder="you@pawdy.co.th" autocomplete="username" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:8px">' +
+      '<input id="pw-pass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:12px">' +
+      '<button id="pw-go" style="width:100%;background:#4f46e5;color:#fff;border:0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Sign in</button>' +
+      '<div id="pw-msg" style="font-size:11.5px;color:#dc2626;margin-top:10px;line-height:1.45;min-height:16px"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    el.wrap = wrap;
+    el.email = wrap.querySelector('#pw-email');
+    el.pass = wrap.querySelector('#pw-pass');
+    el.go = wrap.querySelector('#pw-go');
+    el.msg = wrap.querySelector('#pw-msg');
+    el.go.addEventListener('click', signIn);
+    el.pass.addEventListener('keydown', function (e) { if (e.key === 'Enter') signIn(); });
   }
 
-  function hideBoot() {
-    if (bootEl && bootEl.parentNode) bootEl.parentNode.removeChild(bootEl);
-    bootEl = null;
+  function msg(t, ok) { if (el.msg) { el.msg.textContent = t || ''; el.msg.style.color = ok ? '#059669' : '#dc2626'; } }
+  function hideOverlay() { if (el.wrap) el.wrap.style.display = 'none'; }
+
+  function signIn() {
+    var email = (el.email.value || '').trim();
+    var pass = el.pass.value || '';
+    if (!email || !pass) { msg('Enter your email and password.'); return; }
+    el.go.disabled = true; msg('Signing in…', true);
+    sb.auth.signInWithPassword({ email: email, password: pass }).then(function (r) {
+      el.go.disabled = false;
+      if (r.error) { msg(r.error.message); return; }
+      start(r.data.session);
+    });
   }
 
-  function startPublic() {
-    // Everyone opening the link shares this workspace identity.
-    me = { n: 'Pawdy Team', c: '#4f46e5', email: 'workspace@pawdy.co.th' };
-
-    fetchAll().then(function (res) {
-      var failed = res.filter(function (x) { return x && x.error; })[0];
-      if (failed) throw failed.error;
-
-      ready = true;
-      apply(res, false);
-      subscribe();
-      hideBoot();
-    }).catch(function (error) {
-      console.error('[Pawdy public mode]', error);
-      showBoot(
-        'เปิด Workspace ไม่สำเร็จ: กรุณารันไฟล์ pawdy_workspace_no_login_policies.sql ใน Supabase SQL Editor ก่อน แล้วค่อยรีเฟรชหน้านี้' +
-        (error && error.message ? ' — ' + error.message : ''),
-        true
-      );
+  function start(session) {
+    var email = session.user.email;
+    sb.from('members').select('email,name,color').eq('email', email.toLowerCase()).maybeSingle().then(function (r) {
+      if (r.error || !r.data) {
+        msg('This account is signed in but has not been added to the workspace team yet.');
+        sb.auth.signOut();
+        return;
+      }
+      me = { n: r.data.name || email, c: r.data.color || '#4f46e5', email: r.data.email };
+      return fetchAll().then(function (res) {
+        ready = true;
+        apply(res, false);
+        subscribe();
+        hideOverlay();
+        window.PawdySync.markRead && setTimeout(function () {}, 0);
+      });
     });
   }
 
   function boot() {
-    showBoot('กำลังเปิด Pawdy Workspace…', false);
-
+    buildOverlay();
     if (!CFG.url || !CFG.anonKey) {
-      showBoot('Supabase ยังไม่ได้ตั้งค่า Project URL หรือ Publishable key', true);
+      msg('Supabase is not configured yet — open this file and fill in PAWDY_CONFIG at the top.');
+      el.go.disabled = true;
       return;
     }
-    if (!window.supabase) {
-      showBoot('โหลด Supabase library ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต', true);
-      return;
-    }
-
-    sb = window.supabase.createClient(CFG.url, CFG.anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
-      }
+    if (!window.supabase) { msg('Could not load the Supabase library. Check the network connection.'); return; }
+    sb = window.supabase.createClient(CFG.url, CFG.anonKey);
+    sb.auth.getSession().then(function (r) {
+      if (r.data && r.data.session) start(r.data.session);
     });
-    startPublic();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
@@ -2582,7 +2592,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     <div style="border-top: 1px solid #23262f; padding: 9px 12px; display: flex; align-items: center; gap: 8px;">
       <div style="{{ meAvatarStyle }}">{{ meInitials }}</div>
       <span style="font-size: 11.5px; color: #cbd2de;">{{ meName }}</span>
-
+      <button sc-camel-on-click="{{ onSignOut }}" title="Sign out" style="margin-left: auto; background: transparent; border: 0; color: #5d636f; font-size: 12px; cursor: pointer; padding: 2px 4px;" style-hover="color: #fff;">Sign out</button>
     </div>
   </aside>
 
