@@ -3102,17 +3102,21 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
         <div style="{{ tableWrapStyle }}">
           <div style="{{ tableGridStyle }}">
-            <span></span><span>Task name</span>
+            <span></span>
+            <span style="{{ nameColStyle }}">Task name
+              <span sc-camel-on-pointer-down="{{ onNameResize }}" sc-camel-on-double-click="{{ onNameResizeReset }}" draggable="false" title="ลากเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อคืนค่าเดิม" style="{{ resizeHandleStyle }}"></span>
+            </span>
             <sc-for list="{{ tableCols }}" as="hc" hint-placeholder-count="11">
-              <span draggable="true" sc-camel-on-drag-start="{{ hc.onDragStart }}" sc-camel-on-drag-over="{{ hc.onDragOver }}" sc-camel-on-drop="{{ hc.onDrop }}" sc-camel-on-drag-end="{{ hc.onDragEnd }}" title="ลากเพื่อย้ายคอลัมน์" style="{{ hc.style }}">
+              <span draggable="true" sc-camel-on-drag-start="{{ hc.onDragStart }}" sc-camel-on-drag-over="{{ hc.onDragOver }}" sc-camel-on-drop="{{ hc.onDrop }}" sc-camel-on-drag-end="{{ hc.onDragEnd }}" title="ลากตัวอักษรเพื่อย้ายคอลัมน์" style="{{ hc.style }}">
                 <span style="opacity: 0.45; font-size: 9px; letter-spacing: -1px;">⠿</span>{{ hc.label }}
+                <span sc-camel-on-pointer-down="{{ hc.onResize }}" sc-camel-on-double-click="{{ hc.onResizeReset }}" draggable="false" title="ลากเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อคืนค่าเดิม" style="{{ resizeHandleStyle }}"></span>
               </span>
             </sc-for>
           </div>
 
           <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
-            <div style="display: flex; flex-direction: column;">
-              <div style="display: flex; align-items: center; gap: 9px; padding: 7px 12px; background: var(--pw-surface); border-bottom: 1px solid var(--pw-line); position: sticky; top: 32px; z-index: 2;">
+            <div style="display: flex; flex-direction: column; margin-bottom: 22px;">
+              <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 9px; background: var(--pw-surface); border-bottom: 1px solid var(--pw-border); position: sticky; top: 32px; z-index: 2;">
                 <span style="{{ group.chipStyle }}">{{ group.status }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2);">{{ group.costLabel }}</span>
@@ -3269,6 +3273,32 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <span style="{{ g.outsideStyle }}">{{ g.outsideLabel }}</span>
                 </div>
               </div>
+              <sc-for list="{{ g.subRows }}" as="sb" hint-placeholder-count="1">
+                <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: center; background: var(--pw-surface2);">
+                  <div style="display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 30px; min-width: 0;">
+                    <span style="{{ sb.dotStyle }}"></span>
+                    <span style="font-size: 11px; color: var(--pw-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sb.label }}</span>
+                  </div>
+                  <div data-gantt-track="1" style="position: relative; height: 24px;">
+                    <div style="position: absolute; inset: 0; display: flex;">
+                      <sc-for list="{{ timelineWeeks }}" as="wk" hint-placeholder-count="8">
+                        <div style="flex: 1; border-left: 1px solid var(--pw-line);"></div>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ sb.hasRange }}" hint-placeholder-val="{{ true }}">
+                      <div sc-camel-on-pointer-down="{{ sb.onBarDown }}" style="{{ sb.barStyle }}" title="{{ sb.rangeLabel }}">
+                        <div sc-camel-on-pointer-down="{{ sb.onLeftDown }}" title="ลากเพื่อปรับวันเริ่ม" style="{{ sb.handleLeftStyle }}"></div>
+                        {{ sb.barLabel }}
+                        <div sc-camel-on-pointer-down="{{ sb.onRightDown }}" title="ลากเพื่อปรับวันสิ้นสุด" style="{{ sb.handleRightStyle }}"></div>
+                      </div>
+                      <span style="{{ sb.outsideStyle }}">{{ sb.outsideLabel }}</span>
+                    </sc-if>
+                    <sc-if value="{{ sb.empty }}" hint-placeholder-val="{{ false }}">
+                      <span style="position: absolute; top: 5px; left: 4px; font-size: 10px; color: var(--pw-faint);">{{ sb.emptyHint }}</span>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
             </sc-for>
           </div>
         </div>
@@ -3417,6 +3447,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
                 <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-click="{{ cf.onPick }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
               </sc-if>
+              <sc-if value="{{ cf.isTimeline }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0;">
+                  <input ref="{{ cf.fromRef }}" data-sync="{{ cf.fromValue }}" type="date" value="{{ cf.fromValue }}" sc-camel-on-click="{{ cf.onDatePick }}" sc-camel-on-change="{{ cf.onFrom }}" title="วันเริ่ม" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 7px; outline: 0; font-size: 11.5px; cursor: pointer;" style-focus="border-color: #4f46e5;">
+                  <span style="color: var(--pw-muted2); font-size: 11px;">→</span>
+                  <input ref="{{ cf.toRef }}" data-sync="{{ cf.toValue }}" type="date" value="{{ cf.toValue }}" sc-camel-on-click="{{ cf.onDatePick }}" sc-camel-on-change="{{ cf.onTo }}" title="วันสิ้นสุด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 7px; outline: 0; font-size: 11.5px; cursor: pointer;" style-focus="border-color: #4f46e5;">
+                </div>
+              </sc-if>
               <button sc-camel-on-click="{{ cf.onRemove }}" title="Remove this field everywhere" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; flex: 0 0 auto;" style-hover="color: #dc2626;">×</button>
             </div>
           </sc-for>
@@ -3504,7 +3541,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
         <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 11px; border: 1px dashed var(--pw-border); border-radius: 8px;">
           <span style="font-size: 11.5px; font-weight: 600;">แก้ Status / Priority / Channel / Platform ที่ตารางได้เลย</span>
-          <span style="font-size: 11px; color: var(--pw-muted); line-height: 1.55;">กดช่อง dropdown ในตาราง แล้วเลือกท้ายลิสต์ — ＋ เพิ่มรายการใหม่ · ✎ เปลี่ยนชื่อ · ✕ ลบ (เห็นเฉพาะ admin)</span>
+          <span style="font-size: 11px; color: var(--pw-muted); line-height: 1.55;">กดช่อง dropdown ในตาราง แล้วเลือกท้ายลิสต์ — ＋ เพิ่มรายการใหม่ · ✎ เปลี่ยนชื่อ · ✕ ลบ · ทุกคนในทีมแก้ได้ ไม่ต้องเป็น admin</span>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
@@ -3684,6 +3721,7 @@ class Component extends DCLogic {
       config: snap.config || null,
       settingsOpen: false,
       colDrag: null,
+      colW: null,
       meMenuOpen: false,
       theme: (window.PawdyTheme ? window.PawdyTheme.pref() : 'system'),
       online: (window.PawdySync.onlineNow ? window.PawdySync.onlineNow() : []),
@@ -3917,7 +3955,15 @@ class Component extends DCLogic {
       { label: 'คอมเมนต์', width: 9, type: 'number' },
       { label: 'ไฟล์แนบ', width: 26 },
       { label: 'รายละเอียด', width: 50 }
-    ].concat(fields.map(function (f) { return { label: f.label, width: 18, type: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text') }; }));
+    ];
+    fields.forEach(function (f) {
+      if (f.type === 'timeline') {
+        columns.push({ label: f.label + ' — เริ่ม', width: 13, type: 'date' });
+        columns.push({ label: f.label + ' — สิ้นสุด', width: 13, type: 'date' });
+      } else {
+        columns.push({ label: f.label, width: 18, type: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text') });
+      }
+    });
 
     const rows = this.visibleTasks().map(function (t) {
       const done = (t.subtasks || []).filter(function (x) { return x.done; }).length;
@@ -3931,10 +3977,17 @@ class Component extends DCLogic {
         (t.attachments || []).map(function (a) { return a.name; }).join(', '),
         t.desc || ''
       ];
-      return base.concat(fields.map(function (f) {
-        const v = t.custom ? t.custom[f.id] : '';
-        return (v === undefined || v === null) ? '' : v;
-      }));
+      const extra = [];
+      fields.forEach(function (f) {
+        if (f.type === 'timeline') {
+          const r = self.tlRange(t, f.id);
+          extra.push(r.from || '', r.to || '');
+        } else {
+          const v = t.custom ? t.custom[f.id] : '';
+          extra.push((v === undefined || v === null) ? '' : v);
+        }
+      });
+      return base.concat(extra);
     });
 
     const scope = this.state.list === '__all' ? 'ทุกงาน' : (this.spaceSel() || this.state.list);
@@ -3944,7 +3997,7 @@ class Component extends DCLogic {
   }
 
   // ---- ลากปรับวันบน Timeline: ขอบซ้าย = วันเริ่ม, ขอบขวา = วันครบกำหนด, กลาง = เลื่อนทั้งงาน ----
-  beginGantt(e, id, mode, totalDays) {
+  beginGantt(e, id, mode, totalDays, fieldId) {
     if (e.button !== undefined && e.button !== 0) return;
     if (e.preventDefault) e.preventDefault();
     if (e.stopPropagation) e.stopPropagation();
@@ -3957,7 +4010,10 @@ class Component extends DCLogic {
     if (!t0) return;
 
     const self = this;
-    const orig = { start: t0.start, due: t0.due };
+    const orig = fieldId
+      ? (function () { const r = self.tlRange(t0, fieldId); return { start: r.from, due: r.to }; })()
+      : { start: t0.start, due: t0.due };
+    if (!orig.start || !orig.due) return;
     const startX = e.clientX;
     let lastDelta = 0;
     self._ganttMoved = false;
@@ -3977,13 +4033,15 @@ class Component extends DCLogic {
       if (mode === 'move') { ns = shift(orig.start, delta); nd = shift(orig.due, delta); }
       else if (mode === 'left') { ns = shift(orig.start, delta); if (ns > nd) ns = nd; }
       else { nd = shift(orig.due, delta); if (nd < ns) nd = ns; }
-      self.patchTask(id, function (t) { t.start = ns; t.due = nd; return t; });
+      if (fieldId) self.setTl(id, fieldId, { from: ns, to: nd });
+      else self.patchTask(id, function (t) { t.start = ns; t.due = nd; return t; });
     };
 
     const onUp = function () {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', onUp);
+      if (fieldId) return;   // ช่วงวันของ custom field ไม่ต้องส่งแจ้งเตือน
       const t1 = self.state.tasks.filter(function (t) { return t.id === id; })[0];
       if (t1 && t1.due !== orig.due) {
         self.notifyChange(Object.assign({}, t1, { due: orig.due }), 'due', t1.due);
@@ -4022,7 +4080,6 @@ class Component extends DCLogic {
 
   // เพิ่มตัวเลือกใหม่ คืนชื่อที่สร้าง (null = ยกเลิก)
   optAdd(kind) {
-    if (!this.guardAdmin()) return null;
     const name = (window.prompt('เพิ่ม' + this.optTitle(kind) + 'ใหม่ — พิมพ์ชื่อ') || '').trim();
     if (!name) return null;
     if (this.optLabels(kind).indexOf(name) >= 0) { window.alert('มีชื่อนี้อยู่แล้ว'); return null; }
@@ -4046,7 +4103,6 @@ class Component extends DCLogic {
 
   // เปลี่ยนชื่อตัวเลือก แล้วลากค่าในทุก task ตามไปด้วย คืนชื่อใหม่
   optRename(kind, oldVal) {
-    if (!this.guardAdmin()) return null;
     if (!oldVal || oldVal === '—') { window.alert('รายการ "—" (ไม่ระบุ) เปลี่ยนชื่อไม่ได้'); return null; }
     const name = (window.prompt('เปลี่ยนชื่อ' + this.optTitle(kind), oldVal) || '').trim();
     if (!name || name === oldVal) return null;
@@ -4073,7 +4129,6 @@ class Component extends DCLogic {
 
   // ลบตัวเลือก แล้วย้ายงานที่ใช้อยู่ไปค่าสำรอง คืนค่าสำรองนั้น
   optRemove(kind, val) {
-    if (!this.guardAdmin()) return null;
     if (!val || val === '—') { window.alert('รายการ "—" (ไม่ระบุ) ลบไม่ได้'); return null; }
     const L = this.optList(kind), field = this.optField(kind), isObj = this.optIsObject(kind);
     if (L.length < 2) { window.alert('ต้องเหลือไว้อย่างน้อย 1 รายการ'); return null; }
@@ -4150,15 +4205,19 @@ class Component extends DCLogic {
   addField() {
     const name = window.prompt('ชื่อฟิลด์ใหม่ (เช่น Brief link, งบจริง, สถานะ QC)');
     if (!name || !name.trim()) return;
-    let type = (window.prompt('ประเภทฟิลด์ — พิมพ์อย่างใดอย่างหนึ่ง: text / number / date / select', 'text') || 'text').trim().toLowerCase();
-    if (['text', 'number', 'date', 'select'].indexOf(type) < 0) type = 'text';
+    let type = (window.prompt('ประเภทฟิลด์ — พิมพ์อย่างใดอย่างหนึ่ง:\n\ntext = ข้อความ\nnumber = ตัวเลข\ndate = วันเดียว\nselect = ตัวเลือก dropdown\ntimeline = ช่วงวัน (โชว์เป็นแถบในหน้า Timeline)', 'text') || 'text').trim().toLowerCase();
+    if (['text', 'number', 'date', 'select', 'timeline'].indexOf(type) < 0) type = 'text';
     let options = [];
     if (type === 'select') {
       const raw = window.prompt('ตัวเลือกของ dropdown (คั่นด้วยเครื่องหมาย , )', '') || '';
       options = raw.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
       if (!options.length) type = 'text';
     }
-    const f = { id: 'F' + Date.now(), label: name.trim(), type: type, options: options };
+    const used = {};
+    (this.state.fields || []).forEach(function (x) { used[x.id] = 1; });
+    let fid;
+    do { fid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); } while (used[fid]);
+    const f = { id: fid, label: name.trim(), type: type, options: options };
     this.setState(function (st) { return { fields: (st.fields || []).concat([f]) }; }, () => this.persist());
   }
 
@@ -4177,6 +4236,30 @@ class Component extends DCLogic {
         })
       };
     }, () => this.persist());
+  }
+
+  // field ชนิด timeline เก็บเป็น { from, to }
+  tlRange(t, fid) {
+    const v = t && t.custom ? t.custom[fid] : null;
+    if (v && typeof v === 'object') return { from: v.from || '', to: v.to || v.from || '' };
+    if (typeof v === 'string' && v) return { from: v, to: v };
+    return { from: '', to: '' };
+  }
+  setTl(taskId, fid, part) {
+    const self = this;
+    this.patchTask(taskId, function (t) {
+      const cur = self.tlRange(t, fid);
+      const next = Object.assign({}, cur, part || {});
+      if (next.from && next.to && next.to < next.from) {
+        if (part && part.from) next.to = next.from; else next.from = next.to;
+      }
+      t.custom = Object.assign({}, t.custom || {});
+      t.custom[fid] = { from: next.from, to: next.to };
+      return t;
+    });
+  }
+  tlFields() {
+    return (this.state.fields || []).filter(function (f) { return f.type === 'timeline'; });
   }
 
   setCustom(taskId, fieldId, value) {
@@ -4236,15 +4319,60 @@ class Component extends DCLogic {
     const c = this.cols();
     return this.colOrder().filter(function (k) { return !!c[k]; });
   }
+  colWidth(k) {
+    const live = this.state.colW;
+    if (live && live.key === k) return live.w;
+    const w = (this.cfg().colWidths || {})[k];
+    if (typeof w === 'number' && w > 0) return w;
+    return k === 'name' ? 0 : colDef(k).w;   // name = 0 หมายถึงใช้ค่ายืดหยุ่นเดิม
+  }
   gridCols() {
-    const parts = ['26px', 'minmax(240px, 2fr)'];
-    this.activeCols().forEach(function (k) { parts.push(colDef(k).w + 'px'); });
+    const self = this;
+    const nw = this.colWidth('name');
+    const parts = ['26px', nw ? (nw + 'px') : 'minmax(240px, 2fr)'];
+    this.activeCols().forEach(function (k) { parts.push(self.colWidth(k) + 'px'); });
     return parts.join(' ');
   }
   tableWidth() {
-    let sum = 26 + 240 + 40;
-    this.activeCols().forEach(function (k) { sum += colDef(k).w; });
+    const self = this;
+    let sum = 26 + (this.colWidth('name') || 240) + 40;
+    this.activeCols().forEach(function (k) { sum += self.colWidth(k); });
     return sum;
+  }
+  // ลากเส้นแบ่งหัวคอลัมน์เพื่อปรับความกว้าง — ทุกคนทำได้
+  beginColResize(e, key) {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+    const self = this;
+    const startX = e.clientX;
+    const startW = this.colWidth(key) || (key === 'name' ? 240 : 120);
+    const min = key === 'name' ? 150 : 56;
+    this._resizing = true;
+    const onMove = function (ev) {
+      const w = Math.max(min, Math.min(680, Math.round(startW + (ev.clientX - startX))));
+      self.setState({ colW: { key: key, w: w } });
+    };
+    const onUp = function () {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      self._resizing = false;
+      const live = self.state.colW;
+      if (!live) return;
+      const widths = Object.assign({}, self.cfg().colWidths || {});
+      widths[live.key] = live.w;
+      self.setState({ colW: null }, function () { self.saveCfg({ colWidths: widths }); });
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  }
+  // ดับเบิลคลิกเส้นแบ่ง = คืนความกว้างเริ่มต้น
+  resetColWidth(key) {
+    const widths = Object.assign({}, this.cfg().colWidths || {});
+    delete widths[key];
+    this.saveCfg({ colWidths: widths });
   }
   // ย้ายคอลัมน์ — ทุกคนทำได้ ไม่ต้องเป็น admin
   moveCol(fromKey, toKey) {
@@ -4257,7 +4385,7 @@ class Component extends DCLogic {
   buildOpts() {
     const allLists = [];
     (this.state.spaces || []).forEach(function (sp) { sp.lists.forEach(function (l) { allLists.push(l); }); });
-    const extra = this.isAdmin() ? [OPT_ADD, OPT_RENAME, OPT_REMOVE] : [];
+    const extra = [OPT_ADD, OPT_RENAME, OPT_REMOVE];   // แก้จากตารางได้ทุกคน
     this._opt = {
       status: this.statuses().map(function (x) { return x.k; }).concat(extra),
       priority: this.priorities().map(function (x) { return x.k; }).concat(extra),
@@ -4279,13 +4407,11 @@ class Component extends DCLogic {
     return a.indexOf(String(this.me().email || '').toLowerCase()) >= 0;
   }
   saveCfg(part) {
-    const cur = this.adminList();
-    const mine = String(this.me().email || '').toLowerCase();
     const base = Object.assign({
       statuses: this.statuses(), priorities: this.priorities(),
       channels: this.channels(), platforms: this.platforms(),
-      cols: this.cols(), colOrder: this.colOrder(), doneStatus: this.doneKey(),
-      admins: cur.length ? cur : (mine ? [mine] : [])   // คนแรกที่ตั้งค่า = admin คนแรก
+      cols: this.cols(), colOrder: this.colOrder(), colWidths: (this.cfg().colWidths || {}), doneStatus: this.doneKey(),
+      admins: this.adminList()   // ว่างไว้ = ทุกคนแก้ตั้งค่าได้ จนกำหนด admin เองในแถบ ⚙
     }, part || {});
     this.setState({ config: base }, () => this.persist());
   }
@@ -4388,6 +4514,14 @@ class Component extends DCLogic {
   }
 
   taskVM(t) {
+    const cache = this._vmCache;
+    if (cache && cache[t.id]) return cache[t.id];
+    const vm = this.buildTaskVM(t);
+    if (cache) cache[t.id] = vm;
+    return vm;
+  }
+
+  buildTaskVM(t) {
     const self = this;
     const dm = this.dueMeta(t.due, t.status);
     const sm = this.statusMeta(t.status);
@@ -4451,11 +4585,11 @@ class Component extends DCLogic {
         self.patch(t.id, 'tags', e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean));
       },
       onList: function (e) { self.patch(t.id, 'list', e.target.value); },
-      cells: (function () {
+      cells: self.state.view !== 'table' ? [] : (function () {
         const O = self._opt || self.buildOpts();
         const dm2 = self.dueMeta(t.due, t.status);
         const numStyle = 'width:100%;background:transparent;border:0;outline:0;text-align:right;padding-right:9px;font-size:12px;font-family:\'IBM Plex Mono\',monospace;color:var(--pw-text);';
-        const sel = 'background:transparent;border:0;outline:0;font-size:12px;color:var(--pw-text2);cursor:pointer;';
+        const sel = 'background:transparent;border:0;outline:0;font-size:12px;color:var(--pw-text2);cursor:pointer;width:100%;min-width:0;';
         const mk = {
           status: function () {
             return { key: 'status', isSelect: true, options: O.status, value: t.status,
@@ -4465,7 +4599,7 @@ class Component extends DCLogic {
                 if (self.optionPick('statuses', v, t.status, function (n) { self.patch(t.id, 'status', n); })) return;
                 self.patch(t.id, 'status', v);
               },
-              style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + sm.bg + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;width:110px;' };
+              style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + sm.bg + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;width:100%;min-width:0;' };
           },
           assignee: function () {
             return { key: 'assignee', isAssignee: true, options: O.members, value: t.assignee,
@@ -4475,14 +4609,14 @@ class Component extends DCLogic {
                 if (v === ADD_MEMBER) { self.promptMember(function (n) { self.patch(t.id, 'assignee', n); }); return; }
                 self.patch(t.id, 'assignee', v);
               },
-              style: sel + 'max-width:88px;' };
+              style: sel };
           },
           due: function () {
             return { key: 'due', isInput: true, inputType: 'date', value: t.due, valueRef: self.syncRef(t.due),
               onChange: function (e) { self.patch(t.id, 'due', e.target.value); },
               onPick: function (e) { self.openPicker(e); },
               placeholder: '',
-              style: 'background:transparent;border:0;outline:0;font-size:11.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm2.color + ';width:104px;cursor:pointer;' + (dm2.overdue ? 'font-weight:600;' : '') };
+              style: 'background:transparent;border:0;outline:0;font-size:11.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm2.color + ';width:100%;min-width:0;cursor:pointer;' + (dm2.overdue ? 'font-weight:600;' : '') };
           },
           priority: function () {
             return { key: 'priority', isSelect: true, options: O.priority, value: t.priority,
@@ -4492,7 +4626,7 @@ class Component extends DCLogic {
                 if (self.optionPick('priorities', v, t.priority, function (n) { self.patch(t.id, 'priority', n); })) return;
                 self.patch(t.id, 'priority', v);
               },
-              style: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;' };
+              style: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:100%;min-width:0;' };
           },
           tags: function () {
             return { key: 'tags', isInput: true, inputType: 'text', value: (t.tags || []).join(', '),
@@ -4503,7 +4637,7 @@ class Component extends DCLogic {
           list: function () {
             return { key: 'list', isSelect: true, options: O.lists, value: t.list,
               valueRef: self.syncRef(t.list), onChange: function (e) { self.patch(t.id, 'list', e.target.value); },
-              style: sel + 'max-width:124px;' };
+              style: sel };
           },
           channel: function () {
             return { key: 'channel', isSelect: true, options: O.channels, value: t.channel,
@@ -4513,7 +4647,7 @@ class Component extends DCLogic {
                 if (self.optionPick('channels', v, t.channel, function (n) { self.patch(t.id, 'channel', n); })) return;
                 self.patch(t.id, 'channel', v);
               },
-              style: sel + 'max-width:108px;' };
+              style: sel };
           },
           platform: function () {
             return { key: 'platform', isSelect: true, options: O.platforms, value: t.platform,
@@ -4523,7 +4657,7 @@ class Component extends DCLogic {
                 if (self.optionPick('platforms', v, t.platform, function (n) { self.patch(t.id, 'platform', n); })) return;
                 self.patch(t.id, 'platform', v);
               },
-              style: sel + 'max-width:106px;' };
+              style: sel };
           },
           cost: function () {
             return { key: 'cost', isInput: true, inputType: 'text', value: String(t.cost), valueRef: self.syncRef(t.cost),
@@ -4549,6 +4683,7 @@ class Component extends DCLogic {
   renderVals() {
     const self = this;
     const s = this.state;
+    this._vmCache = {};               // cache เฉพาะรอบนี้ กัน taskVM ถูกสร้างซ้ำ
     this.buildOpts();                 // สร้างลิสต์ตัวเลือกใหม่ทุกรอบ ก่อนใช้งาน
     const visible = this.visibleTasks();
     const vms = visible.map(function (t) { return self.taskVM(t); });
@@ -4817,6 +4952,38 @@ class Component extends DCLogic {
         onBarDown: function (e) { self.beginGantt(e, t.id, 'move', totalDays); },
         onLeftDown: function (e) { self.beginGantt(e, t.id, 'left', totalDays); },
         onRightDown: function (e) { self.beginGantt(e, t.id, 'right', totalDays); },
+        subRows: self.tlFields().map(function (f, fi) {
+          const r = self.tlRange(t, f.id);
+          const col = TAG_COLORS[fi % TAG_COLORS.length];
+          if (!r.from || !r.to) {
+            return {
+              label: f.label, hasRange: false, empty: true,
+              emptyHint: 'ยังไม่กำหนดช่วงวัน — ใส่ได้ที่ปุ่ม Open',
+              dotStyle: 'width:6px;height:6px;border-radius:2px;flex:0 0 6px;background:' + col + ';opacity:0.35;'
+            };
+          }
+          let sa = Math.max(0, dayNo(r.from));
+          let sb2 = Math.min(totalDays, Math.max(sa + 1, dayNo(r.to) + 1));
+          const sLeft = sa / totalDays * 100;
+          const sWidth = Math.max(1.4, (sb2 - sa) / totalDays * 100);
+          const sRange = self.shortDate(r.from) + ' → ' + self.shortDate(r.to);
+          const sWide = sWidth >= 13, sMid = sWidth >= 7;
+          return {
+            label: f.label, hasRange: true, empty: false,
+            dotStyle: 'width:6px;height:6px;border-radius:2px;flex:0 0 6px;background:' + col + ';',
+            rangeLabel: sRange + ' · ' + f.label,
+            barLabel: sWide ? sRange : (sMid ? self.shortDate(r.from) : ''),
+            barStyle: 'position:absolute;top:5px;height:14px;left:' + sLeft + '%;width:' + sWidth + '%;background:' + col + ';border-radius:4px;cursor:grab;color:#fff;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;padding:0 8px;touch-action:none;user-select:none;opacity:0.9;',
+            handleLeftStyle: 'position:absolute;left:0;top:0;bottom:0;width:8px;cursor:ew-resize;border-radius:4px 0 0 4px;background:rgba(255,255,255,0.3);touch-action:none;',
+            handleRightStyle: 'position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;border-radius:0 4px 4px 0;background:rgba(255,255,255,0.3);touch-action:none;',
+            outsideLabel: (sWide || sMid) ? '' : sRange,
+            outsideStyle: 'position:absolute;top:7px;left:calc(' + (sLeft + sWidth) + '% + 6px);font-size:9px;font-weight:600;color:' + col + ';white-space:nowrap;pointer-events:none;font-family:\'IBM Plex Mono\',monospace;',
+            onBarDown: function (e) { self.beginGantt(e, t.id, 'move', totalDays, f.id); },
+            onLeftDown: function (e) { self.beginGantt(e, t.id, 'left', totalDays, f.id); },
+            onRightDown: function (e) { self.beginGantt(e, t.id, 'right', totalDays, f.id); }
+          };
+        }),
+        hasSubRows: self.tlFields().length > 0,
         onOpen: function () {
           if (self._ganttMoved) { self._ganttMoved = false; return; }   // เพิ่งลาก ไม่ต้องเปิดรายละเอียด
           vm.onOpen();
@@ -4918,16 +5085,25 @@ class Component extends DCLogic {
         desc: sel.desc,
         customFields: (s.fields || []).map(function (f) {
           const val = (sel.custom && sel.custom[f.id] !== undefined && sel.custom[f.id] !== null) ? sel.custom[f.id] : '';
+          const r = self.tlRange(sel, f.id);
           return {
             label: f.label,
             isSelect: f.type === 'select',
-            isInput: f.type !== 'select',
+            isTimeline: f.type === 'timeline',
+            isInput: f.type !== 'select' && f.type !== 'timeline',
             inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
             options: [''].concat(f.options || []),
-            value: String(val),
-            valueRef: self.syncRef(String(val)),
+            value: String(f.type === 'timeline' ? '' : val),
+            valueRef: self.syncRef(String(f.type === 'timeline' ? '' : val)),
+            fromValue: r.from,
+            toValue: r.to,
+            fromRef: self.syncRef(r.from),
+            toRef: self.syncRef(r.to),
+            onFrom: function (e) { self.setTl(sel.id, f.id, { from: e.target.value }); },
+            onTo: function (e) { self.setTl(sel.id, f.id, { to: e.target.value }); },
             onValue: function (e) { self.setCustom(sel.id, f.id, e.target.value); },
             onPick: function (e) { if (f.type === 'date') self.openPicker(e); },
+            onDatePick: function (e) { self.openPicker(e); },
             onRemove: function () { self.removeField(f.id); }
           };
         }),
@@ -5224,13 +5400,20 @@ class Component extends DCLogic {
       onToggleSettings: function () { self.setState(function (st) { return { settingsOpen: !st.settingsOpen }; }); },
       onCloseSettings: function () { self.setState({ settingsOpen: false }); },
       settingsBtnStyle: 'width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.settingsOpen ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
+      nameColStyle: 'display:flex;align-items:center;position:relative;user-select:none;padding-right:6px;',
+      onNameResize: function (e) { self.beginColResize(e, 'name'); },
+      onNameResizeReset: function () { self.resetColWidth('name'); },
+      resizeHandleStyle: 'position:absolute;top:0;right:-3px;width:7px;height:32px;cursor:col-resize;touch-action:none;z-index:4;',
       tableCols: self.activeCols().map(function (k) {
         const d = colDef(k);
         const dragging = s.colDrag === k;
         return {
           label: d.label,
-          style: 'display:flex;align-items:center;gap:5px;cursor:grab;user-select:none;opacity:' + (dragging ? '0.4' : '1') + ';padding-right:6px;' + (d.k === 'cost' || d.k === 'qty' || d.k === 'activity' ? 'justify-content:flex-end;' : ''),
+          onResize: function (e) { self.beginColResize(e, k); },
+          onResizeReset: function () { self.resetColWidth(k); },
+          style: 'display:flex;align-items:center;gap:5px;position:relative;cursor:grab;user-select:none;overflow:hidden;opacity:' + (dragging ? '0.4' : '1') + ';padding-right:8px;' + (d.k === 'cost' || d.k === 'qty' || d.k === 'activity' ? 'justify-content:flex-end;' : ''),
           onDragStart: function (e) {
+            if (self._resizing) { if (e.preventDefault) e.preventDefault(); return; }
             self._colDrag = k;
             if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', k); } catch (err) {} }
             self.setState({ colDrag: k });
