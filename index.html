@@ -15,7 +15,12 @@
 ================================================================== */
 window.PAWDY_CONFIG = {
   url:     'https://zkdhwgulkwzxajinqsis.supabase.co',
-  anonKey: 'sb_publishable_FOqsERcwCXxA2LdPwVqpiA_0bmQye9r'
+  anonKey: 'sb_publishable_FOqsERcwCXxA2LdPwVqpiA_0bmQye9r',
+  /* ชื่อ Edge Function ที่ใช้ส่งอีเมล — ต้องตรงกับชื่อบน Supabase เป๊ะๆ
+     ตอนนี้บน Supabase ชื่อ clever-function ถ้าวันหลัง deploy ใหม่ชื่อ notify ก็แก้บรรทัดนี้ */
+  notifyFunction: 'clever-function',
+  /* ป้ายเวอร์ชันไฟล์ — โชว์ในแถบ ⚙ ใช้เช็คว่าเว็บที่เปิดอยู่เป็นไฟล์ตัวไหน */
+  build: 'B7 · 2026-08-05'
 };
 window.__resources = {};  /* template ฝังในไฟล์แล้ว ไม่ต้อง fetch หน้าตัวเองซ้ำ */
 
@@ -243,6 +248,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 ------------------------------------------------------------------ */
 (function () {
   var CFG = window.PAWDY_CONFIG || {};
+  var FN_NAME = CFG.notifyFunction || 'notify';     // ชื่อ Edge Function ที่ส่งอีเมล
   var CACHE = 'pawdy.workspace.cache.v2';
 
   var sb = null, me = null, ready = false;
@@ -281,7 +287,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     testMail: function (to) {
       if (!sb || !me) return Promise.resolve({ ok: false, detail: 'ยังไม่ได้ล็อกอิน' });
       if (!sb.functions || !sb.functions.invoke) return Promise.resolve({ ok: false, detail: 'supabase-js ไม่มี functions.invoke' });
-      return sb.functions.invoke('notify', {
+      return sb.functions.invoke(FN_NAME, {
         body: {
           to: to, toName: to, fromName: me.n || me.email,
           subject: 'ทดสอบระบบแจ้งเตือน', line: 'ถ้าอ่านอีเมลนี้ได้ = ระบบส่งอีเมลใช้งานได้แล้ว',
@@ -290,6 +296,11 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       }).then(function (r) {
         if (r && r.error) {
           var m = r.error.message || String(r.error);
+          if (/failed to send a request/i.test(m)) {
+            return { ok: false, detail: 'เรียกไปไม่ถึง Edge Function ชื่อ "' + FN_NAME + '" — ชื่อบน Supabase ต้องตรงกับค่านี้เป๊ะๆ · ' +
+              'เช็คได้โดยเปิด ' + String(CFG.url).replace(/\/$/, '') + '/functions/v1/' + FN_NAME +
+              ' ถ้า deploy ถูกจะเห็น {"error":"POST only"}' };
+          }
           if (/not found|404/i.test(m)) return { ok: false, detail: 'ยังไม่ได้ deploy Edge Function ชื่อ notify (' + m + ')' };
           return { ok: false, detail: m };
         }
@@ -352,10 +363,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
         subject: n.subject || '', line: n.line || '', detail: n.detail || ''
       }).then(log);
 
-      // ส่งอีเมลจริงผ่าน Supabase Edge Function ชื่อ 'notify'
+      // ส่งอีเมลจริงผ่าน Supabase Edge Function (ชื่อตาม PAWDY_CONFIG.notifyFunction)
       // ถ้ายังไม่ได้ deploy function นี้ จะเงียบไปเอง กล่องแจ้งเตือนในแอปยังทำงานปกติ
       if (sb.functions && sb.functions.invoke) {
-        sb.functions.invoke('notify', {
+        sb.functions.invoke(FN_NAME, {
           body: {
             to: n.to, toName: n.toName || '', fromName: me.n || me.email,
             subject: n.subject || '', line: n.line || '', detail: n.detail || ''
@@ -3275,7 +3286,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <sc-for list="{{ spaces }}" as="space" hint-placeholder-count="3">
         <div style="display: flex; flex-direction: column; gap: 1px; margin-bottom: 3px;">
           <div style="{{ space.rowStyle }}" style-hover="background: #1d202a;">
-            <button sc-camel-on-click="{{ space.onToggle }}" title="พับ / ขยาย" style="background: transparent; border: 0; color: #5d636f; font-size: 10px; line-height: 1; cursor: pointer; padding: 0 1px; flex: 0 0 auto;" style-hover="color: #fff;">{{ space.caret }}</button>
+            <button sc-camel-on-click="{{ space.onToggle }}" title="พับ / ขยาย" style="width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; background: transparent; border: 0; border-radius: 6px; color: #8b93a3; font-size: 13px; line-height: 1; cursor: pointer; padding: 0;" style-hover="background: #262a35; color: #fff;">{{ space.caret }}</button>
             <button sc-camel-on-click="{{ space.onSelect }}" title="ดูทุก list ใน space นี้" style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 0; color: inherit; font-size: 12.5px; font-weight: inherit;">
               <span style="{{ space.dotStyle }}"></span>
               <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ space.name }}</span>
@@ -4316,7 +4327,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
           <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">อีเมลแจ้งเตือน</span>
-          <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.5;">ต้อง deploy Edge Function ชื่อ notify บน Supabase ก่อน กดปุ่มนี้เพื่อดูว่าติดตรงไหน</span>
+          <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.5;">กดปุ่มนี้เพื่อดูว่าติดตรงไหน — ชื่อ Edge Function ที่แอปเรียกต้องตรงกับชื่อบน Supabase</span>
+          <span style="font-size: 10.5px; color: var(--pw-label); font-family: 'IBM Plex Mono', monospace;">{{ buildLabel }}</span>
           <button sc-camel-on-click="{{ settings.onTestMail }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; color: var(--pw-text2); cursor: pointer; text-align: left;" style-hover="border-color: #4f46e5; color: #4f46e5;">ทดสอบส่งอีเมล</button>
           <span style="{{ settings.mailTestStyle }}">{{ settings.mailTest }}</span>
         </div>
@@ -6416,8 +6428,8 @@ class Component extends DCLogic {
       expanded: !!(self.state.expanded && self.state.expanded[t.id]),
       collapsed: !(self.state.expanded && self.state.expanded[t.id]),
       caret: (self.state.expanded && self.state.expanded[t.id]) ? '▾' : '▸',
-      caretStyle: 'background:transparent;border:0;color:' + ((t.subtasks || []).length ? 'var(--pw-muted)' : 'var(--pw-faint)') +
-        ';font-size:9px;cursor:pointer;padding:0 2px;flex:0 0 auto;',
+      caretStyle: 'width:20px;height:20px;flex:0 0 20px;display:grid;place-items:center;background:transparent;border:0;border-radius:5px;' +
+        'color:' + ((t.subtasks || []).length ? 'var(--pw-muted)' : 'var(--pw-faint)') + ';font-size:12px;cursor:pointer;padding:0;',
       onToggleExpand: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.toggleExpand(t.id); },
       subs: (t.subtasks || []).map(function (x, i) {
         return {
@@ -7813,19 +7825,12 @@ class Component extends DCLogic {
           })
         };
       })(),
-      detailModal: !!s.selected && !self.isMobile() && ['board', 'calendar', 'timeline', 'gantt'].indexOf(s.view) >= 0,
-      detailStyle: (function () {
-        if (self.isMobile()) {
-          return 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;';
-        }
-        if (['board', 'calendar', 'timeline', 'gantt'].indexOf(s.view) >= 0) {
-          // เปิดจากมุมมองที่เป็นภาพรวม → เด้งกลางจอเหมือนเปิดการ์ด
-          return 'position:fixed;top:6vh;left:50%;transform:translateX(-50%);width:min(760px,92vw);max-height:88vh;z-index:76;' +
-                 'background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:14px;' +
-                 'box-shadow:0 24px 64px rgba(8,10,14,0.38);display:flex;flex-direction:column;overflow:hidden;';
-        }
-        return 'width:400px;flex:0 0 400px;background:var(--pw-surface);border-left:1px solid var(--pw-border);display:flex;flex-direction:column;overflow:hidden;box-shadow:-8px 0 24px rgba(16,24,40,0.06);';
-      })(),
+      detailModal: !!s.selected && !self.isMobile(),
+      detailStyle: self.isMobile()
+        ? 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;'
+        : 'position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:min(900px,94vw);max-height:90vh;z-index:76;' +
+          'background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:14px;' +
+          'box-shadow:0 24px 64px rgba(8,10,14,0.38);display:flex;flex-direction:column;overflow:hidden;',
       settingsStyle: self.isMobile()
         ? 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;'
         : 'width:356px;flex:0 0 356px;background:var(--pw-surface);border-left:1px solid var(--pw-border);display:flex;flex-direction:column;overflow:hidden;',
@@ -7882,6 +7887,8 @@ class Component extends DCLogic {
       trashEmpty: self.trashTasks().length === 0,
       isAdmin: self.isAdmin(),
       onExport: function () { self.exportXlsx(); },
+      buildLabel: 'เวอร์ชันไฟล์ ' + ((window.PAWDY_CONFIG && window.PAWDY_CONFIG.build) || '—') +
+                  ' · Edge Function: ' + ((window.PAWDY_CONFIG && window.PAWDY_CONFIG.notifyFunction) || 'notify'),
       meEmail: self.me().email || '',
       meTitle: self.me().n + (self.me().email ? ' · ' + self.me().email : '') + ' — กำลังใช้งานอยู่',
       meRoleLabel: (self.isAdmin() ? 'Admin' : 'Member') + ' · กำลังใช้งานอยู่',
