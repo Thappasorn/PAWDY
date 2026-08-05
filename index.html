@@ -3094,18 +3094,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     100% { background-color: transparent; }
   }
 
-  /* ---------- พับแถบเมนู (จอใหญ่) ---------- */
-  [data-root~="collapsed"] [data-sidebar] { display: none; }
+  /* ---------- พับแถบเมนู (ขนาดคุมจากโค้ดแล้ว) ---------- */
   [data-root~="collapsed"] [data-mobile-only] { display: grid !important; }
   [data-root~="mobile"] [data-desktop-only] { display: none !important; }
 
   /* ---------- โหมดมือถือ ---------- */
-  [data-root~="mobile"] [data-sidebar] { display: none; }
   [data-root~="mobile"] [data-mobile-only] { display: grid !important; }
-  [data-root~="mobile"][data-root~="nav"] [data-sidebar] {
-    display: flex; position: fixed; top: 0; bottom: 0; left: 0; width: 78vw; max-width: 300px;
-    z-index: 60; box-shadow: 0 0 40px rgba(0,0,0,.45); animation: pw-slide-left .2s cubic-bezier(.2,.8,.2,1);
-  }
+  [data-root~="mobile"][data-root~="nav"] [data-sidebar] { animation: pw-slide-left .2s cubic-bezier(.2,.8,.2,1); }
   @keyframes pw-slide-left { from { transform: translateX(-100%); } to { transform: none; } }
 
   /* panel ขวาบนมือถือ = เต็มจอ (คุมจาก style ของ panel เองแล้ว) */
@@ -3117,8 +3112,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-root~="mobile"] button { min-height: 30px; }
   [data-root~="mobile"] [data-assignee] { display: none; }   /* จอแคบโชว์แค่รูป เปลี่ยนคนใน panel */
 
-  /* แถบซ้ายต้องเลื่อนได้ ไม่งั้นปุ่ม Sign out ล่างสุดกดไม่ถึง */
-  [data-root~="mobile"][data-root~="nav"] [data-sidebar] { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
   /* dropdown ทุกอันบนมือถือ = แผ่นเต็มความกว้าง ไม่ล้นออกนอกจอ */
   [data-root~="mobile"] [data-dropdown] {
@@ -3193,7 +3186,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     <div data-scrim sc-camel-on-click="{{ onCloseNav }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.5); z-index: 55;"></div>
   </sc-if>
 
-  <aside data-sidebar style="width: 232px; flex: 0 0 232px; background: #14161c; color: #a7adba; display: flex; flex-direction: column; overflow: hidden;">
+  <aside data-sidebar style="{{ sidebarStyle }}">
     <div style="display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-bottom: 1px solid #23262f;">
       <div style="width: 26px; height: 26px; border-radius: 7px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 12px; letter-spacing: -0.2px;">PW</div>
       <div style="display: flex; flex-direction: column; line-height: 1.25; min-width: 0;">
@@ -3565,7 +3558,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button sc-camel-on-click="{{ row.onCycleStatus }}" title="Advance status" style="{{ row.checkStyle }}"></button>
                   <div style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px;">
-                    <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                    <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
+                  <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                     <button sc-camel-on-click="{{ row.onOpen }}" style="flex: 0 0 auto; background: transparent; border: 1px solid var(--pw-border); color: var(--pw-muted); border-radius: 4px; font-size: 10.5px; padding: 2px 6px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
                   </div>
                   <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="8">
@@ -3602,6 +3596,31 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </sc-for>
                   <span></span>
                 </div>
+
+                <sc-if value="{{ row.expanded }}" hint-placeholder-val="{{ false }}">
+                  <div data-panel style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 8px 58px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
+                    <sc-for list="{{ row.subs }}" as="sb2" hint-placeholder-count="2">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <button sc-camel-on-click="{{ sb2.onToggle }}" title="ติ๊กเสร็จ" style="{{ sb2.markStyle }}">{{ sb2.mark }}</button>
+                        <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                        <button sc-camel-on-click="{{ sb2.onRemove }}" title="ลบ subtask" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 3px;" style-hover="color: #dc2626;">×</button>
+                      </div>
+                    </sc-for>
+
+                    <sc-if value="{{ row.subComposerOpen }}" hint-placeholder-val="{{ false }}">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 15px; height: 15px; flex: 0 0 15px; border-radius: 50%; border: 1.5px dashed #4f46e5;"></span>
+                        <input ref="{{ row.subComposerRef }}" data-sync="{{ row.subComposerText }}" value="{{ row.subComposerText }}" sc-camel-on-change="{{ row.onSubText }}" sc-camel-on-key-down="{{ row.onSubKey }}" placeholder="ชื่อ subtask แล้วกด Enter — พิมพ์ต่อได้เรื่อยๆ · Esc ปิด" style="flex: 1; min-width: 0; background: var(--pw-surface); border: 1px solid #4f46e5; border-radius: 6px; padding: 5px 8px; font-size: 12.5px; outline: 0; color: var(--pw-text);">
+                        <button sc-camel-on-click="{{ row.onSubCommit }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 5px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #4338ca;">เพิ่ม</button>
+                        <button sc-camel-on-click="{{ row.onSubClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 14px; line-height: 1; cursor: pointer; padding: 0 3px;">×</button>
+                      </div>
+                    </sc-if>
+
+                    <button sc-camel-on-click="{{ row.onSubAdd }}" style="align-self: flex-start; display: flex; align-items: center; gap: 7px; background: transparent; border: 0; color: var(--pw-muted2); font-size: 12px; cursor: pointer; padding: 4px 5px; border-radius: 5px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">
+                      <span style="font-size: 13px;">+</span>Add Task
+                    </button>
+                  </div>
+                </sc-if>
               </sc-for>
             </div>
           </sc-for>
@@ -3614,7 +3633,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
             <div style="display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 3; background: var(--pw-bg); padding: 6px 0;">
-                <span style="{{ group.chipStyle }}">{{ group.key }}</span>
+                <span style="{{ group.chipStyle }}">{{ group.status }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
                 <button sc-camel-on-click="{{ group.onAdd }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 5px 11px; font-size: 12px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่มงาน</button>
               </div>
@@ -4492,6 +4511,9 @@ class Component extends DCLogic {
       viewportNarrow: (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth < 760 : false,
       navOpen: false,
       navCollapsed: !!ui.navCollapsed,
+      expanded: {},          // taskId -> กาง subtask อยู่
+      subComposer: null,     // taskId ที่เปิดช่องพิมพ์ subtask
+      subComposerText: '',
       ctxMenu: null,         // { id, x, y, mode } — เมนูคลิกขวาบนการ์ด
       ctxName: '',
       optEditor: null,       // { kind, taskId } — panel จัดการตัวเลือก
@@ -5113,6 +5135,58 @@ class Component extends DCLogic {
   }
 
   // ---- เมนูคลิกขวาบนการ์ด/แถวงาน ----
+  // ---- subtask ในตาราง: กางดู เพิ่ม แก้ ติ๊ก ลบ ----
+  toggleExpand(id) {
+    this.setState(function (s) {
+      const e = Object.assign({}, s.expanded || {});
+      if (e[id]) delete e[id]; else e[id] = true;
+      return { expanded: e };
+    });
+  }
+  openSubComposer(id) {
+    this._focusSub = true;
+    this.setState(function (s) {
+      const e = Object.assign({}, s.expanded || {});
+      e[id] = true;
+      return { expanded: e, subComposer: id, subComposerText: '' };
+    });
+  }
+  closeSubComposer() { this.setState({ subComposer: null, subComposerText: '' }); }
+  addSubtaskTo(id) {
+    const title = String(this.state.subComposerText || '').trim();
+    if (!title) { this.closeSubComposer(); return; }
+    this.mark('เพิ่ม subtask');
+    this._focusSub = true;
+    this.patchTask(id, function (t) {
+      t.subtasks = (t.subtasks || []).concat([{ title: title, done: false }]);
+      return t;
+    });
+    this.setState({ subComposerText: '' });
+  }
+  toggleSub(id, idx) {
+    this.mark('ติ๊ก subtask');
+    this.patchTask(id, function (t) {
+      t.subtasks = (t.subtasks || []).map(function (x, i) { return i === idx ? Object.assign({}, x, { done: !x.done }) : x; });
+      return t;
+    });
+  }
+  renameSub(id, idx, title) {
+    const v = String(title || '').trim();
+    if (!v) return;
+    this.mark('แก้ subtask');
+    this.patchTask(id, function (t) {
+      t.subtasks = (t.subtasks || []).map(function (x, i) { return i === idx ? Object.assign({}, x, { title: v }) : x; });
+      return t;
+    });
+  }
+  removeSub(id, idx) {
+    this.mark('ลบ subtask');
+    this.patchTask(id, function (t) {
+      t.subtasks = (t.subtasks || []).filter(function (x, i) { return i !== idx; });
+      return t;
+    });
+  }
+
   openCtx(e, id) {
     if (e && e.preventDefault) e.preventDefault();
     if (e && e.stopPropagation) e.stopPropagation();
@@ -6114,6 +6188,43 @@ class Component extends DCLogic {
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
       onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '' }); },
       onContext: function (e) { self.openCtx(e, t.id); },
+      expanded: !!(self.state.expanded && self.state.expanded[t.id]),
+      collapsed: !(self.state.expanded && self.state.expanded[t.id]),
+      caret: (self.state.expanded && self.state.expanded[t.id]) ? '▾' : '▸',
+      caretStyle: 'background:transparent;border:0;color:' + ((t.subtasks || []).length ? 'var(--pw-muted)' : 'var(--pw-faint)') +
+        ';font-size:9px;cursor:pointer;padding:0 2px;flex:0 0 auto;',
+      onToggleExpand: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.toggleExpand(t.id); },
+      subs: (t.subtasks || []).map(function (x, i) {
+        return {
+          title: x.title,
+          titleRef: self.syncRef(x.title),
+          done: !!x.done,
+          markStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:50%;border:1.5px solid ' + (x.done ? '#059669' : 'var(--pw-faint)') +
+            ';background:' + (x.done ? '#059669' : 'transparent') + ';color:#fff;font-size:9px;line-height:1;display:grid;place-items:center;cursor:pointer;padding:0;',
+          mark: x.done ? '✓' : '',
+          textStyle: 'flex:1;min-width:0;background:transparent;border:0;outline:0;font-size:12.5px;padding:3px 5px;border-radius:5px;color:' +
+            (x.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';' + (x.done ? 'text-decoration:line-through;' : ''),
+          onToggle: function () { self.toggleSub(t.id, i); },
+          onRename: function (e) { self.renameSub(t.id, i, e.target.value); },
+          onRemove: function () { self.removeSub(t.id, i); }
+        };
+      }),
+      subComposerOpen: self.state.subComposer === t.id,
+      subComposerText: self.state.subComposer === t.id ? (self.state.subComposerText || '') : '',
+      subComposerRef: function (el) {
+        if (!el) return;
+        const v = self.state.subComposer === t.id ? (self.state.subComposerText || '') : '';
+        if (el.value !== v) el.value = v;
+        if (self.state.subComposer === t.id && self._focusSub) { el.focus(); self._focusSub = false; }
+      },
+      onSubText: function (e) { self.setState({ subComposerText: e.target.value }); },
+      onSubKey: function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); self.addSubtaskTo(t.id); }
+        if (e.key === 'Escape') self.closeSubComposer();
+      },
+      onSubAdd: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openSubComposer(t.id); },
+      onSubCommit: function () { self.addSubtaskTo(t.id); },
+      onSubClose: function () { self.closeSubComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
       onCycleStatus: function () {
@@ -6778,7 +6889,7 @@ class Component extends DCLogic {
             title: st.title,
             titleRef: self.syncRef(st.title),
             mark: st.done ? '✓' : '',
-            boxStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:4px;border:1.5px solid ' + (st.done ? '#059669' : 'var(--pw-faint)') + ';background:' + (st.done ? '#059669' : '#fff') + ';color:#fff;font-size:9px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;',
+            boxStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:4px;border:1.5px solid ' + (st.done ? '#059669' : 'var(--pw-faint)') + ';background:' + (st.done ? '#059669' : 'var(--pw-surface)') + ';color:#fff;font-size:9px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;',
             textStyle: 'flex:1;border:0;outline:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:4px;color:' + (st.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';text-decoration:' + (st.done ? 'line-through' : 'none') + ';',
             onToggle: function () {
               self.patchTask(sel.id, function (t) {
@@ -6976,7 +7087,7 @@ class Component extends DCLogic {
       notifOpen: s.notifOpen,
       notifUnread: s.notifs.filter(function (n) { return !n.read; }).length,
       hasUnread: s.notifs.filter(function (n) { return !n.read; }).length > 0,
-      notifBellStyle: 'position:relative;width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.notifOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.notifOpen ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (s.notifOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
+      notifBellStyle: 'position:relative;width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.notifOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.notifOpen ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' + (s.notifOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
       notifEmpty: s.notifs.length === 0,
       notifs: s.notifs.map(function (n) {
         const mins = Math.floor((Date.now() - n.at) / 60000);
@@ -6985,7 +7096,7 @@ class Component extends DCLogic {
           when: mins < 1 ? 'just now' : (mins < 60 ? mins + 'm ago' : Math.floor(mins / 60) + 'h ago'),
           initials: self.initials(n.toName),
           avatarStyle: self.avatar(n.toName, 26),
-          rowStyle: 'display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--pw-line);background:' + (n.read ? '#fff' : 'var(--pw-hover)') + ';'
+          rowStyle: 'display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--pw-line);background:' + (n.read ? 'var(--pw-surface)' : 'var(--pw-hover)') + ';'
         };
       }),
       onToggleNotif: function () {
@@ -7224,6 +7335,16 @@ class Component extends DCLogic {
         self.setState(function (st) { return { navCollapsed: true, navOpen: false }; }, function () { self.persist(); });
       },
       navToggleTitle: self.isMobile() ? 'เมนู' : (s.navCollapsed ? 'กางแถบเมนู' : 'พับแถบเมนู'),
+      sidebarStyle: (function () {
+        const base = 'background:#14161c;color:#a7adba;flex-direction:column;';
+        if (self.isMobile()) {
+          if (!s.navOpen) return 'display:none;';
+          return 'display:flex;position:fixed;top:0;bottom:0;left:0;width:78vw;max-width:300px;z-index:60;' +
+                 'box-shadow:0 0 40px rgba(0,0,0,0.45);overflow-y:auto;' + base;
+        }
+        if (s.navCollapsed) return 'display:none;';
+        return 'display:flex;width:232px;flex:0 0 232px;overflow:hidden;' + base;
+      })(),
       mobileIcon: self.isMobile() ? '🖥' : '📱',
       mobileTitle: self.isMobile() ? 'กำลังดูแบบมือถือ — กดเพื่อกลับเป็นจอใหญ่' : 'ดูแบบมือถือ',
       onToggleMobile: function () {
@@ -7462,7 +7583,7 @@ class Component extends DCLogic {
       settingsOpen: s.settingsOpen,
       onToggleSettings: function () { self.setState(function (st) { return { settingsOpen: !st.settingsOpen }; }); },
       onCloseSettings: function () { self.setState({ settingsOpen: false }); },
-      settingsBtnStyle: 'width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.settingsOpen ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
+      settingsBtnStyle: 'width:30px;height:30px;border-radius:7px;border:1px solid ' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.settingsOpen ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' + (s.settingsOpen ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:13px;display:grid;place-items:center;',
       nameColStyle: 'display:flex;align-items:center;position:relative;user-select:none;padding-right:6px;',
       onNameResize: function (e) { self.beginColResize(e, 'name'); },
       onNameResizeReset: function () { self.resetColWidth('name'); },
@@ -7520,7 +7641,7 @@ class Component extends DCLogic {
           return {
             label: c[1],
             mark: on ? '✓' : '',
-            style: 'display:flex;align-items:center;gap:6px;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (on ? '#4f46e5' : 'var(--pw-muted2)') + ';border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;',
+            style: 'display:flex;align-items:center;gap:6px;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' + (on ? '#4f46e5' : 'var(--pw-muted2)') + ';border-radius:6px;padding:4px 9px;font-size:11.5px;cursor:pointer;',
             onToggle: function () { self.toggleCol(c[0]); }
           };
         }),
@@ -7542,7 +7663,7 @@ class Component extends DCLogic {
           return {
             name: m.n, email: m.email,
             mark: on ? 'Admin' : 'Member',
-            style: 'margin-left:auto;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : '#fff') + ';color:' + (on ? '#4f46e5' : 'var(--pw-muted)') + ';border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;',
+            style: 'margin-left:auto;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' + (on ? '#4f46e5' : 'var(--pw-muted)') + ';border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;',
             onToggle: function () { self.toggleAdmin(m.email); }
           };
         })
