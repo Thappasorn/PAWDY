@@ -3087,6 +3087,47 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-bar] { animation: pw-grow .26s cubic-bezier(.2,.8,.2,1); transform-origin: left center; }
   @keyframes pw-grow { from { transform: scaleX(0); opacity: .35; } to { transform: scaleX(1); opacity: 1; } }
 
+  /* ป้ายสถานะเต้นตอนค่าเปลี่ยน — สลับ a/b เพื่อให้เริ่มใหม่ทุกครั้ง */
+  [data-pulse="a"] { animation: pw-pulse-a .3s cubic-bezier(.2,.8,.2,1); }
+  [data-pulse="b"] { animation: pw-pulse-b .3s cubic-bezier(.2,.8,.2,1); }
+  @keyframes pw-pulse-a {
+    0%   { transform: scale(1); filter: brightness(1); }
+    38%  { transform: scale(1.11); filter: brightness(1.22); }
+    100% { transform: scale(1); filter: brightness(1); }
+  }
+  @keyframes pw-pulse-b {
+    0%   { transform: scale(1); filter: brightness(1); }
+    38%  { transform: scale(1.11); filter: brightness(1.22); }
+    100% { transform: scale(1); filter: brightness(1); }
+  }
+
+  /* การ์ดตกลงตำแหน่งใหม่แบบนุ่มๆ */
+  [data-land="a"] { animation: pw-land-a .34s cubic-bezier(.16,.9,.24,1); }
+  [data-land="b"] { animation: pw-land-b .34s cubic-bezier(.16,.9,.24,1); }
+  @keyframes pw-land-a {
+    0%   { transform: translateY(-9px) scale(1.03); box-shadow: 0 12px 24px rgba(16,24,40,.22); }
+    70%  { transform: translateY(1px) scale(.995); }
+    100% { transform: none; box-shadow: none; }
+  }
+  @keyframes pw-land-b {
+    0%   { transform: translateY(-9px) scale(1.03); box-shadow: 0 12px 24px rgba(16,24,40,.22); }
+    70%  { transform: translateY(1px) scale(.995); }
+    100% { transform: none; box-shadow: none; }
+  }
+
+  /* คลื่นกระจายตอนกดชิป/ปุ่มสถานะ */
+  [data-ripple] { position: relative; overflow: hidden; }
+  [data-ripple]::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: radial-gradient(circle at center, currentColor 0%, transparent 62%);
+    opacity: 0; transform: scale(.35); pointer-events: none;
+  }
+  [data-ripple]:active::after { animation: pw-ripple .42s ease-out; }
+  @keyframes pw-ripple {
+    0%   { opacity: .30; transform: scale(.35); }
+    100% { opacity: 0;   transform: scale(1.9); }
+  }
+
   [data-flash] { animation: pw-flash 1.4s ease-out; }                      /* แถวเรืองจางตอนมีคนอื่นแก้ */
   @keyframes pw-flash {
     0%   { background-color: rgba(79,70,229,.16); }
@@ -3168,6 +3209,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       transition-duration: .001ms !important;
     }
     [data-card]:hover, [data-card]:active, [data-avatar]:hover, button:active { transform: none !important; }
+    [data-pulse], [data-land] { animation: none !important; }
+    [data-ripple]:active::after { animation: none !important; }
   }
   * { box-sizing: border-box; }
   a { color: #4f46e5; text-decoration: none; }
@@ -3181,6 +3224,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 </helmet>
 
 <div data-root="{{ rootAttr }}" style="display: flex; height: 100vh; width: 100%; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--pw-text); background: var(--pw-bg); font-size: 13px;">
+
+  <sc-if value="{{ navHandleOn }}" hint-placeholder-val="{{ false }}">
+    <button sc-camel-on-click="{{ onToggleNav }}" title="กางแถบเมนูกลับ" style="{{ navHandleStyle }}" style-hover="background: #1d202a; color: #fff; width: 24px;">»</button>
+  </sc-if>
 
   <sc-if value="{{ navOpen }}" hint-placeholder-val="{{ false }}">
     <div data-scrim sc-camel-on-click="{{ onCloseNav }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.5); z-index: 55;"></div>
@@ -3240,9 +3287,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <sc-if value="{{ space.open }}" hint-placeholder-val="{{ true }}">
             <div style="display: flex; flex-direction: column; gap: 1px; padding-left: 8px;">
               <sc-for list="{{ space.lists }}" as="lst" hint-placeholder-count="2">
-                <div style="{{ lst.rowStyle }}" style-hover="background: #1d202a;">
+                <div sc-camel-on-context-menu="{{ lst.onContext }}" title="คลิกขวาเพื่อเปลี่ยนสี" style="{{ lst.rowStyle }}" style-hover="background: #1d202a;">
                   <button sc-camel-on-click="{{ lst.onSelect }}" style="display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 0; color: inherit; font-size: 12.5px; font-weight: inherit;">
-                    <span style="width: 14px; text-align: center; opacity: 0.55; font-size: 11px;">▤</span>
+                    <span style="{{ lst.dotStyle }}"></span>
                     <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ lst.name }}</span>
                   </button>
                   <span style="font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ lst.count }}</span>
@@ -3556,7 +3603,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
                 <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
-                  <button sc-camel-on-click="{{ row.onCycleStatus }}" title="Advance status" style="{{ row.checkStyle }}"></button>
+                  <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
                   <div style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px;">
                     <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
                   <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
@@ -3564,9 +3611,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </div>
                   <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="8">
                     <sc-if value="{{ cell.isSelect }}" hint-placeholder-val="{{ true }}">
+                      <span data-pulse="{{ row.pulse }}" style="display: flex; align-items: center; min-width: 0;">
                       <sc-raw-select ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" value="{{ cell.value }}" sc-camel-on-change="{{ cell.onChange }}" style="{{ cell.style }}">
                         <sc-for list="{{ cell.options }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
                       </sc-raw-select>
+                      </span>
                     </sc-if>
                     <sc-if value="{{ cell.isAssignee }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
@@ -3647,7 +3696,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </sc-if>
 
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="3">
-                <div data-flash="{{ row.flash }}" data-card sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
+                <div data-flash="{{ row.flash }}" data-card data-pulse="{{ row.pulse }}" data-land="{{ row.land }}" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
                   <div style="display: flex; align-items: flex-start; gap: 9px;">
                     <span style="{{ row.chipStyle }}">{{ row.status }}</span>
                     <span style="{{ row.dueColor }}">{{ row.dueLabel }}</span>
@@ -3668,6 +3717,75 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </div>
                 </div>
               </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCalMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; gap: 7px; padding: 10px 12px 0;">
+          <sc-for list="{{ calModes }}" as="cmo" hint-placeholder-count="2">
+            <button sc-camel-on-click="{{ cmo.onPick }}" style="{{ cmo.style }}">{{ cmo.label }}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCalMonth }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 10px 12px 24px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button sc-camel-on-click="{{ onPrevMonth }}" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer;">‹</button>
+            <span style="flex: 1; text-align: center; font-size: 13.5px; font-weight: 600;">{{ monthLabel }}</span>
+            <button sc-camel-on-click="{{ onNextMonth }}" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer;">›</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; font-size: 10px; color: var(--pw-label); text-align: center; letter-spacing: 0.04em;">
+            <span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span><span>อา</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+            <sc-for list="{{ calMobileGrid }}" as="cd" hint-placeholder-count="42">
+              <button sc-camel-on-click="{{ cd.onPick }}" style="{{ cd.style }}">
+                <span style="{{ cd.numStyle }}">{{ cd.num }}</span>
+                <span style="display: flex; align-items: center; gap: 2px; min-height: 5px;">
+                  <sc-for list="{{ cd.dots }}" as="cdot" hint-placeholder-count="2">
+                    <span style="{{ cdot.style }}"></span>
+                  </sc-for>
+                </span>
+                <span style="font-size: 8.5px; color: var(--pw-muted2); min-height: 10px;">{{ cd.more }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid var(--pw-line);">
+            <span style="font-size: 12.5px; font-weight: 600;">{{ calPicked.label }}</span>
+            <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ calPicked.count }}</span>
+            <button sc-camel-on-click="{{ calPicked.onAdd }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 8px; padding: 6px 12px; font-size: 12px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่มงาน</button>
+          </div>
+
+          <sc-if value="{{ calPicked.addOpen }}" hint-placeholder-val="{{ false }}">
+            <div data-panel style="display: flex; align-items: center; gap: 7px;">
+              <input ref="{{ calPicked.addRef }}" data-sync="{{ calPicked.addText }}" value="{{ calPicked.addText }}" sc-camel-on-change="{{ calPicked.onAddText }}" sc-camel-on-key-down="{{ calPicked.onAddKey }}" placeholder="ชื่องาน แล้วกด Enter" style="flex: 1; min-width: 0; border: 1px solid #4f46e5; border-radius: 9px; padding: 10px 12px; outline: 0; background: var(--pw-surface); color: var(--pw-text);">
+              <button sc-camel-on-click="{{ calPicked.onAddClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 20px; line-height: 1; cursor: pointer; padding: 4px 6px;">×</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ calPicked.empty }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 12px; color: var(--pw-muted2); padding: 10px 2px;">ไม่มีงานครบกำหนดวันนี้ — แตะวันอื่นในตาราง หรือกด + เพิ่มงาน</span>
+          </sc-if>
+
+          <sc-for list="{{ calPicked.tasks }}" as="row" hint-placeholder-count="2">
+            <div data-flash="{{ row.flash }}" data-card data-pulse="{{ row.pulse }}" data-land="{{ row.land }}" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
+              <div style="display: flex; align-items: center; gap: 9px;">
+                <span style="{{ row.chipStyle }}">{{ row.status }}</span>
+                <span style="{{ row.prioColor }}">{{ row.prioLabel }}</span>
+                <button sc-camel-on-click="{{ row.onDelete }}" title="ลบงาน" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;">×</button>
+              </div>
+              <span style="font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--pw-text);">{{ row.name }}</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="{{ row.avatarStyle }}">{{ row.initials }}</span>
+                <span style="font-size: 12px; color: var(--pw-text2);">{{ row.assignee }}</span>
+                <span style="margin-left: auto; font-size: 11px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.metaLabel }}</span>
+              </div>
             </div>
           </sc-for>
         </div>
@@ -3700,7 +3818,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </sc-if>
 
               <sc-for list="{{ ag.tasks }}" as="row" hint-placeholder-count="2">
-                <div data-flash="{{ row.flash }}" data-card sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
+                <div data-flash="{{ row.flash }}" data-card data-pulse="{{ row.pulse }}" data-land="{{ row.land }}" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
                   <div style="display: flex; align-items: center; gap: 9px;">
                     <span style="{{ row.chipStyle }}">{{ row.status }}</span>
                     <span style="{{ row.prioColor }}">{{ row.prioLabel }}</span>
@@ -3730,7 +3848,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
-                  <div data-card draggable="true" sc-camel-on-context-menu="{{ card.onContext }}" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                  <div data-card data-land="{{ card.land }}" data-pulse="{{ card.pulse }}" draggable="true" sc-camel-on-context-menu="{{ card.onContext }}" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -4223,6 +4341,25 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </aside>
   </sc-if>
 
+  <sc-if value="{{ listColorPanel.open }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ listColorPanel.onClose }}" sc-camel-on-context-menu="{{ listColorPanel.onClose }}" style="position: fixed; inset: 0; z-index: 79;"></div>
+    <div data-panel style="{{ listColorPanel.style }}">
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600; flex: 1;">สีของ list</span>
+        <button sc-camel-on-click="{{ listColorPanel.onClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+      <div style="{{ listColorPanel.previewStyle }}">{{ listColorPanel.name }}</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+        <sc-for list="{{ listColorPanel.swatches }}" as="lsw" hint-placeholder-count="12">
+          <button sc-camel-on-click="{{ lsw.onPick }}" style="{{ lsw.style }}"></button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ listColorPanel.canReset }}" hint-placeholder-val="{{ false }}">
+        <button sc-camel-on-click="{{ listColorPanel.onReset }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 6px 10px; font-size: 11.5px; color: var(--pw-text2); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">คืนค่าเป็นสีของ space</button>
+      </sc-if>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ ctx.open }}" hint-placeholder-val="{{ false }}">
     <div data-scrim sc-camel-on-click="{{ ctx.onClose }}" sc-camel-on-context-menu="{{ ctx.onClose }}" style="position: fixed; inset: 0; z-index: 79;"></div>
     <div data-panel style="{{ ctx.style }}">
@@ -4298,7 +4435,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <sc-if value="{{ optPanel.hasTask }}" hint-placeholder-val="{{ true }}">
                 <button sc-camel-on-click="{{ op.onApply }}" title="ใช้ค่านี้กับงานที่เลือก" style="{{ op.checkStyle }}">{{ op.checked }}</button>
               </sc-if>
-              <button sc-camel-on-click="{{ op.onApply }}" style="{{ op.barStyle }}">{{ op.label }}</button>
+              <button data-ripple sc-camel-on-click="{{ op.onApply }}" style="{{ op.barStyle }}">{{ op.label }}</button>
               <button sc-camel-on-click="{{ op.onEdit }}" title="แก้ชื่อและสี" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">✎</button>
               <button sc-camel-on-click="{{ op.onRemove }}" title="ลบตัวเลือกนี้" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 14px; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
             </div>
@@ -4486,6 +4623,8 @@ class Component extends DCLogic {
       settingsOpen: false,
       colDrag: null,
       colMenuOpen: false,
+      calMobileMode: (ui.calMobileMode === 'month' ? 'month' : 'agenda'),
+      calPick: null,            // วันที่แตะเลือกในมุมมองเดือนบนมือถือ
       calAdd: null,             // วันที่กำลังเปิดช่องพิมพ์อยู่
       calAddText: '',
       ganttZoom: 'week',        // day = 3 สัปดาห์ / week = 3 เดือน / month = 12 เดือน
@@ -4514,6 +4653,10 @@ class Component extends DCLogic {
       expanded: {},          // taskId -> กาง subtask อยู่
       subComposer: null,     // taskId ที่เปิดช่องพิมพ์ subtask
       subComposerText: '',
+      pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
+      land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
+      countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
+      listColor: null,       // { name, x, y } — จานสีของ list
       ctxMenu: null,         // { id, x, y, mode } — เมนูคลิกขวาบนการ์ด
       ctxName: '',
       optEditor: null,       // { kind, taskId } — panel จัดการตัวเลือก
@@ -4546,7 +4689,7 @@ class Component extends DCLogic {
     }
     this._prevSnap = this.snapOf(st);
     this._undoLabel = null;
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed } });
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode } });
   }
 
   // ---- undo / redo ----
@@ -4641,6 +4784,7 @@ class Component extends DCLogic {
     this.mark(({ status: 'เปลี่ยนสถานะ', assignee: 'เปลี่ยนผู้รับผิดชอบ', due: 'เปลี่ยนวันครบกำหนด',
       start: 'เปลี่ยนวันเริ่ม', priority: 'เปลี่ยนความสำคัญ', list: 'ย้าย list', name: 'แก้ชื่องาน',
       tags: 'แก้ tags', cost: 'แก้งบ', qty: 'แก้จำนวน', channel: 'เปลี่ยน channel', platform: 'เปลี่ยน platform' })[field] || 'แก้ไขงาน');
+    if (field === 'status' || field === 'priority') this.firePulse(id);
     this.setState(function (s) {
       const tasks = s.tasks.map(function (t) {
         if (t.id !== id) return t;
@@ -4870,6 +5014,7 @@ class Component extends DCLogic {
 
     this._onKey = function (e) {
       if (e.key === 'Escape') {
+        if (self.state.listColor) { self.closeListColor(); return; }
         if (self.state.ctxMenu) { self.closeCtx(); return; }
         if (self.state.optEditor) { self.closeOptEditor(); return; }
       }
@@ -4970,6 +5115,7 @@ class Component extends DCLogic {
 
   moveCard(dragId, targetId, status) {
     this.mark('ย้ายการ์ด');
+    this.fireLand(dragId);
     const prev = this.state.tasks.filter(function (t) { return t.id === dragId; })[0];
     if (!prev) return;
     this.setState(function (s) {
@@ -5134,6 +5280,77 @@ class Component extends DCLogic {
     return false;
   }
 
+  // ---- effect: เต้น / ตกลงตำแหน่ง / ไล่ตัวเลข ----
+  // สลับ a↔b เพื่อให้ CSS เริ่ม animation ใหม่ทุกครั้งที่ค่าเปลี่ยน
+  firePulse(id) {
+    clearTimeout(this._pulseTimer);
+    this.setState(function (s) {
+      const n = (s.pulse && s.pulse.id === id) ? (s.pulse.n + 1) : 1;
+      return { pulse: { id: id, n: n } };
+    });
+    this._pulseTimer = setTimeout(() => this.setState({ pulse: null }), 500);
+  }
+  fireLand(id) {
+    clearTimeout(this._landTimer);
+    this.setState(function (s) {
+      const n = (s.land && s.land.id === id) ? (s.land.n + 1) : 1;
+      return { land: { id: id, n: n } };
+    });
+    this._landTimer = setTimeout(() => this.setState({ land: null }), 520);
+  }
+  pulseTag(id) {
+    const p = this.state.pulse;
+    if (!p || p.id !== id) return '';
+    return (p.n % 2) ? 'a' : 'b';
+  }
+  landTag(id) {
+    const l = this.state.land;
+    if (!l || l.id !== id) return '';
+    return (l.n % 2) ? 'a' : 'b';
+  }
+  startCountUp() {
+    clearInterval(this._countTimer);
+    this.setState({ countUp: 0 });
+    const t0 = Date.now(), dur = 480;
+    this._countTimer = setInterval(() => {
+      const p = Math.min(1, (Date.now() - t0) / dur);
+      this.setState({ countUp: 1 - Math.pow(1 - p, 3) });
+      if (p >= 1) clearInterval(this._countTimer);
+    }, 32);
+  }
+  upNum(n) {
+    const p = this.state.countUp;
+    if (p === undefined || p >= 1) return n;
+    return Math.round((n || 0) * p);
+  }
+
+  // ---- สีของแต่ละ list ----
+  listColorOf(name) {
+    const map = this.cfg().listColors || {};
+    if (map[name]) return map[name];
+    const sp = (this.state.spaces || []).filter(function (s) { return s.lists.indexOf(name) >= 0; })[0];
+    return sp ? sp.color : '#4f46e5';          // ยังไม่ตั้ง = ใช้สีของ space
+  }
+  hasListColor(name) { return !!(this.cfg().listColors || {})[name]; }
+  openListColor(e, name) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    this.setState({ listColor: { name: name, x: (e && e.clientX) || 40, y: (e && e.clientY) || 40 } });
+  }
+  closeListColor() { this.setState({ listColor: null }); }
+  setListColor(name, color) {
+    this.mark('เปลี่ยนสี list');
+    const map = Object.assign({}, this.cfg().listColors || {});
+    map[name] = color;
+    this.saveCfg({ listColors: map });
+  }
+  resetListColor(name) {
+    this.mark('คืนสี list');
+    const map = Object.assign({}, this.cfg().listColors || {});
+    delete map[name];
+    this.saveCfg({ listColors: map });
+  }
+
   // ---- เมนูคลิกขวาบนการ์ด/แถวงาน ----
   // ---- subtask ในตาราง: กางดู เพิ่ม แก้ ติ๊ก ลบ ----
   toggleExpand(id) {
@@ -5165,6 +5382,7 @@ class Component extends DCLogic {
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
+    this.firePulse(id);
     this.patchTask(id, function (t) {
       t.subtasks = (t.subtasks || []).map(function (x, i) { return i === idx ? Object.assign({}, x, { done: !x.done }) : x; });
       return t;
@@ -5859,7 +6077,8 @@ class Component extends DCLogic {
       statuses: this.statuses(), priorities: this.priorities(),
       channels: this.channels(), platforms: this.platforms(),
       cols: this.cols(), colOrder: this.colOrder(), colWidths: (this.cfg().colWidths || {}),
-      colLabels: (this.cfg().colLabels || {}), doneStatus: this.doneKey(),
+      colLabels: (this.cfg().colLabels || {}), listColors: (this.cfg().listColors || {}),
+      optColors: (this.cfg().optColors || {}), doneStatus: this.doneKey(),
       admins: this.adminList()   // ว่างไว้ = ทุกคนแก้ตั้งค่าได้ จนกำหนด admin เองในแถบ ⚙
     }, part || {});
     this.setState({ config: base }, () => this.persist());
@@ -5994,6 +6213,12 @@ class Component extends DCLogic {
     }
     return true;
   }
+
+  setCalMobileMode(mode) {
+    this.setState({ calMobileMode: mode, calPick: null }, () => this.persist());
+  }
+  pickCalDay(iso) { this.setState({ calPick: iso }); }
+  calPickedDay() { return this.state.calPick || TODAY; }
 
   // ---- ปฏิทิน: พิมพ์ชื่อในช่องวัน แล้ว Enter ได้งานทันที ----
   openCalAdd(iso) {
@@ -6250,6 +6475,8 @@ class Component extends DCLogic {
       },
       onList: function (e) { self.patch(t.id, 'list', e.target.value); },
       flash: !!(self.state.flash && self.state.flash[t.id]) || null,
+      pulse: self.pulseTag(t.id),
+      land: self.landTag(t.id),
       chipStyle: self.chip(t.status),
       dueLabel: self.shortDate(t.due),
       dueColor: 'font-size:11px;font-family:\'IBM Plex Mono\',monospace;color:' + dm.color + ';' + (dm.overdue ? 'font-weight:700;' : ''),
@@ -6478,6 +6705,8 @@ class Component extends DCLogic {
           return {
             name: ln,
             count: s.tasks.filter(function (t) { return !t.deleted && t.list === ln; }).length,
+          dotStyle: 'width:7px;height:7px;border-radius:2px;flex:0 0 7px;background:' + self.listColorOf(ln) + ';',
+          onContext: function (e) { self.openListColor(e, ln); },
             rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px;border-radius:6px;font-size:12.5px;background:' + (active ? '#2a2e3b' : 'transparent') + ';color:' + (active ? '#fff' : '#a7adba') + ';font-weight:' + (active ? '600' : '400') + ';',
             onSelect: function () { self.setState({ list: ln }, () => self.persist()); },
             onDelete: function () {
@@ -6515,7 +6744,10 @@ class Component extends DCLogic {
       return {
         label: t.label, icon: t.icon,
         style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') + ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') + ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;',
-        onSelect: function () { self.setState({ view: t.k }, () => self.persist()); }
+        onSelect: function () {
+          if (t.k === 'dashboard' && s.view !== 'dashboard') self.startCountUp();
+          self.setState({ view: t.k }, () => self.persist());
+        }
       };
     });
 
@@ -6543,7 +6775,7 @@ class Component extends DCLogic {
       else {
         const c = groupField === 'assignee' ? self.memberMeta(key).c
           : (groupField === 'priority' ? self.prioMeta(key).c
-          : (groupField === 'list' ? spaceColor : '#4f46e5'));
+          : (groupField === 'list' ? self.listColorOf(key) : '#4f46e5'));
         chipStyle = 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + c + (self.isDark() ? '2e' : '15') + ';color:' + c + ';white-space:nowrap;';
       }
       return {
@@ -6635,13 +6867,16 @@ class Component extends DCLogic {
       const dayTasks = vms.filter(function (v) { return v.due === iso; }).map(function (v) {
         const sm = self.statusMeta(v.status);
         return {
-          name: v.name, onOpen: v.onOpen, onDragStart: v.onDragStart,
+          name: v.name, onOpen: v.onOpen, onDragStart: v.onDragStart, dotColor: sm.c,
           style: 'font-size:10.5px;padding:2px 6px;border-radius:4px;background:' + sm.bg + ';color:' + sm.c + ';border-left:2px solid ' + sm.c + ';cursor:grab;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;'
         };
       });
       const calOpen = s.calAdd === iso;
       calendarDays.push({
         num: dt.getDate(),
+        iso: iso,
+        inMonth: inMonth,
+        isToday: isToday,
         tasks: dayTasks,
         addOpen: calOpen,
         addClosed: !calOpen,
@@ -6752,10 +6987,10 @@ class Component extends DCLogic {
     const overdue = visible.filter(function (t) { return t.due < TODAY && t.status !== dKey; });
     const totalCost = visible.reduce(function (a, t) { return a + (t.cost || 0); }, 0);
     const statCards = [
-      { label: 'Open tasks', value: String(total - doneCount), sub: total + ' total in view', tone: 'var(--pw-muted)' },
-      { label: 'Completed', value: (total ? Math.round(doneCount / total * 100) : 0) + '%', sub: doneCount + ' done', tone: '#059669' },
-      { label: 'Overdue', value: String(overdue.length), sub: overdue.length ? 'needs rescheduling' : 'all on track', tone: overdue.length ? '#dc2626' : '#059669' },
-      { label: 'Budget in view', value: self.baht(totalCost), sub: 'across ' + total + ' tasks', tone: 'var(--pw-muted)' }
+      { label: 'Open tasks', value: String(self.upNum(total - doneCount)), sub: total + ' total in view', tone: 'var(--pw-muted)' },
+      { label: 'Completed', value: self.upNum(total ? Math.round(doneCount / total * 100) : 0) + '%', sub: doneCount + ' done', tone: '#059669' },
+      { label: 'Overdue', value: String(self.upNum(overdue.length)), sub: overdue.length ? 'needs rescheduling' : 'all on track', tone: overdue.length ? '#dc2626' : '#059669' },
+      { label: 'Budget in view', value: self.baht(self.upNum(totalCost)), sub: 'across ' + total + ' tasks', tone: 'var(--pw-muted)' }
     ].map(function (c) {
       return { label: c.label, value: c.value, sub: c.sub, subStyle: 'font-size:11px;color:' + c.tone + ';' };
     });
@@ -7116,7 +7351,63 @@ class Component extends DCLogic {
       isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isMobile(),
       isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && self.isMobile(),
       isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isMobile(),
-      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile(),
+      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile(),
+      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile() && s.calMobileMode !== 'month',
+      isCalMonth: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile() && s.calMobileMode === 'month',
+      calModes: [['agenda', 'รายการ'], ['month', 'เดือน']].map(function (mo) {
+        const on = (s.calMobileMode === 'month' ? 'month' : 'agenda') === mo[0];
+        return {
+          label: mo[1],
+          style: 'flex:1;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') +
+            ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';border-radius:8px;padding:9px 0;font-size:12.5px;font-weight:' + (on ? '600' : '400') + ';cursor:pointer;',
+          onPick: function () { self.setCalMobileMode(mo[0]); }
+        };
+      }),
+      calMobileGrid: (function () {
+        if (s.view !== 'calendar' || !self.isMobile() || s.calMobileMode !== 'month') return [];
+        const picked = self.calPickedDay();
+        return calendarDays.map(function (d) {
+          const isPick = d.iso === picked;
+          return {
+            num: d.num,
+            dots: d.tasks.slice(0, 3).map(function (ev) {
+              return { style: 'width:5px;height:5px;border-radius:50%;background:' + (ev.dotColor || '#4f46e5') + ';' };
+            }),
+            more: d.tasks.length > 3 ? ('+' + (d.tasks.length - 3)) : '',
+            style: 'display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0 6px;border-radius:8px;cursor:pointer;' +
+              'background:' + (isPick ? 'var(--pw-accent-soft)' : 'transparent') +
+              ';border:1px solid ' + (isPick ? '#4f46e5' : 'transparent') + ';opacity:' + (d.inMonth ? '1' : '0.4') + ';',
+            numStyle: 'font-size:12.5px;font-weight:' + (d.isToday ? '700' : '400') + ';color:' + (d.isToday ? '#4f46e5' : 'var(--pw-text2)') + ';',
+            onPick: function () { self.pickCalDay(d.iso); }
+          };
+        });
+      })(),
+      calPicked: (function () {
+        if (s.view !== 'calendar' || !self.isMobile() || s.calMobileMode !== 'month') return { label: '', tasks: [], empty: true };
+        const iso = self.calPickedDay();
+        const rows = vms.filter(function (v) { return v.due === iso; });
+        return {
+          label: self.shortDate(iso) + (iso === TODAY ? ' · วันนี้' : ''),
+          count: rows.length,
+          empty: rows.length === 0,
+          tasks: rows,
+          addOpen: s.calAdd === iso,
+          addText: s.calAdd === iso ? s.calAddText : '',
+          addRef: function (el) {
+            if (!el) return;
+            const val = s.calAdd === iso ? s.calAddText : '';
+            if (el.value !== val) el.value = val;
+            if (s.calAdd === iso && self._focusCalAdd) { el.focus(); self._focusCalAdd = false; }
+          },
+          onAdd: function () { self.openCalAdd(iso); },
+          onAddText: function (e) { self.setState({ calAddText: e.target.value }); },
+          onAddKey: function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); self.addOnDate(iso); }
+            if (e.key === 'Escape') self.closeCalAdd();
+          },
+          onAddClose: function () { self.closeCalAdd(); }
+        };
+      })(),
       agenda: (function () {
         if (s.view !== 'calendar' || !self.isMobile()) return [];
         const byDate = {}, order = [];
@@ -7335,6 +7626,33 @@ class Component extends DCLogic {
         self.setState(function (st) { return { navCollapsed: true, navOpen: false }; }, function () { self.persist(); });
       },
       navToggleTitle: self.isMobile() ? 'เมนู' : (s.navCollapsed ? 'กางแถบเมนู' : 'พับแถบเมนู'),
+      listColorPanel: (function () {
+        const lc = s.listColor;
+        if (!lc) return { open: false, swatches: [] };
+        return {
+          open: true,
+          name: lc.name,
+          style: 'position:fixed;top:min(' + lc.y + 'px, calc(100vh - 210px));left:min(' + lc.x + 'px, calc(100vw - 230px));' +
+                 'width:214px;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;' +
+                 'box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:11px 12px;display:flex;flex-direction:column;gap:9px;',
+          previewStyle: 'border-radius:7px;padding:8px 11px;background:' + self.listColorOf(lc.name) +
+                        ';color:#fff;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+          swatches: OPT_PALETTE.map(function (col) {
+            const on = self.listColorOf(lc.name) === col;
+            return {
+              style: 'width:26px;height:26px;border-radius:7px;background:' + col + ';border:2px solid ' + (on ? 'var(--pw-text)' : 'transparent') + ';cursor:pointer;padding:0;',
+              onPick: function () { self.setListColor(lc.name, col); }
+            };
+          }),
+          canReset: self.hasListColor(lc.name),
+          onReset: function () { self.resetListColor(lc.name); self.closeListColor(); },
+          onClose: function () { self.closeListColor(); }
+        };
+      })(),
+      navHandleOn: !self.isMobile() && !!s.navCollapsed,
+      navHandleStyle: 'position:fixed;left:0;top:50%;transform:translateY(-50%);width:19px;height:64px;' +
+        'border:1px solid var(--pw-border);border-left:0;border-radius:0 9px 9px 0;background:#14161c;color:#a7adba;' +
+        'cursor:pointer;z-index:50;display:grid;place-items:center;font-size:11px;box-shadow:2px 0 10px rgba(0,0,0,0.25);',
       sidebarStyle: (function () {
         const base = 'background:#14161c;color:#a7adba;flex-direction:column;';
         if (self.isMobile()) {
