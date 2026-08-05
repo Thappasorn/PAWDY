@@ -20,7 +20,7 @@ window.PAWDY_CONFIG = {
      ตอนนี้บน Supabase ชื่อ clever-function ถ้าวันหลัง deploy ใหม่ชื่อ notify ก็แก้บรรทัดนี้ */
   notifyFunction: 'clever-function',
   /* ป้ายเวอร์ชันไฟล์ — โชว์ในแถบ ⚙ ใช้เช็คว่าเว็บที่เปิดอยู่เป็นไฟล์ตัวไหน */
-  build: 'B7 · 2026-08-05'
+  build: 'B9 · 2026-08-05'
 };
 window.__resources = {};  /* template ฝังในไฟล์แล้ว ไม่ต้อง fetch หน้าตัวเองซ้ำ */
 
@@ -3083,6 +3083,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-colact] { display: none !important; }
   span:hover > [data-colact] { display: inline-flex !important; }
 
+  [data-docact] { display: none !important; }
+  [data-docrow]:hover [data-docact] { display: inline-flex !important; }
+
   [data-dayadd] { display: none !important; }
   [data-daycell]:hover [data-dayadd] { display: grid !important; }
 
@@ -3393,6 +3396,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </sc-if>
               </div>
             </sc-for>
+            <sc-if value="{{ memberOverflow }}" hint-placeholder-val="{{ '' }}">
+              <span title="{{ memberOverflowTitle }}" style="{{ memberOverflowStyle }}">{{ memberOverflow }}</span>
+            </sc-if>
             <span data-onlinelabel title="{{ onlineTitle }}" style="margin-left: 10px; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pw-muted); white-space: nowrap;">
               <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e;"></span>{{ onlineLabel }}
             </span>
@@ -3477,6 +3483,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <span style="opacity: 0.75; font-size: 11px;">{{ tab.icon }}</span>{{ tab.label }}
             </button>
           </sc-for>
+
+          <sc-for list="{{ savedTabs }}" as="sv" hint-placeholder-count="2">
+            <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="คลิกขวาเพื่อเปลี่ยนชื่อ / บันทึกทับ / ลบ" style="{{ sv.style }}">
+              <span style="opacity: 0.75; font-size: 11px;">{{ sv.icon }}</span>{{ sv.label }}
+            </button>
+          </sc-for>
+
+          <button sc-camel-on-click="{{ onAddView }}" title="บันทึกมุมมองนี้ไว้เป็นแท็บ (เก็บชนิด + ตัวกรองที่ตั้งไว้)" style="display: flex; align-items: center; gap: 5px; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; color: var(--pw-muted); font-size: 12px; padding: 4px 10px; margin-left: 6px; cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ View</button>
         </div>
       </sc-if>
       <sc-if value="{{ isTrash }}" hint-placeholder-val="{{ false }}">
@@ -3498,12 +3512,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <button sc-camel-on-click="{{ onAddDoc }}" title="เพิ่มหน้าใหม่" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 6px; padding: 2px 8px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่ม</button>
             </div>
             <sc-for list="{{ docPages }}" as="dp" hint-placeholder-count="4">
-              <div style="display: flex; align-items: center; gap: 2px;">
+              <div data-docrow style="display: flex; align-items: center; gap: 2px;">
                 <button sc-camel-on-click="{{ dp.onOpen }}" style="{{ dp.style }}" style-hover="background: var(--pw-hover);">
-                  <span style="opacity: 0.6; font-size: 11px;">▤</span>
+                  <span style="opacity: 0.55; font-size: 11px;">{{ dp.icon }}</span>
                   <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ dp.title }}</span>
+                  <span style="margin-left: auto; font-size: 10px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ dp.subLabel }}</span>
                 </button>
-                <button sc-camel-on-click="{{ dp.onRemove }}" title="ลบหน้านี้" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 3px;" style-hover="color: #dc2626;">×</button>
+                <sc-if value="{{ dp.isTop }}" hint-placeholder-val="{{ true }}">
+                  <button data-docact sc-camel-on-click="{{ dp.onAddSub }}" title="เพิ่มหน้าย่อยใต้หน้านี้" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">+</button>
+                </sc-if>
+                <button data-docact sc-camel-on-click="{{ dp.onRemove }}" title="ลบหน้านี้" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 3px;" style-hover="color: #dc2626;">×</button>
               </div>
             </sc-for>
             <sc-if value="{{ docsEmpty }}" hint-placeholder-val="{{ true }}">
@@ -3517,6 +3535,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <input ref="{{ doc.titleRef }}" data-sync="{{ doc.title }}" value="{{ doc.title }}" sc-camel-on-change="{{ doc.onTitle }}" placeholder="ชื่อเอกสาร" style="flex: 1; min-width: 0; font-size: 19px; font-weight: 600; border: 0; outline: 0; background: transparent; color: var(--pw-text); padding: 4px 6px; border-radius: 6px;" style-hover="background: var(--pw-bg);" style-focus="background: var(--pw-bg); box-shadow: 0 0 0 1.5px #4f46e5;">
                   <span style="font-size: 11px; color: var(--pw-muted2); white-space: nowrap;">{{ doc.meta }}</span>
+                </div>
+
+                <sc-if value="{{ doc.hasParent }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size: 11px; color: var(--pw-muted2); padding: 0 6px;">{{ doc.parentLabel }}</span>
+                </sc-if>
+
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 4px;">
+                  <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600; margin-right: 2px;">แทรก</span>
+                  <sc-for list="{{ docBlocks }}" as="db" hint-placeholder-count="5">
+                    <button sc-camel-on-click="{{ db.onPick }}" style="{{ db.style }}" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ db.label }}</button>
+                  </sc-for>
+                  <button sc-camel-on-click="{{ onAddSubOfCurrent }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 5px 11px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ หน้าย่อย</button>
                 </div>
                 <textarea ref="{{ doc.bodyRef }}" data-sync="{{ doc.body }}" value="{{ doc.body }}" sc-camel-on-change="{{ doc.onBody }}" rows="22" placeholder="พิมพ์เนื้อหาเอกสารที่นี่ — ทุกคนในทีมเห็นและแก้ได้ บันทึกอัตโนมัติ" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.7; outline: 0; resize: vertical; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5;"></textarea>
               </div>
@@ -4226,7 +4256,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Description</span>
-          <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="3" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 7px 9px; font-size: 12px; line-height: 1.5; resize: vertical; outline: 0;" style-focus="border-color: #4f46e5;"></textarea>
+          <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="10" placeholder="รายละเอียดงาน · บรีฟ · ลิงก์อ้างอิง" style="min-height: 190px; border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; resize: vertical; outline: 0; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5;"></textarea>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
@@ -4249,13 +4279,25 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
           <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Attachments</span>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <div style="display: flex; flex-direction: column; gap: 7px;">
             <sc-for list="{{ detail.attachments }}" as="att" hint-placeholder-count="2">
-              <span style="display: flex; align-items: center; gap: 6px; border: 1px solid var(--pw-border); border-radius: 6px; padding: 4px 8px; font-size: 11.5px; color: var(--pw-text2); background: var(--pw-surface2);">
-                <span style="color: var(--pw-muted2);">🖇</span>
-                <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="border: 0; outline: 0; background: transparent; font-size: 11.5px; width: 96px;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
-                <button sc-camel-on-click="{{ att.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 12px; line-height: 1;" style-hover="color: #dc2626;">×</button>
-              </span>
+              <div style="display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--pw-border); border-radius: 9px; padding: 8px 10px; background: var(--pw-surface2);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: var(--pw-muted2); font-size: 12px;">{{ att.icon }}</span>
+                <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; color: var(--pw-text2);" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
+                <sc-if value="{{ att.hasPreviewBtn }}" hint-placeholder-val="{{ false }}">
+                  <button sc-camel-on-click="{{ att.onTogglePreview }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 6px; padding: 3px 9px; font-size: 11px; color: var(--pw-text2); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ att.previewLabel }}</button>
+                </sc-if>
+                <sc-if value="{{ att.hasUrl }}" hint-placeholder-val="{{ false }}">
+                  <button sc-camel-on-click="{{ att.onOpen }}" title="เปิดในแท็บใหม่" style="background: transparent; border: 0; color: var(--pw-muted); cursor: pointer; font-size: 12px;" style-hover="color: #4f46e5;">↗</button>
+                  <button sc-camel-on-click="{{ att.onCopy }}" title="คัดลอกลิงก์" style="background: transparent; border: 0; color: var(--pw-muted); cursor: pointer; font-size: 12px;" style-hover="color: #4f46e5;">⧉</button>
+                </sc-if>
+                <button sc-camel-on-click="{{ att.onDelete }}" title="ลบไฟล์แนบ" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="color: #dc2626;">×</button>
+                </div>
+                <sc-if value="{{ att.canPreview }}" hint-placeholder-val="{{ false }}">
+                  <iframe src="{{ att.previewSrc }}" style="width: 100%; height: 380px; border: 1px solid var(--pw-border); border-radius: 8px; background: var(--pw-surface);"></iframe>
+                </sc-if>
+              </div>
             </sc-for>
             <button sc-camel-on-click="{{ onAddAttachment }}" style="border: 1px dashed var(--pw-faint); background: transparent; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Attach file</button>
           </div>
@@ -4351,6 +4393,21 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
       </div>
     </aside>
+  </sc-if>
+
+  <sc-if value="{{ viewMenu.open }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ viewMenu.onClose }}" sc-camel-on-context-menu="{{ viewMenu.onClose }}" style="position: fixed; inset: 0; z-index: 79;"></div>
+    <div data-panel style="{{ viewMenu.style }}">
+      <div style="display: flex; align-items: center; gap: 7px; padding: 4px 8px 6px;">
+        <span style="font-size: 11px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ viewMenu.name }}</span>
+        <button sc-camel-on-click="{{ viewMenu.onClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+      <sc-for list="{{ viewMenu.items }}" as="vi" hint-placeholder-count="3">
+        <button sc-camel-on-click="{{ vi.onPick }}" style="{{ vi.style }}" style-hover="background: var(--pw-surface3);">
+          <span style="width: 15px; text-align: center; opacity: 0.7; font-size: 11px;">{{ vi.icon }}</span>{{ vi.label }}
+        </button>
+      </sc-for>
+    </div>
   </sc-if>
 
   <sc-if value="{{ listColorPanel.open }}" hint-placeholder-val="{{ false }}">
@@ -4636,6 +4693,9 @@ class Component extends DCLogic {
       colDrag: null,
       colMenuOpen: false,
       calMobileMode: (ui.calMobileMode === 'month' ? 'month' : 'agenda'),
+      customView: null,         // id ของมุมมองที่บันทึกไว้ซึ่งกำลังเปิด
+      viewMenu: null,            // { id, x, y } — เมนูคลิกขวาที่แท็บมุมมอง
+      attachOpen: null,         // ไฟล์แนบที่กำลังเปิดดูตัวอย่าง
       calPick: null,            // วันที่แตะเลือกในมุมมองเดือนบนมือถือ
       calAdd: null,             // วันที่กำลังเปิดช่องพิมพ์อยู่
       calAddText: '',
@@ -4832,12 +4892,23 @@ class Component extends DCLogic {
   emailFor(name) {
     const m = this.memberMeta(name);
     if (m && m.email) return { name: m.n, email: m.email };
-    const owner = this.me();
-    return { name: owner.n, email: owner.email };
+    return { name: (m && m.n) || name || '', email: '' };   // ไม่มีอีเมล = ไม่มีผู้รับ (ไม่ตกไปเป็นตัวเราเอง)
   }
 
   sendEmail(to, subject, line, detail) {
     if (this.props.emailNotifications === false) return;
+
+    // ไม่มีผู้รับจริง (เช่นงานยังเป็น Unassigned) → บอกตรงๆ ไม่ต้องหลอกว่าส่งแล้ว
+    if (!to || !to.email) {
+      this.flashToast('ไม่ได้ส่งแจ้งเตือน — งานนี้ยังไม่มีผู้รับผิดชอบ');
+      return;
+    }
+    // ผู้รับคือตัวเราเอง → ไม่ต้องส่งอีเมลหาตัวเอง
+    if (String(to.email).toLowerCase() === String(this.me().email || '').toLowerCase()) {
+      this.flashToast('ไม่ได้ส่งอีเมล — งานนี้เป็นของคุณเอง');
+      return;
+    }
+
     const n = {
       id: 'N' + Date.now() + Math.floor(Math.random() * 900),
       to: to.email, toName: to.name, subject: subject, line: line, detail: detail || '',
@@ -5026,6 +5097,7 @@ class Component extends DCLogic {
 
     this._onKey = function (e) {
       if (e.key === 'Escape') {
+        if (self.state.viewMenu) { self.closeViewMenu(); return; }
         if (self.state.listColor) { self.closeListColor(); return; }
         if (self.state.ctxMenu) { self.closeCtx(); return; }
         if (self.state.optEditor) { self.closeOptEditor(); return; }
@@ -5335,6 +5407,70 @@ class Component extends DCLogic {
     if (p === undefined || p >= 1) return n;
     return Math.round((n || 0) * p);
   }
+
+  // ---- มุมมองที่บันทึกไว้ (แชร์ทั้งทีมผ่าน config) ----
+  savedViews() {
+    const v = this.cfg().views;
+    return Array.isArray(v) ? v : [];
+  }
+  addSavedView() {
+    const name = (window.prompt('ชื่อมุมมองใหม่ (เช่น "ของฉันสัปดาห์นี้", "งานเลยกำหนด")') || '').trim();
+    if (!name) return;
+    this.mark('เพิ่มมุมมอง');
+    const view = {
+      id: 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: name,
+      type: this.state.view,                                  // เก็บชนิดที่กำลังดูอยู่
+      filters: JSON.parse(JSON.stringify(this.filt())),       // เก็บตัวกรองที่ตั้งไว้ตอนนี้
+      list: this.state.list
+    };
+    const next = this.savedViews().concat([view]);
+    this.setState({ customView: view.id }, () => this.saveCfg({ views: next }));
+  }
+  openSavedView(id) {
+    const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
+    if (!v) return;
+    const patch = { view: v.type || 'table', customView: id };
+    if (v.filters) patch.filters = JSON.parse(JSON.stringify(v.filters));
+    if (v.list) patch.list = v.list;
+    this.setState(patch, () => this.persist());
+  }
+  renameSavedView(id) {
+    const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
+    if (!v) return;
+    const name = (window.prompt('ชื่อมุมมอง', v.name) || '').trim();
+    if (!name || name === v.name) return;
+    this.mark('เปลี่ยนชื่อมุมมอง');
+    this.saveCfg({ views: this.savedViews().map(function (x) { return x.id === id ? Object.assign({}, x, { name: name }) : x; }) });
+  }
+  updateSavedView(id) {
+    const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
+    if (!v) return;
+    if (!window.confirm('บันทึกมุมมอง "' + v.name + '" ทับด้วยชนิดและตัวกรองที่ใช้อยู่ตอนนี้?')) return;
+    this.mark('อัปเดตมุมมอง');
+    const self = this;
+    this.saveCfg({
+      views: this.savedViews().map(function (x) {
+        return x.id === id
+          ? Object.assign({}, x, { type: self.state.view, filters: JSON.parse(JSON.stringify(self.filt())), list: self.state.list })
+          : x;
+      })
+    });
+  }
+  removeSavedView(id) {
+    const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
+    if (!v) return;
+    if (!window.confirm('ลบมุมมอง "' + v.name + '"? (งานไม่หายไปด้วย)')) return;
+    this.mark('ลบมุมมอง');
+    const next = this.savedViews().filter(function (x) { return x.id !== id; });
+    this.setState({ customView: null, viewMenu: null }, () => this.saveCfg({ views: next }));
+  }
+  openViewMenu(e, id) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    this.setState({ viewMenu: { id: id, x: (e && e.clientX) || 40, y: (e && e.clientY) || 40 } });
+  }
+  closeViewMenu() { this.setState({ viewMenu: null }); }
 
   // ---- สีของแต่ละ list ----
   listColorOf(name) {
@@ -6090,6 +6226,7 @@ class Component extends DCLogic {
       channels: this.channels(), platforms: this.platforms(),
       cols: this.cols(), colOrder: this.colOrder(), colWidths: (this.cfg().colWidths || {}),
       colLabels: (this.cfg().colLabels || {}), listColors: (this.cfg().listColors || {}),
+      views: this.savedViews(),
       optColors: (this.cfg().optColors || {}), doneStatus: this.doneKey(),
       admins: this.adminList()   // ว่างไว้ = ทุกคนแก้ตั้งค่าได้ จนกำหนด admin เองในแถบ ⚙
     }, part || {});
@@ -6316,30 +6453,70 @@ class Component extends DCLogic {
   // ---- Docs: เก็บเอกสารของทีม (Brand CI, ฟอนต์, safezone ฯลฯ) ----
   isDocs() { return this.state.list === '__docs'; }
   docList() { return (this.state.docs || []).slice(); }
+  // เรียงเป็นชั้น: หน้าหลัก แล้วตามด้วยหน้าย่อยของมันทันที
+  docTree() {
+    const all = this.docList();
+    const tops = all.filter(function (d) { return !d.parent; });
+    const out = [];
+    tops.forEach(function (t) {
+      out.push({ doc: t, depth: 0 });
+      all.filter(function (d) { return d.parent === t.id; }).forEach(function (k) {
+        out.push({ doc: k, depth: 1 });
+      });
+    });
+    // หน้าย่อยที่หน้าแม่หายไปแล้ว ให้ขึ้นมาเป็นหน้าหลักไม่ให้ตกหล่น
+    all.forEach(function (d) {
+      if (d.parent && !all.some(function (x) { return x.id === d.parent; })) out.push({ doc: d, depth: 0 });
+    });
+    return out;
+  }
+  subCount(id) {
+    return this.docList().filter(function (d) { return d.parent === id; }).length;
+  }
   currentDoc() {
     const list = this.docList();
     if (!list.length) return null;
     const sel = list.filter((x) => x.id === this.state.docSel)[0];
     return sel || list[0];
   }
-  addDoc() {
-    const title = (window.prompt('ชื่อเอกสารใหม่', 'หน้าใหม่') || '').trim();
+  addDoc(parentId) {
+    const title = (window.prompt(parentId ? 'ชื่อหน้าย่อยใหม่' : 'ชื่อเอกสารใหม่', parentId ? 'หน้าย่อย' : 'หน้าใหม่') || '').trim();
     if (!title) return;
-    this.mark('เพิ่มเอกสาร');
+    this.mark(parentId ? 'เพิ่มหน้าย่อย' : 'เพิ่มเอกสาร');
     const doc = {
       id: 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      title: title, body: '', updatedBy: this.me().n || '', updatedAt: new Date().toISOString()
+      title: title, body: '', parent: parentId || '',
+      updatedBy: this.me().n || '', updatedAt: new Date().toISOString()
     };
     this.setState(function (s) { return { docs: (s.docs || []).concat([doc]), docSel: doc.id }; }, () => this.persist());
   }
   removeDoc(id) {
     const d = this.docList().filter((x) => x.id === id)[0];
     if (!d) return;
-    if (!window.confirm('ลบเอกสาร "' + d.title + '"? กู้คืนได้ด้วยปุ่ม ↶ เท่านั้น')) return;
+    const kids = this.subCount(id);
+    if (!window.confirm('ลบ "' + d.title + '"?' + (kids ? ' หน้าย่อย ' + kids + ' หน้าจะถูกลบไปด้วย' : '') + ' กู้คืนได้ด้วยปุ่ม ↶ เท่านั้น')) return;
     this.mark('ลบเอกสาร');
     this.setState(function (s) {
-      return { docs: (s.docs || []).filter((x) => x.id !== id), docSel: null };
+      return {
+        docs: (s.docs || []).filter(function (x) { return x.id !== id && x.parent !== id; }),
+        docSel: null
+      };
     }, () => this.persist());
+  }
+  // แทรกโครงสำเร็จลงท้ายเนื้อหา (ตาราง / รายการ / เช็คลิสต์)
+  insertBlock(kind) {
+    const d = this.currentDoc();
+    if (!d) return;
+    const blocks = {
+      table: '\n\n| หัวข้อ | รายละเอียด |\n| --- | --- |\n|  |  |\n|  |  |\n',
+      list: '\n\n- \n- \n- \n',
+      check: '\n\n- [ ] \n- [ ] \n- [ ] \n',
+      divider: '\n\n---\n\n',
+      heading: '\n\n## หัวข้อใหม่\n\n'
+    };
+    const add = blocks[kind] || '';
+    if (!add) return;
+    this.patchDoc(d.id, { body: (d.body || '') + add });
   }
   patchDoc(id, part) {
     const who = this.me().n || '';
@@ -6752,14 +6929,28 @@ class Component extends DCLogic {
       { k: 'gantt', label: 'Gantt', icon: '⊟' },
       { k: 'dashboard', label: 'Dashboard', icon: '◕' }
     ].map(function (t) {
-      const active = s.view === t.k;
+      const active = s.view === t.k && !s.customView;
       return {
         label: t.label, icon: t.icon,
-        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') + ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') + ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;',
+        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') + ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') + ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
         onSelect: function () {
           if (t.k === 'dashboard' && s.view !== 'dashboard') self.startCountUp();
-          self.setState({ view: t.k }, () => self.persist());
+          self.setState({ view: t.k, customView: null }, () => self.persist());
         }
+      };
+    });
+
+    // แท็บมุมมองที่ทีมบันทึกไว้
+    const savedTabs = this.savedViews().map(function (v) {
+      const active = s.customView === v.id;
+      const icon = ({ table: '▦', board: '▥', calendar: '▤', timeline: '▬', gantt: '⊟', dashboard: '◕' })[v.type] || '▦';
+      return {
+        label: v.name, icon: icon,
+        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') +
+          ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') +
+          ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
+        onSelect: function () { self.openSavedView(v.id); },
+        onContext: function (e) { self.openViewMenu(e, v.id); }
       };
     });
 
@@ -7109,13 +7300,39 @@ class Component extends DCLogic {
           };
         }),
         attachments: sel.attachments.map(function (a, ai) {
+          const url = a.url || (/^https?:\/\//i.test(a.name || '') ? a.name : '');
+          const drive = /drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]{20,})/.exec(url);
+          const docs = /docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]{20,})/.exec(url);
+          let preview = '';
+          if (drive) preview = 'https://drive.google.com/file/d/' + drive[1] + '/preview';
+          else if (docs) preview = 'https://docs.google.com/' + docs[1] + '/d/' + docs[2] + '/preview';
+          const open = self.state.attachOpen === (sel.id + ':' + ai);
           return {
             name: a.name,
+            hasUrl: !!url,
+            url: url,
+            icon: drive ? '▲' : (docs ? '▤' : (url ? '⛓' : '⛁')),
+            canPreview: !!preview && open,
+            previewSrc: preview,
+            hasPreviewBtn: !!preview,
+            previewLabel: open ? 'ซ่อนตัวอย่าง' : 'แสดงตัวอย่าง',
+            onTogglePreview: function () {
+              const key = sel.id + ':' + ai;
+              self.setState(function (st) { return { attachOpen: st.attachOpen === key ? null : key }; });
+            },
+            onOpen: function () { if (url) window.open(url, '_blank', 'noopener'); },
+            onCopy: function () {
+              if (!url) return;
+              try {
+                navigator.clipboard.writeText(url);
+                self.flashToast('คัดลอกลิงก์แล้ว');
+              } catch (e) { self.flashToast('คัดลอกไม่ได้ ให้กดเปิดแล้ว copy จากแถบที่อยู่'); }
+            },
             nameRef: self.syncRef(a.name),
             onName: function (e) {
               const v = e.target.value;
               self.patchTask(sel.id, function (t) {
-                t.attachments = t.attachments.map(function (x, j) { return j === ai ? { name: v } : x; });
+                t.attachments = t.attachments.map(function (x, j) { return j === ai ? Object.assign({}, x, { name: v }) : x; });
                 return t;
               });
             },
@@ -7307,6 +7524,28 @@ class Component extends DCLogic {
       },
       canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs(),
       viewTabs: tabs,
+      savedTabs: savedTabs,
+      onAddView: function () { self.addSavedView(); },
+      viewMenu: (function () {
+        const vm = s.viewMenu;
+        if (!vm) return { open: false };
+        const v = self.savedViews().filter(function (x) { return x.id === vm.id; })[0];
+        if (!v) return { open: false };
+        const item = 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;border-radius:7px;padding:8px 10px;font-size:12.5px;color:var(--pw-text2);cursor:pointer;white-space:nowrap;';
+        return {
+          open: true,
+          name: v.name,
+          style: 'position:fixed;top:min(' + vm.y + 'px, calc(100vh - 190px));left:min(' + vm.x + 'px, calc(100vw - 240px));' +
+                 'width:228px;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;' +
+                 'box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:7px;display:flex;flex-direction:column;gap:2px;',
+          onClose: function () { self.closeViewMenu(); },
+          items: [
+            { icon: '✎', label: 'เปลี่ยนชื่อ', style: item, onPick: function () { self.closeViewMenu(); self.renameSavedView(v.id); } },
+            { icon: '⤓', label: 'บันทึกทับด้วยค่าปัจจุบัน', style: item, onPick: function () { self.closeViewMenu(); self.updateSavedView(v.id); } },
+            { icon: '🗑', label: 'ลบมุมมองนี้', style: item + 'color:#dc2626;', onPick: function () { self.closeViewMenu(); self.removeSavedView(v.id); } }
+          ]
+        };
+      })(),
       totalCount: self.liveTasks().length,
       query: s.query,
       queryRef: self.syncRef(s.query),
@@ -7318,6 +7557,13 @@ class Component extends DCLogic {
       listTitleRef: self.syncRef(self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
       isEverything: self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
+      memberOverflow: (function () {
+        const n = Math.max(0, (s.members || []).length - 1 - 6);
+        return n ? ('+' + n) : '';
+      })(),
+      memberOverflowStyle: 'width:24px;height:24px;border-radius:50%;background:var(--pw-surface3);color:var(--pw-muted);' +
+        'border:2px solid var(--pw-surface);margin-left:-6px;display:grid;place-items:center;font-size:10px;font-weight:700;',
+      memberOverflowTitle: (s.members || []).slice(7).map(function (m) { return m.n; }).join(', '),
       memberChips: s.members.slice(1, 7).map(function (m) {
         const isOn = onlineEmails.indexOf(String(m.email || '').toLowerCase()) >= 0;
         return {
@@ -7498,8 +7744,15 @@ class Component extends DCLogic {
       onAddComment: addComment,
       onAddAttachment: function () {
         if (!sel) return;
+        const url = (window.prompt('วางลิงก์ไฟล์ (Google Drive / Figma / URL อะไรก็ได้)\nเว้นว่างไว้ถ้าจะพิมพ์แค่ชื่อไฟล์') || '').trim();
+        let name = url;
+        if (!url) {
+          name = (window.prompt('ชื่อไฟล์') || '').trim();
+          if (!name) return;
+        }
+        self.mark('เพิ่มไฟล์แนบ');
         self.patchTask(sel.id, function (t) {
-          t.attachments = t.attachments.concat([{ name: 'file-' + (t.attachments.length + 1) + '.pdf' }]);
+          t.attachments = (t.attachments || []).concat([{ name: name, url: url || '' }]);
           return t;
         });
       },
@@ -7839,14 +8092,30 @@ class Component extends DCLogic {
       docsBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isDocs() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isDocs() ? '#fff' : '#cbd2de') + ';',
       onOpenDocs: function () { self.setState({ list: '__docs', selected: null }, function () { self.persist(); }); },
       onAddDoc: function () { self.addDoc(); },
+      onAddSubOfCurrent: function () { const d = self.currentDoc(); if (d) self.addDoc(d.parent || d.id); },
       docsEmpty: self.docList().length === 0,
-      docPages: self.docList().map(function (dc) {
+      docPages: self.docTree().map(function (node) {
+        const dc = node.doc;
         const active = self.currentDoc() && self.currentDoc().id === dc.id;
+        const kids = self.subCount(dc.id);
         return {
           title: dc.title || '(ไม่มีชื่อ)',
-          style: 'display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:0;border-radius:7px;padding:7px 9px;font-size:12.5px;cursor:pointer;background:' + (active ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (active ? '#4f46e5' : 'var(--pw-text2)') + ';font-weight:' + (active ? '600' : '400') + ';',
+          isTop: node.depth === 0,
+          icon: node.depth ? '└' : '▤',
+          subLabel: (node.depth === 0 && kids) ? String(kids) : '',
+          style: 'display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:0;border-radius:7px;padding:7px 9px;font-size:12.5px;cursor:pointer;' +
+            'padding-left:' + (node.depth ? 24 : 9) + 'px;background:' + (active ? 'var(--pw-accent-soft)' : 'transparent') +
+            ';color:' + (active ? '#4f46e5' : 'var(--pw-text2)') + ';font-weight:' + (active ? '600' : '400') + ';',
           onOpen: function () { self.setState({ docSel: dc.id }); },
+          onAddSub: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.addDoc(dc.id); },
           onRemove: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeDoc(dc.id); }
+        };
+      }),
+      docBlocks: [['heading', 'หัวข้อ'], ['table', 'ตาราง'], ['list', 'รายการ'], ['check', 'เช็คลิสต์'], ['divider', 'เส้นคั่น']].map(function (b) {
+        return {
+          label: b[1],
+          style: 'background:transparent;border:1px solid var(--pw-border);border-radius:7px;padding:5px 11px;font-size:11.5px;color:var(--pw-text2);cursor:pointer;white-space:nowrap;',
+          onPick: function () { self.insertBlock(b[0]); }
         };
       }),
       doc: (function () {
@@ -7859,6 +8128,12 @@ class Component extends DCLogic {
           body: dc.body || '',
           bodyRef: self.syncRef(dc.body || ''),
           meta: dc.updatedBy ? ('แก้ล่าสุดโดย ' + dc.updatedBy + (dc.updatedAt ? ' · ' + String(dc.updatedAt).slice(0, 10) : '')) : '',
+          parentLabel: (function () {
+            if (!dc.parent) return '';
+            const p = self.docList().filter(function (x) { return x.id === dc.parent; })[0];
+            return p ? ('หน้าย่อยของ ' + p.title) : '';
+          })(),
+          hasParent: !!dc.parent,
           onTitle: function (e) { self.patchDoc(dc.id, { title: e.target.value }); },
           onBody: function (e) { self.patchDoc(dc.id, { body: e.target.value }); },
           onRemove: function () { self.removeDoc(dc.id); }
