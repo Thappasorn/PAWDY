@@ -3094,6 +3094,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     100% { background-color: transparent; }
   }
 
+  /* ---------- พับแถบเมนู (จอใหญ่) ---------- */
+  [data-root~="collapsed"] [data-sidebar] { display: none; }
+  [data-root~="collapsed"] [data-mobile-only] { display: grid !important; }
+  [data-root~="mobile"] [data-desktop-only] { display: none !important; }
+
   /* ---------- โหมดมือถือ ---------- */
   [data-root~="mobile"] [data-sidebar] { display: none; }
   [data-root~="mobile"] [data-mobile-only] { display: grid !important; }
@@ -3103,11 +3108,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   }
   @keyframes pw-slide-left { from { transform: translateX(-100%); } to { transform: none; } }
 
-  /* panel ขวากลายเป็นเต็มจอ */
-  [data-root~="mobile"] [data-detail],
-  [data-root~="mobile"] [data-settings] {
-    position: fixed; inset: 0; width: auto; flex: none; z-index: 58; border-left: 0;
-  }
+  /* panel ขวาบนมือถือ = เต็มจอ (คุมจาก style ของ panel เองแล้ว) */
   /* หัวหน้าจอบีบให้พอดี */
   [data-root~="mobile"] [data-topbar] { flex-wrap: wrap; row-gap: 8px; }
   [data-root~="mobile"] [data-viewtabs] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -3133,9 +3134,39 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-root~="mobile"] [data-docs] > div:first-child {
     border-right: 0 !important; border-bottom: 1px solid var(--pw-border); max-height: 34vh;
   }
-  /* ปฏิทินบนมือถือ: ช่องเตี้ยลงให้เห็นครบเดือน */
-  [data-root~="mobile"] [data-daycell] { min-height: 62px !important; padding: 4px 3px !important; }
-  [data-root~="mobile"] [data-dayadd] { display: grid !important; }
+  /* iOS ซูมหน้าจอเองทุกครั้งที่แตะช่องกรอกที่ตัวอักษรเล็กกว่า 16px — ล็อกไว้ที่ 16 */
+  [data-root~="mobile"] input,
+  [data-root~="mobile"] select,
+  [data-root~="mobile"] textarea { font-size: 16px !important; }
+
+  /* เป้ากดต้องโดนด้วยนิ้ว */
+  [data-root~="mobile"] button { min-height: 36px; }
+  [data-root~="mobile"] [data-card] { padding: 12px 13px !important; }
+  [data-root~="mobile"] [data-card]:hover { transform: none; box-shadow: none; }
+  [data-root~="mobile"] [data-card]:active { transform: scale(0.985); }
+
+  /* Board = เลื่อนแนวนอนทีละคอลัมน์แบบแอปมือถือ */
+  [data-root~="mobile"] [data-boardwrap] {
+    overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+    padding: 10px 12px 20px !important; gap: 10px !important;
+  }
+  [data-root~="mobile"] [data-boardwrap] > div { scroll-snap-align: start; flex: 0 0 84vw !important; width: 84vw !important; }
+
+  /* Timeline / Gantt: ย่อคอลัมน์ชื่อ แล้วให้ผังเลื่อนแนวนอนได้ */
+  [data-root~="mobile"] [data-tlrow] { grid-template-columns: 128px 1fr !important; }
+  [data-root~="mobile"] [data-tlscroll] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  [data-root~="mobile"] [data-tlinner] { min-width: 640px; }
+
+  /* Dashboard = การ์ดเรียงเดี่ยว */
+  [data-root~="mobile"] [data-dashgrid] { grid-template-columns: 1fr !important; }
+
+  /* panel รายละเอียดเต็มจอ ต้องเลื่อนได้และมีที่ว่างล่างสุดพ้นแถบเบราว์เซอร์ */
+  [data-root~="mobile"] [data-detail],
+  [data-root~="mobile"] [data-settings] { overflow-y: auto; padding-bottom: 84px; }
+
+  /* หัวหน้าจอบีบให้เตี้ยลง */
+  [data-root~="mobile"] [data-topbar] { gap: 7px !important; }
+  [data-root~="mobile"] [data-onlinelabel] { display: none !important; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -3169,6 +3200,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <span style="color: #fff; font-weight: 600; font-size: 12.5px;">Pawdy Workspace</span>
         <span style="font-size: 10.5px; color: #6c7280;">{{ workspaceSub }}</span>
       </div>
+      <button data-desktop-only sc-camel-on-click="{{ onCollapseNav }}" title="พับแถบเมนู" style="margin-left: auto; width: 22px; height: 22px; border-radius: 6px; border: 1px solid #262a35; background: transparent; color: #6c7280; cursor: pointer; font-size: 11px; line-height: 1; display: grid; place-items: center; flex: 0 0 auto;" style-hover="border-color: #4f46e5; color: #fff;">«</button>
     </div>
 
     <div style="padding: 10px 10px 6px;">
@@ -3310,7 +3342,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </sc-if>
               </div>
             </sc-for>
-            <span title="{{ onlineTitle }}" style="margin-left: 10px; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pw-muted); white-space: nowrap;">
+            <span data-onlinelabel title="{{ onlineTitle }}" style="margin-left: 10px; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pw-muted); white-space: nowrap;">
               <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e;"></span>{{ onlineLabel }}
             </span>
             <button sc-camel-on-click="{{ onInviteMember }}" title="Add a member by email" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--pw-faint); background: var(--pw-surface); color: var(--pw-muted); margin-left: -6px; cursor: pointer; font-size: 13px; line-height: 1; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
@@ -3350,7 +3382,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
             </sc-if>
           </div>
-          <button data-mobile-only sc-camel-on-click="{{ onToggleNav }}" title="เมนู" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 14px; display: none; place-items: center;">☰</button>
+          <button data-mobile-only sc-camel-on-click="{{ onToggleNav }}" title="{{ navToggleTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 14px; display: none; place-items: center;">☰</button>
           <button sc-camel-on-click="{{ onToggleMobile }}" title="{{ mobileTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ mobileIcon }}</button>
           <button sc-camel-on-click="{{ onUndo }}" title="{{ undoTitle }}" style="{{ undoStyle }}">↶</button>
           <button sc-camel-on-click="{{ onRedo }}" title="{{ redoTitle }}" style="{{ redoStyle }}">↷</button>
@@ -3472,7 +3504,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
       </sc-if>
 
-      <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
+      <sc-if value="{{ isTableGrid }}" hint-placeholder-val="{{ true }}">
         <div style="{{ tableWrapStyle }}">
           <div style="{{ tableGridStyle }}">
             <span></span>
@@ -3530,7 +3562,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </sc-if>
 
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
-                <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
+                <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button sc-camel-on-click="{{ row.onCycleStatus }}" title="Advance status" style="{{ row.checkStyle }}"></button>
                   <div style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px;">
                     <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
@@ -3577,8 +3609,99 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
       </sc-if>
 
+      <sc-if value="{{ isTableCards }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 10px 12px 24px; display: flex; flex-direction: column; gap: 16px;">
+          <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 3; background: var(--pw-bg); padding: 6px 0;">
+                <span style="{{ group.chipStyle }}">{{ group.key }}</span>
+                <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
+                <button sc-camel-on-click="{{ group.onAdd }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 5px 11px; font-size: 12px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่มงาน</button>
+              </div>
+
+              <sc-if value="{{ group.composerOpen }}" hint-placeholder-val="{{ false }}">
+                <div data-panel style="display: flex; align-items: center; gap: 7px;">
+                  <input ref="{{ group.composerRef }}" data-sync="{{ group.composerText }}" value="{{ group.composerText }}" sc-camel-on-change="{{ group.onComposerText }}" sc-camel-on-key-down="{{ group.onComposerKey }}" placeholder="ชื่องาน แล้วกด Enter" style="flex: 1; min-width: 0; border: 1px solid #4f46e5; border-radius: 9px; padding: 10px 12px; outline: 0; background: var(--pw-surface); color: var(--pw-text);">
+                  <button sc-camel-on-click="{{ group.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">เพิ่ม</button>
+                  <button sc-camel-on-click="{{ group.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 20px; line-height: 1; cursor: pointer; padding: 4px 6px;">×</button>
+                </div>
+              </sc-if>
+
+              <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="3">
+                <div data-flash="{{ row.flash }}" data-card sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
+                  <div style="display: flex; align-items: flex-start; gap: 9px;">
+                    <span style="{{ row.chipStyle }}">{{ row.status }}</span>
+                    <span style="{{ row.dueColor }}">{{ row.dueLabel }}</span>
+                    <button sc-camel-on-click="{{ row.onDelete }}" title="ลบงาน" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;">×</button>
+                  </div>
+                  <span style="font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--pw-text);">{{ row.name }}</span>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="{{ row.avatarStyle }}">{{ row.initials }}</span>
+                    <span style="font-size: 12px; color: var(--pw-text2);">{{ row.assignee }}</span>
+                    <span style="{{ row.prioColor }}">{{ row.prioLabel }}</span>
+                    <span style="margin-left: auto; font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">☑ {{ row.subLabel }} · 💬 {{ row.commentCount }}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 11px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.metaLabel }}</span>
+                    <sc-if value="{{ row.hasTags }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size: 11px; color: #4f46e5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.tagLabel }}</span>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAgenda }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 10px 12px 24px; display: flex; flex-direction: column; gap: 10px;">
+          <button sc-camel-on-click="{{ onAddToday }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 9px; padding: 11px 14px; font-weight: 600; cursor: pointer;">+ เพิ่มงานวันนี้</button>
+
+          <sc-if value="{{ agendaEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 50px 0; color: var(--pw-muted2);">
+              <span style="font-size: 24px; opacity: 0.5;">▩</span>
+              <span style="font-size: 13px;">ยังไม่มีงานในช่วงนี้</span>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ agenda }}" as="ag" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 7px;">
+              <div style="{{ ag.headStyle }}">
+                <span>{{ ag.label }}</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; color: var(--pw-muted2); font-weight: 400;">{{ ag.count }}</span>
+                <button sc-camel-on-click="{{ ag.onAdd }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 4px 10px; font-size: 12px; color: var(--pw-muted); cursor: pointer; font-weight: 400;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
+              </div>
+
+              <sc-if value="{{ ag.addOpen }}" hint-placeholder-val="{{ false }}">
+                <div data-panel style="display: flex; align-items: center; gap: 7px;">
+                  <input ref="{{ ag.addRef }}" data-sync="{{ ag.addText }}" value="{{ ag.addText }}" sc-camel-on-change="{{ ag.onAddText }}" sc-camel-on-key-down="{{ ag.onAddKey }}" placeholder="ชื่องาน แล้วกด Enter" style="flex: 1; min-width: 0; border: 1px solid #4f46e5; border-radius: 9px; padding: 10px 12px; outline: 0; background: var(--pw-surface); color: var(--pw-text);">
+                  <button sc-camel-on-click="{{ ag.onAddClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 20px; line-height: 1; cursor: pointer; padding: 4px 6px;">×</button>
+                </div>
+              </sc-if>
+
+              <sc-for list="{{ ag.tasks }}" as="row" hint-placeholder-count="2">
+                <div data-flash="{{ row.flash }}" data-card sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
+                  <div style="display: flex; align-items: center; gap: 9px;">
+                    <span style="{{ row.chipStyle }}">{{ row.status }}</span>
+                    <span style="{{ row.prioColor }}">{{ row.prioLabel }}</span>
+                    <button sc-camel-on-click="{{ row.onDelete }}" title="ลบงาน" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 4px;">×</button>
+                  </div>
+                  <span style="font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--pw-text);">{{ row.name }}</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="{{ row.avatarStyle }}">{{ row.initials }}</span>
+                    <span style="font-size: 12px; color: var(--pw-text2);">{{ row.assignee }}</span>
+                    <span style="margin-left: auto; font-size: 11px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.metaLabel }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
       <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
-        <div style="display: flex; gap: 12px; padding: 14px 16px; align-items: flex-start; min-height: 100%;">
+        <div data-boardwrap style="display: flex; gap: 12px; padding: 14px 16px; align-items: flex-start; min-height: 100%;">
           <sc-for list="{{ columns }}" as="col" hint-placeholder-count="5">
             <div sc-camel-on-drag-over="{{ col.onDragOver }}" sc-camel-on-drop="{{ col.onDrop }}" style="{{ col.style }}">
               <div style="display: flex; align-items: center; gap: 8px; padding: 2px 2px 10px;">
@@ -3588,7 +3711,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
-                  <div data-card draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                  <div data-card draggable="true" sc-camel-on-context-menu="{{ card.onContext }}" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -3627,7 +3750,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
       </sc-if>
 
-      <sc-if value="{{ isCalendar }}" hint-placeholder-val="{{ true }}">
+      <sc-if value="{{ isCalGrid }}" hint-placeholder-val="{{ true }}">
         <div style="padding: 14px 16px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <button sc-camel-on-click="{{ onPrevMonth }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">‹</button>
@@ -3666,10 +3789,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       </sc-if>
 
       <sc-if value="{{ isTimeline }}" hint-placeholder-val="{{ true }}">
-        <div style="padding: 14px 16px;">
+        <div data-tlscroll style="padding: 14px 16px;">
           <div style="font-size: 11px; color: var(--pw-muted2); margin-bottom: 8px;">ลากขอบซ้าย/ขวาของแถบเพื่อย่อ-ขยายวัน · ลากกลางแถบเพื่อเลื่อนทั้งงาน</div>
           <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden; min-width: 900px;">
-            <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
+            <div data-tlrow style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
               <div style="padding: 8px 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Task</div>
               <div style="display: flex;">
                 <sc-for list="{{ timelineWeeks }}" as="wk" hint-placeholder-count="8">
@@ -3678,7 +3801,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
             </div>
             <sc-for list="{{ ganttRows }}" as="g" hint-placeholder-count="10">
-              <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: center;">
+              <div data-tlrow style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: center;">
                 <div style="display: flex; align-items: center; gap: 7px; padding: 6px 12px; min-width: 0;">
                   <span style="{{ g.dot }}"></span>
                   <span style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ g.name }}</span>
@@ -3698,7 +3821,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
               </div>
               <sc-for list="{{ g.subRows }}" as="sb" hint-placeholder-count="1">
-                <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: center; background: var(--pw-surface2);">
+                <div data-tlrow style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: center; background: var(--pw-surface2);">
                   <div style="display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 30px; min-width: 0;">
                     <span style="{{ sb.dotStyle }}"></span>
                     <span style="font-size: 11px; color: var(--pw-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sb.label }}</span>
@@ -3729,7 +3852,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       </sc-if>
 
       <sc-if value="{{ isGantt }}" hint-placeholder-val="{{ false }}">
-        <div style="padding: 12px 16px;">
+        <div data-tlscroll style="padding: 12px 16px;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
             <button sc-camel-on-click="{{ gantt.onPrev }}" title="ย้อนช่วงเวลา" style="width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">‹</button>
             <button sc-camel-on-click="{{ gantt.onToday }}" style="border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-text2); border-radius: 6px; padding: 3px 11px; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">วันนี้</button>
@@ -3743,8 +3866,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             </div>
           </div>
 
-          <div style="border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden; background: var(--pw-surface);">
-            <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
+          <div data-tlinner style="border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden; background: var(--pw-surface);">
+            <div data-tlrow style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
               <div style="padding: 6px 12px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">งาน</div>
               <div style="display: flex;">
                 <sc-for list="{{ gantt.cols }}" as="gc" hint-placeholder-count="13">
@@ -3761,7 +3884,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
               </sc-if>
               <sc-if value="{{ gr.isTask }}" hint-placeholder-val="{{ true }}">
-                <div style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: stretch;">
+                <div data-tlrow style="display: grid; grid-template-columns: 250px 1fr; border-bottom: 1px solid var(--pw-line); align-items: stretch;">
                   <div sc-camel-on-click="{{ gr.onOpen }}" style="display: flex; align-items: center; gap: 7px; padding: 5px 12px 5px 24px; min-width: 0; cursor: pointer;" style-hover="background: var(--pw-hover);">
                     <span style="{{ gr.dot }}"></span>
                     <span style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ gr.name }}</span>
@@ -3797,7 +3920,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
       <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
         <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+          <div data-dashgrid style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
             <sc-for list="{{ statCards }}" as="c" hint-placeholder-count="4">
               <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 13px 14px; display: flex; flex-direction: column; gap: 5px;">
                 <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">{{ c.label }}</span>
@@ -3875,7 +3998,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </main>
 
   <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
-    <aside data-detail style="width: 400px; flex: 0 0 400px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden; box-shadow: -8px 0 24px rgba(16, 24, 40, 0.06);">
+    <sc-if value="{{ detailModal }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ onCloseDetail }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.45); z-index: 75;"></div>
+  </sc-if>
+  <aside data-detail style="{{ detailStyle }}">
       <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border);">
         <span style="{{ detail.statusChip }}">{{ detail.status }}</span>
         <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ detail.code }}</span>
@@ -4021,7 +4147,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </sc-if>
 
   <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
-    <aside data-settings style="width: 356px; flex: 0 0 356px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden;">
+    <aside data-settings style="{{ settingsStyle }}">
       <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
         <span style="font-size: 13px; font-weight: 600;">ตั้งค่า workspace</span>
         <span style="font-size: 10.5px; color: var(--pw-muted2);">admin เท่านั้น · ทุกคนเห็นผลทันที</span>
@@ -4078,6 +4204,115 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </aside>
   </sc-if>
 
+  <sc-if value="{{ ctx.open }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ ctx.onClose }}" sc-camel-on-context-menu="{{ ctx.onClose }}" style="position: fixed; inset: 0; z-index: 79;"></div>
+    <div data-panel style="{{ ctx.style }}">
+
+      <div style="display: flex; align-items: center; gap: 7px; padding: 4px 8px 6px;">
+        <span style="font-size: 11px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ ctx.taskName }}</span>
+        <button sc-camel-on-click="{{ ctx.onClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+
+      <sc-if value="{{ ctx.isMain }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ ctx.items }}" as="ci" hint-placeholder-count="10">
+          <button sc-camel-on-click="{{ ci.onPick }}" style="{{ ci.style }}" style-hover="background: var(--pw-surface3);">
+            <span style="width: 15px; text-align: center; opacity: 0.7; font-size: 11px;">{{ ci.icon }}</span>{{ ci.label }}
+          </button>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{ ctx.isName }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 7px; padding: 2px;">
+          <textarea ref="{{ ctx.nameRef }}" data-sync="{{ ctx.nameValue }}" value="{{ ctx.nameValue }}" sc-camel-on-change="{{ ctx.onNameChange }}" sc-camel-on-key-down="{{ ctx.onNameKey }}" rows="3" style="width: 100%; border: 1px solid #4f46e5; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; outline: 0; resize: none; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;"></textarea>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button sc-camel-on-click="{{ ctx.onNameSave }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">บันทึก</button>
+            <button sc-camel-on-click="{{ ctx.onBack }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 11px; font-size: 12px; color: var(--pw-text2); cursor: pointer;">ยกเลิก</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ ctx.isAssignee }}" hint-placeholder-val="{{ false }}">
+        <button sc-camel-on-click="{{ ctx.onBack }}" style="display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 7px; padding: 6px 10px; font-size: 11.5px; color: var(--pw-muted2); cursor: pointer;" style-hover="background: var(--pw-surface3);">‹ กลับ</button>
+        <sc-for list="{{ ctx.members }}" as="cm" hint-placeholder-count="4">
+          <button sc-camel-on-click="{{ cm.onPick }}" style="{{ cm.style }}" style-hover="background: var(--pw-surface3);">
+            <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>{{ cm.label }}
+          </button>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{ ctx.isList }}" hint-placeholder-val="{{ false }}">
+        <button sc-camel-on-click="{{ ctx.onBack }}" style="display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 7px; padding: 6px 10px; font-size: 11.5px; color: var(--pw-muted2); cursor: pointer;" style-hover="background: var(--pw-surface3);">‹ กลับ</button>
+        <sc-for list="{{ ctx.lists }}" as="cl2" hint-placeholder-count="4">
+          <button sc-camel-on-click="{{ cl2.onPick }}" style="{{ cl2.style }}" style-hover="background: var(--pw-surface3);">
+            <span style="width: 15px; text-align: center; opacity: 0.6; font-size: 11px;">▤</span>{{ cl2.label }}
+          </button>
+        </sc-for>
+      </sc-if>
+
+      <sc-if value="{{ ctx.isDate }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 7px; padding: 2px;">
+          <button sc-camel-on-click="{{ ctx.onBack }}" style="text-align: left; background: transparent; border: 0; font-size: 11.5px; color: var(--pw-muted2); cursor: pointer; padding: 2px 6px;">‹ กลับ</button>
+          <input ref="{{ ctx.dueRef }}" data-sync="{{ ctx.dueValue }}" type="date" value="{{ ctx.dueValue }}" sc-camel-on-click="{{ ctx.onDuePick }}" sc-camel-on-change="{{ ctx.onDueChange }}" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text); cursor: pointer;" style-focus="border-color: #4f46e5;">
+          <button sc-camel-on-click="{{ ctx.onDueDone }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 7px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;">เสร็จ</button>
+        </div>
+      </sc-if>
+
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ optPanel.open }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ optPanel.onClose }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.45); z-index: 74;"></div>
+    <div data-dropdown data-panel style="position: fixed; top: 74px; right: 22px; width: 330px; max-height: 78vh; overflow-y: auto; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 12px; box-shadow: 0 20px 50px rgba(8, 10, 14, 0.32); z-index: 75; padding: 12px 13px; display: flex; flex-direction: column; gap: 11px;">
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="flex: 1; text-align: center; font-size: 13px; font-weight: 600;">{{ optPanel.title }}</span>
+        <button sc-camel-on-click="{{ optPanel.onClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+
+      <input ref="{{ optPanel.queryRef }}" data-sync="{{ optPanel.query }}" value="{{ optPanel.query }}" sc-camel-on-change="{{ optPanel.onQuery }}" placeholder="ค้นหาตัวเลือก…" style="width: 100%; border: 1.5px solid #4f46e5; border-radius: 8px; padding: 9px 11px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);">
+
+      <sc-if value="{{ optPanel.notEditingAny }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">ตัวเลือก</span>
+          <sc-for list="{{ optPanel.rows }}" as="op" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <sc-if value="{{ optPanel.hasTask }}" hint-placeholder-val="{{ true }}">
+                <button sc-camel-on-click="{{ op.onApply }}" title="ใช้ค่านี้กับงานที่เลือก" style="{{ op.checkStyle }}">{{ op.checked }}</button>
+              </sc-if>
+              <button sc-camel-on-click="{{ op.onApply }}" style="{{ op.barStyle }}">{{ op.label }}</button>
+              <button sc-camel-on-click="{{ op.onEdit }}" title="แก้ชื่อและสี" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 13px; cursor: pointer; padding: 0 2px;" style-hover="color: #4f46e5;">✎</button>
+              <button sc-camel-on-click="{{ op.onRemove }}" title="ลบตัวเลือกนี้" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 14px; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ optPanel.empty }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 11.5px; color: var(--pw-muted2); padding: 6px 2px;">ไม่พบตัวเลือกที่ค้นหา</span>
+          </sc-if>
+        </div>
+
+        <button sc-camel-on-click="{{ optPanel.onCreate }}" style="width: 100%; background: var(--pw-surface3); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px; font-size: 12.5px; color: var(--pw-text2); cursor: pointer; font-weight: 500;" style-hover="border-color: #4f46e5; color: #4f46e5;">สร้างตัวเลือกใหม่</button>
+      </sc-if>
+
+      <sc-if value="{{ optPanel.editingAny }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">{{ optPanel.draftTitle }}</span>
+          <div style="{{ optPanel.draftPreviewStyle }}">{{ optPanel.draftName }}</div>
+          <input ref="{{ optPanel.draftRef }}" data-sync="{{ optPanel.draftName }}" value="{{ optPanel.draftName }}" sc-camel-on-change="{{ optPanel.onDraftName }}" sc-camel-on-key-down="{{ optPanel.onDraftKey }}" placeholder="ชื่อตัวเลือก" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 8px; padding: 9px 11px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">เลือกสี</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+            <sc-for list="{{ optPanel.swatches }}" as="sw" hint-placeholder-count="12">
+              <button sc-camel-on-click="{{ sw.onPick }}" style="{{ sw.style }}"></button>
+            </sc-for>
+          </div>
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <button sc-camel-on-click="{{ optPanel.onSaveDraft }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">บันทึก</button>
+            <button sc-camel-on-click="{{ optPanel.onCancelDraft }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 8px; padding: 9px 14px; font-size: 12.5px; color: var(--pw-text2); cursor: pointer;" style-hover="border-color: var(--pw-muted);">ยกเลิก</button>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </sc-if>
+
   <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
     <div data-toast style="position: fixed; bottom: 18px; right: 18px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; background: #14161c; color: var(--pw-border); border: 1px solid #2a2e3b; border-radius: 10px; padding: 11px 13px; max-width: 340px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);">
       <span style="width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 12px;">✉</span>
@@ -4119,6 +4354,9 @@ const MEMBERS = [
 ];
 const CHANNELS = ['—', 'Shopee', 'Lazada', 'TikTok Shop', 'Website', 'Retail', 'LINE OA'];
 const PLATFORMS = ['—', 'Instagram', 'Facebook', 'TikTok', 'Email', 'YouTube'];
+const OPT_PALETTE = ['#1f7a5a', '#8a7a12', '#a95a10', '#c0392b', '#8e44ad', '#2b7a8c',
+                     '#4f46e5', '#0891b2', '#d97706', '#059669', '#db2777', '#64748b'];
+
 const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
 const COL_DEFS = [
@@ -4208,9 +4446,7 @@ function seed() {
 
 const KEY = 'pawdy.workspace.v1';
 const ADD_MEMBER = '+ Add member by email…';
-const OPT_ADD = '＋ เพิ่มรายการใหม่…';
-const OPT_RENAME = '✎ เปลี่ยนชื่อรายการนี้…';
-const OPT_REMOVE = '✕ ลบรายการนี้ออก';
+const OPT_MANAGE = '⚙ จัดการตัวเลือก / เลือกสี…';
 
 class Component extends DCLogic {
   constructor(props) {
@@ -4255,6 +4491,15 @@ class Component extends DCLogic {
       mobilePref: null,          // null = ตามขนาดจอ / true / false = ผู้ใช้เลือกเอง
       viewportNarrow: (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth < 760 : false,
       navOpen: false,
+      navCollapsed: !!ui.navCollapsed,
+      ctxMenu: null,         // { id, x, y, mode } — เมนูคลิกขวาบนการ์ด
+      ctxName: '',
+      optEditor: null,       // { kind, taskId } — panel จัดการตัวเลือก
+      optQuery: '',
+      optEditing: null,      // ค่าที่กำลังแก้ (null = ไม่ได้แก้อะไร)
+      optCreating: false,
+      optDraftName: '',
+      optDraftColor: OPT_PALETTE[0],
       filterOpen: false,
       filters: (ui.filters && typeof ui.filters === 'object') ? ui.filters : { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' },
       newSubtask: '',
@@ -4279,7 +4524,7 @@ class Component extends DCLogic {
     }
     this._prevSnap = this.snapOf(st);
     this._undoLabel = null;
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters } });
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed } });
   }
 
   // ---- undo / redo ----
@@ -4602,6 +4847,10 @@ class Component extends DCLogic {
     window.addEventListener('resize', this._onResize);
 
     this._onKey = function (e) {
+      if (e.key === 'Escape') {
+        if (self.state.ctxMenu) { self.closeCtx(); return; }
+        if (self.state.optEditor) { self.closeOptEditor(); return; }
+      }
       const k = (e.key || '').toLowerCase();
       if (k !== 'z' || !(e.metaKey || e.ctrlKey)) return;
       const el = document.activeElement;
@@ -4863,6 +5112,262 @@ class Component extends DCLogic {
     return false;
   }
 
+  // ---- เมนูคลิกขวาบนการ์ด/แถวงาน ----
+  openCtx(e, id) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
+    const t = (this.state.tasks || []).filter((x) => x.id === id)[0];
+    this.setState({
+      ctxMenu: { id: id, x: (e && e.clientX) || 40, y: (e && e.clientY) || 40, mode: 'main' },
+      ctxName: t ? t.name : ''
+    });
+  }
+  closeCtx() { this.setState({ ctxMenu: null, ctxName: '' }); }
+  ctxMode(mode) {
+    this.setState(function (s) {
+      return { ctxMenu: s.ctxMenu ? Object.assign({}, s.ctxMenu, { mode: mode }) : null };
+    });
+  }
+  ctxTask() {
+    const m = this.state.ctxMenu;
+    if (!m) return null;
+    return (this.state.tasks || []).filter((x) => x.id === m.id)[0] || null;
+  }
+  saveCtxName() {
+    const m = this.state.ctxMenu;
+    const name = String(this.state.ctxName || '').trim();
+    if (!m || !name) return;
+    this.patch(m.id, 'name', name);
+    this.closeCtx();
+  }
+  duplicateTask(id) {
+    const t = (this.state.tasks || []).filter((x) => x.id === id)[0];
+    if (!t) return;
+    this.mark('ทำสำเนางาน');
+    const copy = JSON.parse(JSON.stringify(t));
+    copy.id = 'T' + Math.floor(Math.random() * 90000 + 10000);
+    copy.name = t.name + ' (สำเนา)';
+    copy.pos = (t.pos || 0) + 1;
+    delete copy.deleted; delete copy.deletedAt; delete copy.deletedBy;
+    copy.comments = [];
+    this.setState(function (s) { return { tasks: s.tasks.concat([copy]) }; }, () => this.persist());
+  }
+
+  openOptEditor(kind, taskId) {
+    this.setState({ optEditor: { kind: kind, taskId: taskId || null }, optQuery: '', optEditing: null, optCreating: false, optDraftName: '', optDraftColor: OPT_PALETTE[0] });
+  }
+  closeOptEditor() { this.setState({ optEditor: null, optEditing: null, optCreating: false }); }
+  startEditOpt(val) {
+    const kind = this.state.optEditor ? this.state.optEditor.kind : null;
+    if (!kind) return;
+    this.setState({ optEditing: val, optCreating: false, optDraftName: val, optDraftColor: this.optColorOf(kind, val) });
+  }
+  startCreateOpt() {
+    const kind = this.state.optEditor ? this.state.optEditor.kind : null;
+    if (!kind) return;
+    const used = this.optValues(kind).length;
+    this.setState({ optCreating: true, optEditing: null, optDraftName: '', optDraftColor: OPT_PALETTE[used % OPT_PALETTE.length] });
+  }
+  cancelOptDraft() { this.setState({ optEditing: null, optCreating: false, optDraftName: '' }); }
+  saveOptDraft() {
+    const st = this.state;
+    const ed = st.optEditor;
+    if (!ed) return;
+    const name = String(st.optDraftName || '').trim();
+    if (!name) return;
+    let ok;
+    if (st.optCreating) ok = this.optAddDirect(ed.kind, name, st.optDraftColor);
+    else ok = this.optRenameDirect(ed.kind, st.optEditing, name, st.optDraftColor);
+    if (ok) this.setState({ optEditing: null, optCreating: false, optDraftName: '' });
+  }
+  // แตะแถบสี = ใส่ค่านั้นให้งานที่เปิด panel มาจาก
+  applyOptValue(val) {
+    const ed = this.state.optEditor;
+    if (!ed || !ed.taskId) return;
+    const kind = ed.kind;
+    if (this.optIsField(kind)) {
+      const f = this.fieldOfKey(kind);
+      if (f) this.setCustom(ed.taskId, f.id, val);
+    } else {
+      this.patch(ed.taskId, this.optField(kind), val);
+    }
+  }
+  optCurrentValue() {
+    const ed = this.state.optEditor;
+    if (!ed || !ed.taskId) return null;
+    const t = (this.state.tasks || []).filter((x) => x.id === ed.taskId)[0];
+    if (!t) return null;
+    if (this.optIsField(ed.kind)) {
+      const f = this.fieldOfKey(ed.kind);
+      return f && t.custom ? (t.custom[f.id] || '') : '';
+    }
+    return t[this.optField(ed.kind)];
+  }
+
+  // ---- ตัวจัดการตัวเลือกแบบเลือกสีได้ ----
+  // kind: statuses | priorities | channels | platforms | cf:<fieldId>
+  optIsField(kind) { return String(kind).indexOf('cf:') === 0; }
+  optValues(kind) {
+    if (this.optIsField(kind)) {
+      const f = this.fieldOfKey(kind);
+      return f ? (f.options || []).slice() : [];
+    }
+    const L = this.optList(kind);
+    return this.optIsObject(kind) ? L.map(function (x) { return x.k; }) : L.slice();
+  }
+  optColorOf(kind, val) {
+    if (kind === 'statuses') return this.statusMeta(val).c;
+    if (kind === 'priorities') return this.prioMeta(val).c;
+    const map = this.cfg().optColors || {};
+    const key = kind + ':' + val;
+    if (map[key]) return map[key];
+    const list = this.optValues(kind);
+    const i = Math.max(0, list.indexOf(val));
+    return OPT_PALETTE[i % OPT_PALETTE.length];
+  }
+  optTitleOf(kind) {
+    if (this.optIsField(kind)) {
+      const f = this.fieldOfKey(kind);
+      return f ? f.label : 'ตัวเลือก';
+    }
+    return this.optTitle(kind);
+  }
+  // เขียนสีลงที่เก็บที่เหมาะกับชนิดนั้น
+  optSetColor(kind, val, color, extraPart) {
+    const part = Object.assign({}, extraPart || {});
+    if (kind === 'statuses') {
+      part.statuses = this.statuses().map(function (x) {
+        return x.k === val ? Object.assign({}, x, { c: color, bg: color + '1f' }) : x;
+      });
+    } else if (kind === 'priorities') {
+      part.priorities = this.priorities().map(function (x) {
+        return x.k === val ? Object.assign({}, x, { c: color }) : x;
+      });
+    } else {
+      const map = Object.assign({}, this.cfg().optColors || {});
+      map[kind + ':' + val] = color;
+      part.optColors = map;
+    }
+    this.saveCfg(part);
+  }
+
+  optAddDirect(kind, name, color) {
+    const nm = String(name || '').trim();
+    if (!nm) return false;
+    if (this.optValues(kind).indexOf(nm) >= 0) { window.alert('มีชื่อนี้อยู่แล้ว'); return false; }
+    this.mark('เพิ่มตัวเลือก');
+    if (this.optIsField(kind)) {
+      const f = this.fieldOfKey(kind);
+      if (!f) return false;
+      this.setState(function (s) {
+        return { fields: (s.fields || []).map(function (x) { return x.id === f.id ? Object.assign({}, x, { options: (x.options || []).concat([nm]) }) : x; }) };
+      }, () => { this.optSetColor(kind, nm, color); });
+      return true;
+    }
+    if (kind === 'statuses') {
+      this.saveCfg({ statuses: this.statuses().concat([{ k: nm, c: color, bg: color + '1f' }]) });
+      return true;
+    }
+    if (kind === 'priorities') {
+      this.saveCfg({ priorities: this.priorities().concat([{ k: nm, c: color }]) });
+      return true;
+    }
+    const part = {};
+    part[kind] = this.optValues(kind).concat([nm]);
+    const map = Object.assign({}, this.cfg().optColors || {});
+    map[kind + ':' + nm] = color;
+    part.optColors = map;
+    this.saveCfg(part);
+    return true;
+  }
+
+  optRenameDirect(kind, oldVal, name, color) {
+    const nm = String(name || '').trim();
+    if (!nm) return false;
+    if (nm !== oldVal && this.optValues(kind).indexOf(nm) >= 0) { window.alert('มีชื่อนี้อยู่แล้ว'); return false; }
+    this.mark('แก้ตัวเลือก');
+    const self = this;
+
+    if (this.optIsField(kind)) {
+      const f = this.fieldOfKey(kind);
+      if (!f) return false;
+      this.setState(function (s) {
+        return {
+          fields: (s.fields || []).map(function (x) {
+            return x.id === f.id ? Object.assign({}, x, { options: (x.options || []).map(function (o) { return o === oldVal ? nm : o; }) }) : x;
+          }),
+          tasks: s.tasks.map(function (t) {
+            if (!t.custom || t.custom[f.id] !== oldVal) return t;
+            const c2 = Object.assign({}, t.custom); c2[f.id] = nm;
+            return Object.assign({}, t, { custom: c2 });
+          })
+        };
+      }, function () {
+        const map = Object.assign({}, self.cfg().optColors || {});
+        delete map[kind + ':' + oldVal];
+        map[kind + ':' + nm] = color;
+        self.saveCfg({ optColors: map });
+      });
+      return true;
+    }
+
+    const field = this.optField(kind);
+    const isObj = this.optIsObject(kind);
+    const wasDone = kind === 'statuses' && this.doneKey() === oldVal;
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (t[field] !== oldVal) return t;
+          const n2 = Object.assign({}, t); n2[field] = nm; return n2;
+        })
+      };
+    }, function () {
+      const part = {};
+      if (isObj) {
+        const listKey = kind;
+        part[listKey] = self.optList(kind).map(function (x) {
+          if (x.k !== oldVal) return x;
+          return kind === 'statuses'
+            ? Object.assign({}, x, { k: nm, c: color, bg: color + '1f' })
+            : Object.assign({}, x, { k: nm, c: color });
+        });
+        if (kind === 'statuses') part.doneStatus = wasDone ? nm : self.doneKey();
+      } else {
+        part[kind] = self.optValues(kind).map(function (x) { return x === oldVal ? nm : x; });
+        const map = Object.assign({}, self.cfg().optColors || {});
+        delete map[kind + ':' + oldVal];
+        map[kind + ':' + nm] = color;
+        part.optColors = map;
+      }
+      self.saveCfg(part);
+    });
+    return true;
+  }
+
+  optRemoveDirect(kind, val) {
+    if (this.optIsField(kind)) {
+      const f = this.fieldOfKey(kind);
+      if (!f) return;
+      const n = this.state.tasks.filter(function (t) { return t.custom && t.custom[f.id] === val; }).length;
+      if (!window.confirm('ลบตัวเลือก "' + val + '"?' + (n ? ' งาน ' + n + ' ชิ้นที่ใช้อยู่จะถูกล้างค่า' : ''))) return;
+      this.mark('ลบตัวเลือก');
+      this.setState(function (s) {
+        return {
+          fields: (s.fields || []).map(function (x) {
+            return x.id === f.id ? Object.assign({}, x, { options: (x.options || []).filter(function (o) { return o !== val; }) }) : x;
+          }),
+          tasks: s.tasks.map(function (t) {
+            if (!t.custom || t.custom[f.id] !== val) return t;
+            const c2 = Object.assign({}, t.custom); c2[f.id] = '';
+            return Object.assign({}, t, { custom: c2 });
+          })
+        };
+      }, () => this.persist());
+      return;
+    }
+    this.optRemove(kind, val);
+  }
+
   // ---- แก้ชุดตัวเลือกจาก dropdown ในตารางได้เลย (เฉพาะ admin จึงเห็นรายการพวกนี้) ----
   optList(kind) {
     return kind === 'statuses' ? this.statuses()
@@ -4955,20 +5460,10 @@ class Component extends DCLogic {
   }
 
   // ตัวกลาง: ถ้าค่าที่เลือกเป็นคำสั่งพิเศษ ให้จัดการแล้วคืน true
-  optionPick(kind, picked, current, apply) {
-    if (picked === OPT_ADD) {
-      const name = this.optAdd(kind);
-      if (name) apply(name); else this.resync();
-      return true;
-    }
-    if (picked === OPT_RENAME) {
-      const name = this.optRename(kind, current);
-      if (!name) this.resync();
-      return true;
-    }
-    if (picked === OPT_REMOVE) {
-      const fb = this.optRemove(kind, current);
-      if (!fb) this.resync();
+  optionPick(kind, picked, current, apply, taskId) {
+    if (picked === OPT_MANAGE) {
+      this.resync();
+      this.openOptEditor(kind, taskId || null);
       return true;
     }
     return false;
@@ -5264,7 +5759,7 @@ class Component extends DCLogic {
   buildOpts() {
     const allLists = [];
     (this.state.spaces || []).forEach(function (sp) { sp.lists.forEach(function (l) { allLists.push(l); }); });
-    const extra = [OPT_ADD, OPT_RENAME, OPT_REMOVE];   // แก้จากตารางได้ทุกคน
+    const extra = [OPT_MANAGE];   // เปิด panel จัดการตัวเลือก — ทุกคนใช้ได้
     this._opt = {
       status: this.statuses().map(function (x) { return x.k; }).concat(extra),
       priority: this.priorities().map(function (x) { return x.k; }).concat(extra),
@@ -5618,6 +6113,7 @@ class Component extends DCLogic {
       statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + this.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
       onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '' }); },
+      onContext: function (e) { self.openCtx(e, t.id); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
       onCycleStatus: function () {
@@ -5643,6 +6139,15 @@ class Component extends DCLogic {
       },
       onList: function (e) { self.patch(t.id, 'list', e.target.value); },
       flash: !!(self.state.flash && self.state.flash[t.id]) || null,
+      chipStyle: self.chip(t.status),
+      dueLabel: self.shortDate(t.due),
+      dueColor: 'font-size:11px;font-family:\'IBM Plex Mono\',monospace;color:' + dm.color + ';' + (dm.overdue ? 'font-weight:700;' : ''),
+      prioLabel: t.priority,
+      prioColor: 'font-size:11px;font-weight:600;color:' + pm.c + ';',
+      cardStyle: 'display:flex;flex-direction:column;gap:7px;padding:11px 12px;border:1px solid var(--pw-border);border-radius:10px;background:var(--pw-surface);cursor:pointer;',
+      tagLabel: (t.tags || []).length ? (t.tags || []).join(' · ') : '',
+      hasTags: (t.tags || []).length > 0,
+      metaLabel: t.list + (t.channel && t.channel !== '—' ? ' · ' + t.channel : ''),
       cells: self.state.view !== 'table' ? [] : (function () {
         const O = self._opt || self.buildOpts();
         const dm2 = self.dueMeta(t.due, t.status);
@@ -5654,7 +6159,7 @@ class Component extends DCLogic {
               valueRef: self.syncRef(t.status),
               onChange: function (e) {
                 const v = e.target.value;
-                if (self.optionPick('statuses', v, t.status, function (n) { self.patch(t.id, 'status', n); })) return;
+                if (self.optionPick('statuses', v, t.status, function (n) { self.patch(t.id, 'status', n); }, t.id)) return;
                 self.patch(t.id, 'status', v);
               },
               style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + self.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;' };
@@ -5681,7 +6186,7 @@ class Component extends DCLogic {
               valueRef: self.syncRef(t.priority),
               onChange: function (e) {
                 const v = e.target.value;
-                if (self.optionPick('priorities', v, t.priority, function (n) { self.patch(t.id, 'priority', n); })) return;
+                if (self.optionPick('priorities', v, t.priority, function (n) { self.patch(t.id, 'priority', n); }, t.id)) return;
                 self.patch(t.id, 'priority', v);
               },
               style: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:100%;min-width:0;' };
@@ -5702,7 +6207,7 @@ class Component extends DCLogic {
               valueRef: self.syncRef(t.channel),
               onChange: function (e) {
                 const v = e.target.value;
-                if (self.optionPick('channels', v, t.channel, function (n) { self.patch(t.id, 'channel', n); })) return;
+                if (self.optionPick('channels', v, t.channel, function (n) { self.patch(t.id, 'channel', n); }, t.id)) return;
                 self.patch(t.id, 'channel', v);
               },
               style: sel };
@@ -5712,7 +6217,7 @@ class Component extends DCLogic {
               valueRef: self.syncRef(t.platform),
               onChange: function (e) {
                 const v = e.target.value;
-                if (self.optionPick('platforms', v, t.platform, function (n) { self.patch(t.id, 'platform', n); })) return;
+                if (self.optionPick('platforms', v, t.platform, function (n) { self.patch(t.id, 'platform', n); }, t.id)) return;
                 self.patch(t.id, 'platform', v);
               },
               style: sel };
@@ -5750,11 +6255,21 @@ class Component extends DCLogic {
           }
           const raw = (t.custom && t.custom[f.id] !== undefined && t.custom[f.id] !== null) ? t.custom[f.id] : '';
           if (f.type === 'select') {
+            const col = raw ? self.optColorOf(k, String(raw)) : null;
             return {
-              key: k, isSelect: true, options: [''].concat(f.options || []), value: String(raw),
+              key: k, isSelect: true,
+              options: [''].concat(f.options || []).concat([OPT_MANAGE]),
+              value: String(raw),
               valueRef: self.syncRef(String(raw)),
-              onChange: function (e) { self.setCustom(t.id, f.id, e.target.value); },
-              style: sel
+              onChange: function (e) {
+                const v = e.target.value;
+                if (self.optionPick(k, v, String(raw), function (n) { self.setCustom(t.id, f.id, n); }, t.id)) return;
+                self.setCustom(t.id, f.id, v);
+              },
+              style: col
+                ? ('font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + col + (self.isDark() ? '2e' : '1f') +
+                   ';color:' + col + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;')
+                : sel
             };
           }
           return {
@@ -6312,7 +6827,7 @@ class Component extends DCLogic {
         onName: function (e) { self.patch(sel.id, 'name', e.target.value); },
         onStatus: function (e) {
           const v = e.target.value;
-          if (self.optionPick('statuses', v, sel.status, function (n) { self.patch(sel.id, 'status', n); })) return;
+          if (self.optionPick('statuses', v, sel.status, function (n) { self.patch(sel.id, 'status', n); }, sel.id)) return;
           self.patch(sel.id, 'status', v);
         },
         onAssignee: function (e) {
@@ -6322,7 +6837,7 @@ class Component extends DCLogic {
         },
         onPriority: function (e) {
           const v = e.target.value;
-          if (self.optionPick('priorities', v, sel.priority, function (n) { self.patch(sel.id, 'priority', n); })) return;
+          if (self.optionPick('priorities', v, sel.priority, function (n) { self.patch(sel.id, 'priority', n); }, sel.id)) return;
           self.patch(sel.id, 'priority', v);
         },
         onDatePick: function (e) { self.openPicker(e); },
@@ -6339,12 +6854,12 @@ class Component extends DCLogic {
         onDue: function (e) { self.patch(sel.id, 'due', e.target.value); },
         onChannel: function (e) {
           const v = e.target.value;
-          if (self.optionPick('channels', v, sel.channel, function (n) { self.patch(sel.id, 'channel', n); })) return;
+          if (self.optionPick('channels', v, sel.channel, function (n) { self.patch(sel.id, 'channel', n); }, sel.id)) return;
           self.patch(sel.id, 'channel', v);
         },
         onPlatform: function (e) {
           const v = e.target.value;
-          if (self.optionPick('platforms', v, sel.platform, function (n) { self.patch(sel.id, 'platform', n); })) return;
+          if (self.optionPick('platforms', v, sel.platform, function (n) { self.patch(sel.id, 'platform', n); }, sel.id)) return;
           self.patch(sel.id, 'platform', v);
         },
         onCost: function (e) { self.patch(sel.id, 'cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
@@ -6487,6 +7002,47 @@ class Component extends DCLogic {
         to: s.toast.to, subject: s.toast.subject, line: s.toast.line
       } : {},
       onDismissToast: function () { self.setState({ toast: null }); },
+      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isMobile(),
+      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && self.isMobile(),
+      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isMobile(),
+      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile(),
+      agenda: (function () {
+        if (s.view !== 'calendar' || !self.isMobile()) return [];
+        const byDate = {}, order = [];
+        vms.slice().sort(function (a, b) { return String(a.due).localeCompare(String(b.due)); })
+          .forEach(function (v) {
+            if (!byDate[v.due]) { byDate[v.due] = []; order.push(v.due); }
+            byDate[v.due].push(v);
+          });
+        return order.map(function (iso) {
+          const isToday = iso === TODAY;
+          const past = iso < TODAY;
+          return {
+            label: self.shortDate(iso) + (isToday ? ' · วันนี้' : ''),
+            headStyle: 'display:flex;align-items:center;gap:8px;padding:8px 2px 6px;font-size:11.5px;font-weight:600;color:' +
+              (isToday ? '#4f46e5' : (past ? '#dc2626' : 'var(--pw-text2)')) + ';',
+            count: byDate[iso].length,
+            onAdd: function () { self.openCalAdd(iso); },
+            addOpen: s.calAdd === iso,
+            addText: s.calAdd === iso ? s.calAddText : '',
+            addRef: function (el) {
+              if (!el) return;
+              const val = s.calAdd === iso ? s.calAddText : '';
+              if (el.value !== val) el.value = val;
+              if (s.calAdd === iso && self._focusCalAdd) { el.focus(); self._focusCalAdd = false; }
+            },
+            onAddText: function (e) { self.setState({ calAddText: e.target.value }); },
+            onAddKey: function (e) {
+              if (e.key === 'Enter') { e.preventDefault(); self.addOnDate(iso); }
+              if (e.key === 'Escape') self.closeCalAdd();
+            },
+            onAddClose: function () { self.closeCalAdd(); },
+            tasks: byDate[iso]
+          };
+        });
+      })(),
+      agendaEmpty: (function () { return s.view === 'calendar' && self.isMobile() && vms.length === 0; })(),
+      onAddToday: function () { self.openCalAdd(TODAY); },
       isTable: s.view === 'table' && !self.isTrash() && !self.isDocs(),
       isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs(),
       isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs(),
@@ -6662,14 +7218,22 @@ class Component extends DCLogic {
       })(),
       isMobile: self.isMobile(),
       notMobile: !self.isMobile(),
-      rootAttr: self.isMobile() ? (s.navOpen ? 'mobile nav' : 'mobile') : '',
+      rootAttr: self.isMobile() ? (s.navOpen ? 'mobile nav' : 'mobile') : (s.navCollapsed ? 'collapsed' : ''),
+      navCollapsed: s.navCollapsed,
+      onCollapseNav: function () {
+        self.setState(function (st) { return { navCollapsed: true, navOpen: false }; }, function () { self.persist(); });
+      },
+      navToggleTitle: self.isMobile() ? 'เมนู' : (s.navCollapsed ? 'กางแถบเมนู' : 'พับแถบเมนู'),
       mobileIcon: self.isMobile() ? '🖥' : '📱',
       mobileTitle: self.isMobile() ? 'กำลังดูแบบมือถือ — กดเพื่อกลับเป็นจอใหญ่' : 'ดูแบบมือถือ',
       onToggleMobile: function () {
         self.setState(function (st) { return { mobilePref: !self.isMobile(), navOpen: false }; });
       },
       navOpen: s.navOpen,
-      onToggleNav: function () { self.setState(function (st) { return { navOpen: !st.navOpen }; }); },
+      onToggleNav: function () {
+        if (self.isMobile()) { self.setState(function (st) { return { navOpen: !st.navOpen }; }); return; }
+        self.setState(function (st) { return { navCollapsed: !st.navCollapsed }; }, function () { self.persist(); });
+      },
       onCloseNav: function () { self.setState({ navOpen: false }); },
       canUndo: self.canUndo(),
       canRedo: self.canRedo(),
@@ -6679,6 +7243,153 @@ class Component extends DCLogic {
       redoTitle: self.canRedo() ? ('ทำซ้ำ: ' + self.redoLabel() + '  (⌘⇧Z)') : 'ยังไม่มีอะไรให้ทำซ้ำ',
       onUndo: function () { self.undo(); },
       onRedo: function () { self.redo(); },
+      optPanel: (function () {
+        const ed = s.optEditor;
+        if (!ed) return { open: false, rows: [], swatches: [], title: '' };
+        const kind = ed.kind;
+        const q = String(s.optQuery || '').trim().toLowerCase();
+        const cur = self.optCurrentValue();
+        const values = self.optValues(kind).filter(function (v) { return !q || String(v).toLowerCase().indexOf(q) >= 0; });
+        return {
+          open: true,
+          title: self.optTitleOf(kind),
+          query: s.optQuery || '',
+          queryRef: self.syncRef(s.optQuery || ''),
+          onQuery: function (e) { self.setState({ optQuery: e.target.value }); },
+          onClose: function () { self.closeOptEditor(); },
+          hasTask: !!ed.taskId,
+          empty: values.length === 0,
+          rows: values.map(function (v) {
+            const col = self.optColorOf(kind, v);
+            const on = cur === v;
+            const editing = s.optEditing === v && !s.optCreating;
+            return {
+              label: v,
+              editing: editing,
+              notEditing: !editing,
+              checked: on ? '✓' : '',
+              checkStyle: 'width:18px;height:18px;flex:0 0 18px;border-radius:4px;border:1.5px solid ' + (on ? '#4f46e5' : 'var(--pw-faint)') +
+                ';background:' + (on ? '#4f46e5' : 'transparent') + ';color:#fff;font-size:11px;line-height:1;display:grid;place-items:center;cursor:' + (ed.taskId ? 'pointer' : 'default') + ';padding:0;',
+              barStyle: 'flex:1;min-width:0;text-align:left;border:0;border-radius:6px;padding:9px 12px;background:' + col +
+                ';color:#fff;font-size:12.5px;font-weight:600;cursor:' + (ed.taskId ? 'pointer' : 'default') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+              onApply: function () { self.applyOptValue(v); },
+              onEdit: function () { self.startEditOpt(v); },
+              onRemove: function () { self.optRemoveDirect(kind, v); }
+            };
+          }),
+          editingAny: !!(s.optEditing || s.optCreating),
+          notEditingAny: !(s.optEditing || s.optCreating),
+          draftName: s.optDraftName || '',
+          draftRef: self.syncRef(s.optDraftName || ''),
+          draftTitle: s.optCreating ? 'ตัวเลือกใหม่' : ('แก้ "' + (s.optEditing || '') + '"'),
+          draftPreviewStyle: 'border-radius:6px;padding:9px 12px;background:' + (s.optDraftColor || OPT_PALETTE[0]) +
+            ';color:#fff;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+          onDraftName: function (e) { self.setState({ optDraftName: e.target.value }); },
+          onDraftKey: function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); self.saveOptDraft(); }
+            if (e.key === 'Escape') self.cancelOptDraft();
+          },
+          swatches: OPT_PALETTE.map(function (col) {
+            const on = (s.optDraftColor || '') === col;
+            return {
+              style: 'width:26px;height:26px;border-radius:7px;background:' + col + ';border:2px solid ' + (on ? 'var(--pw-text)' : 'transparent') +
+                ';cursor:pointer;padding:0;box-shadow:' + (on ? '0 0 0 2px var(--pw-surface) inset' : 'none') + ';',
+              onPick: function () { self.setState({ optDraftColor: col }); }
+            };
+          }),
+          onSaveDraft: function () { self.saveOptDraft(); },
+          onCancelDraft: function () { self.cancelOptDraft(); },
+          onCreate: function () { self.startCreateOpt(); }
+        };
+      })(),
+      ctx: (function () {
+        const m = s.ctxMenu;
+        if (!m) return { open: false, items: [], members: [], lists: [] };
+        const t = self.ctxTask();
+        if (!t) return { open: false, items: [], members: [], lists: [] };
+        const mode = m.mode || 'main';
+        const itemStyle = 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;border-radius:7px;padding:8px 10px;font-size:12.5px;color:var(--pw-text2);cursor:pointer;white-space:nowrap;';
+        const mk = function (icon, label, fn, danger) {
+          return {
+            icon: icon, label: label,
+            style: itemStyle + (danger ? 'color:#dc2626;' : ''),
+            onPick: function () { fn(); }
+          };
+        };
+        return {
+          open: true,
+          taskName: t.name,
+          isMain: mode === 'main',
+          isName: mode === 'name',
+          isAssignee: mode === 'assignee',
+          isList: mode === 'list',
+          isDate: mode === 'date',
+          style: 'position:fixed;top:min(' + m.y + 'px, calc(100vh - 380px));left:min(' + m.x + 'px, calc(100vw - 250px));' +
+                 'width:236px;max-height:70vh;overflow-y:auto;background:var(--pw-surface);border:1px solid var(--pw-border);' +
+                 'border-radius:11px;box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:7px;display:flex;flex-direction:column;gap:2px;',
+          onClose: function () { self.closeCtx(); },
+          onBack: function () { self.ctxMode('main'); },
+          items: [
+            mk('▤', 'เปิดรายละเอียด', function () { self.setState({ selected: t.id, ctxMenu: null }); }),
+            mk('✎', 'แก้ชื่องาน', function () { self.setState({ ctxName: t.name }); self.ctxMode('name'); }),
+            mk('◧', 'เปลี่ยนสถานะ', function () { self.closeCtx(); self.openOptEditor('statuses', t.id); }),
+            mk('◔', 'เปลี่ยนความสำคัญ', function () { self.closeCtx(); self.openOptEditor('priorities', t.id); }),
+            mk('⛊', 'เปลี่ยน Channel', function () { self.closeCtx(); self.openOptEditor('channels', t.id); }),
+            mk('☺', 'เปลี่ยนผู้รับผิดชอบ', function () { self.ctxMode('assignee'); }),
+            mk('◷', 'แก้วันครบกำหนด', function () { self.ctxMode('date'); }),
+            mk('→', 'ย้ายไป list อื่น', function () { self.ctxMode('list'); }),
+            mk('⧉', 'ทำสำเนางาน', function () { self.duplicateTask(t.id); self.closeCtx(); }),
+            mk('🗑', 'ย้ายลงถังขยะ', function () { self.removeTask(t.id); self.closeCtx(); }, true)
+          ],
+          nameValue: s.ctxName || '',
+          nameRef: self.syncRef(s.ctxName || ''),
+          onNameChange: function (e) { self.setState({ ctxName: e.target.value }); },
+          onNameKey: function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); self.saveCtxName(); }
+            if (e.key === 'Escape') self.ctxMode('main');
+          },
+          onNameSave: function () { self.saveCtxName(); },
+          dueValue: t.due,
+          dueRef: self.syncRef(t.due),
+          onDueChange: function (e) { self.patch(t.id, 'due', e.target.value); },
+          onDuePick: function (e) { self.openPicker(e); },
+          onDueDone: function () { self.closeCtx(); },
+          members: (s.members || []).map(function (mm) {
+            const on = t.assignee === mm.n;
+            return {
+              label: mm.n,
+              initials: self.initials(mm.n),
+              avatarStyle: self.avatar(mm.n, 20),
+              style: itemStyle + (on ? 'background:var(--pw-accent-soft);color:#4f46e5;font-weight:600;' : ''),
+              onPick: function () { self.patch(t.id, 'assignee', mm.n); self.closeCtx(); }
+            };
+          }),
+          lists: allLists.map(function (ln) {
+            const on = t.list === ln;
+            return {
+              label: ln,
+              style: itemStyle + (on ? 'background:var(--pw-accent-soft);color:#4f46e5;font-weight:600;' : ''),
+              onPick: function () { self.patch(t.id, 'list', ln); self.closeCtx(); }
+            };
+          })
+        };
+      })(),
+      detailModal: !!s.selected && !self.isMobile() && ['board', 'calendar', 'timeline', 'gantt'].indexOf(s.view) >= 0,
+      detailStyle: (function () {
+        if (self.isMobile()) {
+          return 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;';
+        }
+        if (['board', 'calendar', 'timeline', 'gantt'].indexOf(s.view) >= 0) {
+          // เปิดจากมุมมองที่เป็นภาพรวม → เด้งกลางจอเหมือนเปิดการ์ด
+          return 'position:fixed;top:6vh;left:50%;transform:translateX(-50%);width:min(760px,92vw);max-height:88vh;z-index:76;' +
+                 'background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:14px;' +
+                 'box-shadow:0 24px 64px rgba(8,10,14,0.38);display:flex;flex-direction:column;overflow:hidden;';
+        }
+        return 'width:400px;flex:0 0 400px;background:var(--pw-surface);border-left:1px solid var(--pw-border);display:flex;flex-direction:column;overflow:hidden;box-shadow:-8px 0 24px rgba(16,24,40,0.06);';
+      })(),
+      settingsStyle: self.isMobile()
+        ? 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;'
+        : 'width:356px;flex:0 0 356px;background:var(--pw-surface);border-left:1px solid var(--pw-border);display:flex;flex-direction:column;overflow:hidden;',
       isDocs: self.isDocs(),
       docsCount: self.docList().length,
       docsBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isDocs() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isDocs() ? '#fff' : '#cbd2de') + ';',
