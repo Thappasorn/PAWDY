@@ -541,10 +541,30 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">' +
       '<div style="width:30px;height:30px;border-radius:8px;background:#4f46e5;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px">PW</div>' +
       '<div style="line-height:1.2"><div style="font-weight:600;font-size:14px;color:#1f2430">Pawdy Workspace</div>' +
-      '<div style="font-size:11px;color:#9ca3af">Sign in to continue</div></div></div>' +
+      '<div id="pw-sub" style="font-size:11px;color:#9ca3af">เข้าสู่ระบบเพื่อใช้งาน</div></div></div>' +
+      '<div id="pw-login">' +
       '<input id="pw-email" type="email" placeholder="you@pawdy.co.th" autocomplete="username" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:8px">' +
-      '<input id="pw-pass" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:12px">' +
-      '<button id="pw-go" style="width:100%;background:#4f46e5;color:#fff;border:0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Sign in</button>' +
+      '<input id="pw-pass" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:12px">' +
+      '<button id="pw-go" style="width:100%;background:#4f46e5;color:#fff;border:0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">เข้าสู่ระบบ</button>' +
+      '<button id="pw-forgot" style="width:100%;background:transparent;border:0;color:#6b7280;font-size:11.5px;cursor:pointer;padding:9px 0 0;text-decoration:underline">ลืมรหัสผ่าน?</button>' +
+      '</div>' +
+
+      /* ---- โหมดขอลิงก์ตั้งรหัสใหม่ ---- */
+      '<div id="pw-reset" style="display:none">' +
+      '<div style="font-size:12.5px;color:#374151;line-height:1.55;margin-bottom:10px">ใส่อีเมลที่ใช้เข้าระบบ เราจะส่งลิงก์ตั้งรหัสใหม่ไปให้</div>' +
+      '<input id="pw-remail" type="email" placeholder="you@pawdy.co.th" autocomplete="username" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:10px">' +
+      '<button id="pw-send" style="width:100%;background:#4f46e5;color:#fff;border:0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">ส่งลิงก์ตั้งรหัสใหม่</button>' +
+      '<button id="pw-back" style="width:100%;background:transparent;border:0;color:#6b7280;font-size:11.5px;cursor:pointer;padding:9px 0 0;text-decoration:underline">กลับไปหน้าเข้าสู่ระบบ</button>' +
+      '</div>' +
+
+      /* ---- โหมดตั้งรหัสใหม่ (มาจากลิงก์ในอีเมล) ---- */
+      '<div id="pw-newpass" style="display:none">' +
+      '<div style="font-size:12.5px;color:#374151;line-height:1.55;margin-bottom:10px">ตั้งรหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</div>' +
+      '<input id="pw-np1" type="password" placeholder="รหัสผ่านใหม่" autocomplete="new-password" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:8px">' +
+      '<input id="pw-np2" type="password" placeholder="พิมพ์รหัสใหม่อีกครั้ง" autocomplete="new-password" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:10px">' +
+      '<button id="pw-save" style="width:100%;background:#4f46e5;color:#fff;border:0;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">บันทึกรหัสใหม่</button>' +
+      '</div>' +
+
       '<div id="pw-msg" style="font-size:11.5px;color:#dc2626;margin-top:10px;line-height:1.45;min-height:16px"></div>' +
       '</div>';
     document.body.appendChild(wrap);
@@ -553,8 +573,82 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     el.pass = wrap.querySelector('#pw-pass');
     el.go = wrap.querySelector('#pw-go');
     el.msg = wrap.querySelector('#pw-msg');
+    el.sub = wrap.querySelector('#pw-sub');
+    el.login = wrap.querySelector('#pw-login');
+    el.reset = wrap.querySelector('#pw-reset');
+    el.newpass = wrap.querySelector('#pw-newpass');
+    el.remail = wrap.querySelector('#pw-remail');
+    el.np1 = wrap.querySelector('#pw-np1');
+    el.np2 = wrap.querySelector('#pw-np2');
+
     el.go.addEventListener('click', signIn);
     el.pass.addEventListener('keydown', function (e) { if (e.key === 'Enter') signIn(); });
+    el.email.addEventListener('keydown', function (e) { if (e.key === 'Enter') el.pass.focus(); });
+
+    wrap.querySelector('#pw-forgot').addEventListener('click', function () {
+      el.remail.value = (el.email.value || '').trim();
+      showMode('reset');
+    });
+    wrap.querySelector('#pw-back').addEventListener('click', function () { showMode('login'); });
+    wrap.querySelector('#pw-send').addEventListener('click', sendReset);
+    el.remail.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendReset(); });
+    wrap.querySelector('#pw-save').addEventListener('click', saveNewPass);
+    el.np2.addEventListener('keydown', function (e) { if (e.key === 'Enter') saveNewPass(); });
+  }
+
+  function showMode(mode) {
+    if (!el.login) return;
+    el.login.style.display = mode === 'login' ? '' : 'none';
+    el.reset.style.display = mode === 'reset' ? '' : 'none';
+    el.newpass.style.display = mode === 'newpass' ? '' : 'none';
+    if (el.sub) {
+      el.sub.textContent = mode === 'reset' ? 'ลืมรหัสผ่าน'
+        : (mode === 'newpass' ? 'ตั้งรหัสผ่านใหม่' : 'เข้าสู่ระบบเพื่อใช้งาน');
+    }
+    msg('');
+    setTimeout(function () {
+      if (mode === 'reset') el.remail.focus();
+      else if (mode === 'newpass') el.np1.focus();
+      else el.email.focus();
+    }, 40);
+  }
+
+  function sendReset() {
+    var email = (el.remail.value || '').trim();
+    if (!email || email.indexOf('@') < 0) { msg('ใส่อีเมลให้ถูกต้องก่อน'); return; }
+    var btn = el.wrap.querySelector('#pw-send');
+    btn.disabled = true; msg('กำลังส่ง…', true);
+    var back = location.origin + location.pathname;
+    sb.auth.resetPasswordForEmail(email, { redirectTo: back }).then(function (r) {
+      btn.disabled = false;
+      if (r && r.error) {
+        var m = r.error.message || '';
+        // Supabase อีเมลในตัวจำกัดจำนวนต่อชั่วโมง ถ้าโดนจะขึ้น rate limit
+        msg(/rate|limit|seconds/i.test(m)
+          ? 'ขอลิงก์ถี่เกินไป รออีกสักครู่แล้วลองใหม่ (อีเมลในตัวของ Supabase จำกัดจำนวนต่อชั่วโมง)'
+          : m);
+        return;
+      }
+      msg('ส่งแล้ว — เปิดอีเมล ' + email + ' แล้วกดลิงก์ในนั้น (เช็คใน junk ด้วย)', true);
+    }).catch(function () { btn.disabled = false; msg('ส่งไม่สำเร็จ ลองใหม่อีกครั้ง'); });
+  }
+
+  function saveNewPass() {
+    var a = el.np1.value || '', b = el.np2.value || '';
+    if (a.length < 8) { msg('รหัสใหม่ต้องยาวอย่างน้อย 8 ตัว'); return; }
+    if (a !== b) { msg('รหัสสองช่องไม่ตรงกัน'); return; }
+    var btn = el.wrap.querySelector('#pw-save');
+    btn.disabled = true; msg('กำลังบันทึก…', true);
+    sb.auth.updateUser({ password: a }).then(function (r) {
+      btn.disabled = false;
+      if (r && r.error) { msg(r.error.message); return; }
+      msg('เปลี่ยนรหัสแล้ว กำลังเข้าระบบ…', true);
+      try { history.replaceState(null, '', location.origin + location.pathname); } catch (e) {}
+      sb.auth.getSession().then(function (s) {
+        if (s.data && s.data.session) start(s.data.session);
+        else showMode('login');
+      });
+    }).catch(function () { btn.disabled = false; msg('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'); });
   }
 
   function msg(t, ok) { if (el.msg) { el.msg.textContent = t || ''; el.msg.style.color = ok ? '#059669' : '#dc2626'; } }
@@ -563,8 +657,8 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
   function signIn() {
     var email = (el.email.value || '').trim();
     var pass = el.pass.value || '';
-    if (!email || !pass) { msg('Enter your email and password.'); return; }
-    el.go.disabled = true; msg('Signing in…', true);
+    if (!email || !pass) { msg('ใส่อีเมลและรหัสผ่านก่อน'); return; }
+    el.go.disabled = true; msg('กำลังเข้าสู่ระบบ…', true);
     sb.auth.signInWithPassword({ email: email, password: pass }).then(function (r) {
       el.go.disabled = false;
       if (r.error) { msg(r.error.message); return; }
@@ -576,7 +670,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     var email = session.user.email;
     sb.from('members').select('email,name,color').eq('email', email.toLowerCase()).maybeSingle().then(function (r) {
       if (r.error || !r.data) {
-        msg('This account is signed in but has not been added to the workspace team yet.');
+        msg('บัญชีนี้ล็อกอินได้ แต่ยังไม่ถูกเพิ่มเข้าทีมใน workspace — ให้ admin เพิ่มอีเมลนี้ในตาราง members ก่อน');
         sb.auth.signOut();
         return;
       }
@@ -600,8 +694,19 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }
     if (!window.supabase) { msg('Could not load the Supabase library. Check the network connection.'); return; }
     sb = window.supabase.createClient(CFG.url, CFG.anonKey);
+
+    // มาจากลิงก์ตั้งรหัสใหม่ในอีเมล → เปิดฟอร์มตั้งรหัสแทนหน้าเข้าระบบ
+    var hash = String(location.hash || '');
+    var search = String(location.search || '');
+    var recovery = /type=recovery/.test(hash) || /type=recovery/.test(search) || /[?&]code=/.test(search);
+    if (recovery) showMode('newpass');
+    sb.auth.onAuthStateChange(function (event) {
+      if (event === 'PASSWORD_RECOVERY') showMode('newpass');
+    });
+
     sb.auth.getSession().then(function (r) {
-      if (r.data && r.data.session) start(r.data.session);
+      if (r.data && r.data.session && !recovery) start(r.data.session);
+      else if (recovery) showMode('newpass');
     });
   }
 
@@ -2881,7 +2986,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     --pw-text2: #374151;
     --pw-muted: #6b7280;
     --pw-label: #8b91a0;
-    --pw-muted2: #9ca3af;
+    --pw-muted2: #6c7583;
     --pw-accent-soft: #eef2ff;
     --pw-accent-soft2: #c7d2fe;
     --pw-danger-soft: #fef2f2;
@@ -2907,6 +3012,73 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     color-scheme: dark;
   }
   html, body { margin: 0; padding: 0; background: var(--pw-bg); }
+
+  /* ---------- micro-interactions ---------- */
+  button, [role="button"] {
+    transition: background-color .16s ease, border-color .16s ease, color .16s ease,
+                transform .12s cubic-bezier(.2,.8,.2,1), box-shadow .16s ease;
+  }
+  button:active, [role="button"]:active { transform: scale(.96); }        /* ปุ่มยุบตอนกด */
+
+  input, textarea, select {
+    transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+  }
+
+  [data-card] {
+    transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, border-color .16s ease;
+  }
+  [data-card]:hover { transform: translateY(-1.5px); box-shadow: 0 6px 16px rgba(16,24,40,.11); }
+  [data-card]:active { transform: rotate(1.1deg) scale(1.015); cursor: grabbing; }   /* การ์ดเอียงตอนลาก */
+
+  [data-avatar] { transition: transform .16s cubic-bezier(.2,.8,.2,1); }
+  [data-avatar]:hover { transform: scale(1.14); z-index: 5; }
+
+  [data-panel] { animation: pw-drop .18s cubic-bezier(.2,.8,.2,1); }       /* dropdown เด้งเข้า */
+  @keyframes pw-drop { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: none; } }
+
+  [data-toast] { animation: pw-slide .26s cubic-bezier(.2,.8,.2,1); }      /* toast เลื่อนเข้าจากขอบ */
+  @keyframes pw-slide { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+
+  [data-bar] { animation: pw-grow .26s cubic-bezier(.2,.8,.2,1); transform-origin: left center; }
+  @keyframes pw-grow { from { transform: scaleX(0); opacity: .35; } to { transform: scaleX(1); opacity: 1; } }
+
+  [data-flash] { animation: pw-flash 1.4s ease-out; }                      /* แถวเรืองจางตอนมีคนอื่นแก้ */
+  @keyframes pw-flash {
+    0%   { background-color: rgba(79,70,229,.16); }
+    60%  { background-color: rgba(79,70,229,.07); }
+    100% { background-color: transparent; }
+  }
+
+  /* ---------- โหมดมือถือ ---------- */
+  [data-root~="mobile"] [data-sidebar] { display: none; }
+  [data-root~="mobile"] [data-mobile-only] { display: grid !important; }
+  [data-root~="mobile"][data-root~="nav"] [data-sidebar] {
+    display: flex; position: fixed; top: 0; bottom: 0; left: 0; width: 78vw; max-width: 300px;
+    z-index: 60; box-shadow: 0 0 40px rgba(0,0,0,.45); animation: pw-slide-left .2s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes pw-slide-left { from { transform: translateX(-100%); } to { transform: none; } }
+
+  /* panel ขวากลายเป็นเต็มจอ */
+  [data-root~="mobile"] [data-detail],
+  [data-root~="mobile"] [data-settings] {
+    position: fixed; inset: 0; width: auto; flex: none; z-index: 58; border-left: 0;
+  }
+  /* หัวหน้าจอบีบให้พอดี */
+  [data-root~="mobile"] [data-topbar] { flex-wrap: wrap; row-gap: 8px; }
+  [data-root~="mobile"] [data-viewtabs] { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  [data-root~="mobile"] [data-viewtabs]::-webkit-scrollbar { display: none; }
+  /* ปุ่มเล็กสุด 30px กดด้วยนิ้วได้ */
+  [data-root~="mobile"] button { min-height: 30px; }
+  [data-root~="mobile"] [data-assignee] { display: none; }   /* จอแคบโชว์แค่รูป เปลี่ยนคนใน panel */
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    [data-card]:hover, [data-card]:active, [data-avatar]:hover, button:active { transform: none !important; }
+  }
   * { box-sizing: border-box; }
   a { color: #4f46e5; text-decoration: none; }
   a:hover { color: #3730a3; text-decoration: underline; }
@@ -2918,9 +3090,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 </style>
 </helmet>
 
-<div style="display: flex; height: 100vh; width: 100%; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--pw-text); background: var(--pw-bg); font-size: 13px;">
+<div data-root="{{ rootAttr }}" style="display: flex; height: 100vh; width: 100%; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--pw-text); background: var(--pw-bg); font-size: 13px;">
 
-  <aside style="width: 232px; flex: 0 0 232px; background: #14161c; color: #a7adba; display: flex; flex-direction: column; overflow: hidden;">
+  <sc-if value="{{ navOpen }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ onCloseNav }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.5); z-index: 55;"></div>
+  </sc-if>
+
+  <aside data-sidebar style="width: 232px; flex: 0 0 232px; background: #14161c; color: #a7adba; display: flex; flex-direction: column; overflow: hidden;">
     <div style="display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-bottom: 1px solid #23262f;">
       <div style="width: 26px; height: 26px; border-radius: 7px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 12px; letter-spacing: -0.2px;">PW</div>
       <div style="display: flex; flex-direction: column; line-height: 1.25; min-width: 0;">
@@ -2932,7 +3108,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     <div style="padding: 10px 10px 6px;">
       <div style="display: flex; align-items: center; gap: 7px; background: #1d202a; border: 1px solid #262a35; border-radius: 6px; padding: 5px 8px;">
         <span style="color: #6c7280; font-size: 12px;">⌕</span>
-        <input ref="{{ queryRef }}" data-sync="{{ query }}" value="{{ query }}" sc-camel-on-change="{{ onQuery }}" placeholder="Search tasks" style="background: transparent; border: 0; outline: 0; color: var(--pw-border); width: 100%; font-size: 12px;">
+        <input ref="{{ queryRef }}" data-sync="{{ query }}" value="{{ query }}" sc-camel-on-change="{{ onQuery }}" placeholder="ค้นหางาน" style="background: transparent; border: 0; outline: 0; color: #e5e7eb; width: 100%; font-size: 12px;">
       </div>
     </div>
 
@@ -2940,6 +3116,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <button sc-camel-on-click="{{ onAllTasks }}" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; padding: 6px 8px; border-radius: 6px; color: #cbd2de; font-size: 12.5px;" style-hover="background: #1d202a;">
         <span style="width: 16px; text-align: center; opacity: 0.7;">☰</span>Everything
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ totalCount }}</span>
+      </button>
+
+      <button sc-camel-on-click="{{ onOpenTrash }}" title="งานที่ลบไป กู้คืนได้ภายใน 30 วัน" style="{{ trashBtnStyle }}" style-hover="background: #1d202a;">
+        <span style="width: 16px; text-align: center; opacity: 0.7;">🗑</span>ถังขยะ
+        <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ trashCount }}</span>
       </button>
 
       <div style="height: 9px;"></div>
@@ -2994,7 +3175,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   <main style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
 
     <header style="background: var(--pw-surface); border-bottom: 1px solid var(--pw-border); padding: 10px 16px 0; display: flex; flex-direction: column; gap: 9px; flex: 0 0 auto;">
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div data-topbar style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <div style="display: flex; align-items: baseline; gap: 8px; min-width: 0;">
           <span style="font-size: 11px; color: var(--pw-muted2);">{{ breadcrumb }}</span>
         </div>
@@ -3005,10 +3186,53 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <h1 style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px;">{{ listTitle }}</h1>
         </sc-if>
         <span style="font-size: 11.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace;">{{ filteredCount }} tasks</span>
+
+        <sc-if value="{{ notTrash }}" hint-placeholder-val="{{ true }}">
+          <div style="position: relative; display: flex; align-items: center;">
+            <button sc-camel-on-click="{{ onToggleFilter }}" title="กรองงานที่เห็น" style="{{ filterBtnStyle }}">
+              <span style="font-size: 11px; opacity: 0.85;">⚟</span>ตัวกรอง
+              <sc-if value="{{ hasFilter }}" hint-placeholder-val="{{ false }}">
+                <span style="background: #4f46e5; color: #fff; border-radius: 9px; min-width: 16px; height: 16px; display: grid; place-items: center; font-size: 10px; font-weight: 700; padding: 0 4px;">{{ filterBadge }}</span>
+              </sc-if>
+            </button>
+
+            <sc-if value="{{ filterOpen }}" hint-placeholder-val="{{ false }}">
+              <div data-panel style="position: absolute; top: 36px; left: 0; width: 340px; max-height: 70vh; overflow-y: auto; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 11px; box-shadow: 0 16px 40px rgba(16, 24, 40, 0.18); z-index: 45; padding: 12px 13px; display: flex; flex-direction: column; gap: 13px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 12.5px; font-weight: 600;">ตัวกรอง</span>
+                  <span style="font-size: 11px; color: var(--pw-muted2);">เห็นเฉพาะคุณ</span>
+                  <button sc-camel-on-click="{{ onClearFilters }}" style="margin-left: auto; background: transparent; border: 0; color: #4f46e5; font-size: 11.5px; cursor: pointer; text-decoration: underline; padding: 0;">ล้างทั้งหมด</button>
+                  <button sc-camel-on-click="{{ onCloseFilter }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">วันครบกำหนด</span>
+                  <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    <sc-for list="{{ dueFilters }}" as="df" hint-placeholder-count="4">
+                      <button sc-camel-on-click="{{ df.onToggle }}" style="{{ df.style }}">{{ df.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <sc-for list="{{ filterGroups }}" as="fg" hint-placeholder-count="5">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">{{ fg.label }}</span>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                      <sc-for list="{{ fg.items }}" as="fi" hint-placeholder-count="5">
+                        <button sc-camel-on-click="{{ fi.onToggle }}" style="{{ fi.style }}">{{ fi.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
         <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
           <div style="display: flex; align-items: center;">
             <sc-for list="{{ memberChips }}" as="m" hint-placeholder-count="4">
-              <div title="{{ m.title }}" style="{{ m.wrapStyle }}">
+              <div data-avatar title="{{ m.title }}" style="{{ m.wrapStyle }}">
                 <div style="{{ m.style }}">{{ m.initials }}</div>
                 <sc-if value="{{ m.isOnline }}" hint-placeholder-val="{{ false }}">
                   <span style="{{ m.dotStyle }}"></span>
@@ -3055,6 +3279,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
             </sc-if>
           </div>
+          <button data-mobile-only sc-camel-on-click="{{ onToggleNav }}" title="เมนู" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 14px; display: none; place-items: center;">☰</button>
+          <button sc-camel-on-click="{{ onToggleMobile }}" title="{{ mobileTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ mobileIcon }}</button>
+          <button sc-camel-on-click="{{ onUndo }}" title="{{ undoTitle }}" style="{{ undoStyle }}">↶</button>
+          <button sc-camel-on-click="{{ onRedo }}" title="{{ redoTitle }}" style="{{ redoStyle }}">↷</button>
           <button sc-camel-on-click="{{ onToggleTheme }}" title="{{ themeTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ themeIcon }}</button>
           <button sc-camel-on-click="{{ onExport }}" title="ดาวน์โหลดงานที่เห็นอยู่เป็นไฟล์ Excel (.xlsx)" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">⤓</button>
           <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}">
@@ -3067,7 +3295,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <span style="width: 6px; height: 6px; border-radius: 50%; background: #22c55e;"></span>
             </button>
             <sc-if value="{{ meMenuOpen }}" hint-placeholder-val="{{ false }}">
-              <div style="position: absolute; top: 38px; right: 0; width: 244px; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16); z-index: 40; overflow: hidden;">
+              <div data-panel style="position: absolute; top: 38px; right: 0; width: 244px; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16); z-index: 40; overflow: hidden;">
                 <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
                   <span style="{{ meAvatarStyle }}">{{ meInitials }}</span>
                   <div style="display: flex; flex-direction: column; min-width: 0;">
@@ -3088,16 +3316,48 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 2px;">
-        <sc-for list="{{ viewTabs }}" as="tab" hint-placeholder-count="5">
-          <button sc-camel-on-click="{{ tab.onSelect }}" style="{{ tab.style }}">
-            <span style="opacity: 0.75; font-size: 11px;">{{ tab.icon }}</span>{{ tab.label }}
-          </button>
-        </sc-for>
-      </div>
+      <sc-if value="{{ notTrash }}" hint-placeholder-val="{{ true }}">
+        <div data-viewtabs style="display: flex; align-items: center; gap: 2px;">
+          <sc-for list="{{ viewTabs }}" as="tab" hint-placeholder-count="5">
+            <button sc-camel-on-click="{{ tab.onSelect }}" style="{{ tab.style }}">
+              <span style="opacity: 0.75; font-size: 11px;">{{ tab.icon }}</span>{{ tab.label }}
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ isTrash }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 2px 0;">
+          <span style="font-size: 11.5px; color: var(--pw-muted);">งานที่ลบไปจะเก็บไว้ 30 วัน แล้วล้างเอง</span>
+          <button sc-camel-on-click="{{ onRestoreAll }}" style="margin-left: auto; background: transparent; border: 1px solid var(--pw-border); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; color: var(--pw-text2); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">กู้คืนทั้งหมด</button>
+          <button sc-camel-on-click="{{ onEmptyTrash }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 6px; padding: 4px 10px; font-size: 11.5px; color: #b91c1c; cursor: pointer;" style-hover="border-color: #dc2626; background: var(--pw-danger-soft);">ล้างถังขยะ</button>
+        </div>
+      </sc-if>
     </header>
 
     <section style="flex: 1; min-height: 0; overflow: auto; padding: 0;">
+
+      <sc-if value="{{ isTrash }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 14px 16px;">
+          <sc-if value="{{ trashEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 60px 0; color: var(--pw-muted2);">
+              <span style="font-size: 26px; opacity: 0.5;">🗑</span>
+              <span style="font-size: 13px;">ถังขยะว่าง</span>
+              <span style="font-size: 11.5px;">งานที่กด × ในตารางจะมาอยู่ที่นี่ กู้คืนได้ภายใน 30 วัน</span>
+            </div>
+          </sc-if>
+          <sc-for list="{{ trashRows }}" as="tr" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface); margin-bottom: 8px;">
+              <span style="{{ tr.chipStyle }}">{{ tr.status }}</span>
+              <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+                <span style="font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ tr.name }}</span>
+                <span style="font-size: 11px; color: var(--pw-muted2);">{{ tr.list }} · ลบโดย {{ tr.who }} · {{ tr.age }}</span>
+              </div>
+              <button sc-camel-on-click="{{ tr.onRestore }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 11px; font-size: 11.5px; color: var(--pw-text2); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">กู้คืน</button>
+              <button sc-camel-on-click="{{ tr.onPurge }}" title="ลบถาวร" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 14px; cursor: pointer; padding: 0 3px;" style-hover="color: #dc2626;">×</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
 
       <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
         <div style="{{ tableWrapStyle }}">
@@ -3123,8 +3383,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <button sc-camel-on-click="{{ group.onAdd }}" style="background: transparent; border: 0; color: var(--pw-muted2); cursor: pointer; font-size: 11.5px; padding: 2px 6px; border-radius: 4px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+ Add task</button>
               </div>
 
+              <sc-if value="{{ group.composerOpen }}" hint-placeholder-val="{{ false }}">
+                <div data-panel style="display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
+                  <input ref="{{ group.composerRef }}" data-sync="{{ group.composerText }}" value="{{ group.composerText }}" sc-camel-on-change="{{ group.onComposerText }}" sc-camel-on-key-down="{{ group.onComposerKey }}" placeholder="พิมพ์ชื่องาน แล้วกด Enter — พิมพ์ต่อได้เรื่อยๆ · Esc ปิด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
+                  <button sc-camel-on-click="{{ group.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #4338ca;">เพิ่ม</button>
+                  <button sc-camel-on-click="{{ group.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 5px;" style-hover="color: var(--pw-text);">×</button>
+                </div>
+              </sc-if>
+
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
-                <div draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
+                <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button sc-camel-on-click="{{ row.onCycleStatus }}" title="Advance status" style="{{ row.checkStyle }}"></button>
                   <div style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px;">
                     <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
@@ -3139,7 +3407,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <sc-if value="{{ cell.isAssignee }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
                         <span style="{{ cell.avatarStyle }}">{{ cell.initials }}</span>
-                        <sc-raw-select ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" value="{{ cell.value }}" sc-camel-on-change="{{ cell.onChange }}" style="{{ cell.style }}">
+                        <sc-raw-select data-assignee ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" value="{{ cell.value }}" sc-camel-on-change="{{ cell.onChange }}" style="{{ cell.style }}">
                           <sc-for list="{{ cell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
                         </sc-raw-select>
                       </div>
@@ -3174,7 +3442,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
-                  <div draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                  <div data-card draggable="true" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -3344,7 +3612,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <div style="display: flex; align-items: center; gap: 9px;">
                     <span style="font-size: 11.5px; width: 74px; color: var(--pw-text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ w.name }}</span>
                     <div style="flex: 1; height: 8px; background: var(--pw-surface3); border-radius: 5px; overflow: hidden;">
-                      <div style="{{ w.barStyle }}"></div>
+                      <div data-bar style="{{ w.barStyle }}"></div>
                     </div>
                     <span style="font-size: 11.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace; width: 22px; text-align: right;">{{ w.count }}</span>
                   </div>
@@ -3384,7 +3652,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </main>
 
   <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
-    <aside style="width: 400px; flex: 0 0 400px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden; box-shadow: -8px 0 24px rgba(16, 24, 40, 0.06);">
+    <aside data-detail style="width: 400px; flex: 0 0 400px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden; box-shadow: -8px 0 24px rgba(16, 24, 40, 0.06);">
       <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border);">
         <span style="{{ detail.statusChip }}">{{ detail.status }}</span>
         <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ detail.code }}</span>
@@ -3509,8 +3777,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             </div>
           </sc-for>
           <div style="display: flex; gap: 6px;">
-            <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="Write a comment…" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 6px; padding: 6px 9px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
+            <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="พิมพ์คอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 6px; padding: 6px 9px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
             <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">Send</button>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+            <sc-for list="{{ detail.mentionChips }}" as="mc" hint-placeholder-count="3">
+              <button data-avatar sc-camel-on-click="{{ mc.onPick }}" title="แท็กคนนี้ในคอมเมนต์" style="{{ mc.style }}" style-hover="border-color: #4f46e5; color: #4f46e5;">
+                <span style="{{ mc.avatarStyle }}">{{ mc.initials }}</span>{{ mc.label }}
+              </button>
+            </sc-for>
           </div>
         </div>
       </div>
@@ -3523,7 +3798,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </sc-if>
 
   <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
-    <aside style="width: 356px; flex: 0 0 356px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden;">
+    <aside data-settings style="width: 356px; flex: 0 0 356px; background: var(--pw-surface); border-left: 1px solid var(--pw-border); display: flex; flex-direction: column; overflow: hidden;">
       <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
         <span style="font-size: 13px; font-weight: 600;">ตั้งค่า workspace</span>
         <span style="font-size: 10.5px; color: var(--pw-muted2);">admin เท่านั้น · ทุกคนเห็นผลทันที</span>
@@ -3574,7 +3849,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </sc-if>
 
   <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
-    <div style="position: fixed; bottom: 18px; right: 18px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; background: #14161c; color: var(--pw-border); border: 1px solid #2a2e3b; border-radius: 10px; padding: 11px 13px; max-width: 340px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);">
+    <div data-toast style="position: fixed; bottom: 18px; right: 18px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; background: #14161c; color: var(--pw-border); border: 1px solid #2a2e3b; border-radius: 10px; padding: 11px 13px; max-width: 340px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);">
       <span style="width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 12px;">✉</span>
       <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
         <span style="font-size: 11.5px; font-weight: 600; color: #fff;">Email sent to {{ toast.to }}</span>
@@ -3724,6 +3999,7 @@ class Component extends DCLogic {
       colW: null,
       meMenuOpen: false,
       theme: (window.PawdyTheme ? window.PawdyTheme.pref() : 'system'),
+      themeResolved: (window.PawdyTheme ? window.PawdyTheme.resolved() : 'light'),
       online: (window.PawdySync.onlineNow ? window.PawdySync.onlineNow() : []),
       view: ui.view || 'table',
       list: ui.list || 'Q3 Campaigns',
@@ -3734,6 +4010,14 @@ class Component extends DCLogic {
       sync: 'saved',
       composerCol: null,
       composerText: '',
+      rowComposer: null,
+      rowComposerText: '',
+      flash: null,
+      mobilePref: null,          // null = ตามขนาดจอ / true / false = ผู้ใช้เลือกเอง
+      viewportNarrow: (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth < 760 : false,
+      navOpen: false,
+      filterOpen: false,
+      filters: (ui.filters && typeof ui.filters === 'object') ? ui.filters : { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' },
       newSubtask: '',
       newComment: ''
     };
@@ -3742,11 +4026,111 @@ class Component extends DCLogic {
 
   persist(next) {
     const st = Object.assign({}, this.state, next || {});
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, ui: { view: st.view, list: st.list } });
+    if (!this._undoing) {
+      if (this._prevSnap) {
+        const scope = this.diffScope(this._prevSnap, st);
+        if (scope.any) {
+          this._undoStack = (this._undoStack || []).concat([
+            { snap: this._prevSnap, label: this._undoLabel || 'การแก้ไข', scope: scope }
+          ]);
+          if (this._undoStack.length > 25) this._undoStack.shift();
+          this._redoStack = [];
+        }
+      }
+    }
+    this._prevSnap = this.snapOf(st);
+    this._undoLabel = null;
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, ui: { view: st.view, list: st.list, filters: st.filters } });
+  }
+
+  // ---- undo / redo ----
+  mark(label) { this._undoLabel = label; }
+  snapOf(st) {
+    return {
+      tasks: (st.tasks || []).slice(),
+      spaces: st.spaces ? JSON.parse(JSON.stringify(st.spaces)) : st.spaces,
+      fields: st.fields ? JSON.parse(JSON.stringify(st.fields)) : st.fields,
+      config: st.config ? JSON.parse(JSON.stringify(st.config)) : st.config
+    };
+  }
+  // เทียบสองสถานะ เก็บไว้ว่าการกระทำนี้แตะงานชิ้นไหนและแตะอะไรอีก
+  diffScope(before, after) {
+    const aById = {}, bById = {};
+    (before.tasks || []).forEach(function (t) { aById[t.id] = JSON.stringify(t); });
+    (after.tasks || []).forEach(function (t) { bById[t.id] = JSON.stringify(t); });
+    const ids = {};
+    let n = 0;
+    Object.keys(aById).concat(Object.keys(bById)).forEach(function (id) {
+      if (ids[id]) return;
+      if (aById[id] !== bById[id]) { ids[id] = 1; n++; }
+    });
+    const spaces = JSON.stringify(before.spaces || null) !== JSON.stringify(after.spaces || null);
+    const fields = JSON.stringify(before.fields || null) !== JSON.stringify(after.fields || null);
+    const config = JSON.stringify(before.config || null) !== JSON.stringify(after.config || null);
+    return { ids: ids, spaces: spaces, fields: fields, config: config, any: n > 0 || spaces || fields || config };
+  }
+
+  // ย้อนแค่งานที่การกระทำนั้นแตะ — งานชิ้นอื่นที่เพื่อนเพิ่งแก้จะไม่ถูกทับ
+  mergeSnap(snap, scope) {
+    const cur = this.state.tasks || [];
+    const ids = (scope && scope.ids) || {};
+    const snapById = {}, curById = {};
+    (snap.tasks || []).forEach(function (t) { snapById[t.id] = t; });
+    cur.forEach(function (t) { curById[t.id] = t; });
+    let next = cur.filter(function (t) { return !ids[t.id] || snapById[t.id]; })
+                  .map(function (t) { return (ids[t.id] && snapById[t.id]) ? snapById[t.id] : t; });
+    Object.keys(ids).forEach(function (id) { if (!curById[id] && snapById[id]) next = [snapById[id]].concat(next); });
+    return next;
+  }
+  applySnap(snap, scope) {
+    const patch = { tasks: this.mergeSnap(snap, scope) };
+    if (scope && scope.spaces && snap.spaces) patch.spaces = snap.spaces;
+    if (scope && scope.fields && snap.fields) patch.fields = snap.fields;
+    if (scope && scope.config && snap.config) patch.config = snap.config;
+    patch.selected = null;
+    this._undoing = true;
+    this.setState(patch, () => {
+      this._prevSnap = this.snapOf(Object.assign({}, this.state, patch));
+      this.persist();
+      this._undoing = false;
+    });
+  }
+  canUndo() { return (this._undoStack || []).length > 0; }
+  canRedo() { return (this._redoStack || []).length > 0; }
+  undoLabel() { const s = this._undoStack || []; return s.length ? s[s.length - 1].label : ''; }
+  redoLabel() { const s = this._redoStack || []; return s.length ? s[s.length - 1].label : ''; }
+  undo() {
+    const stack = this._undoStack || [];
+    if (!stack.length) return;
+    const entry = stack[stack.length - 1];
+    this._undoStack = stack.slice(0, -1);
+    this._redoStack = (this._redoStack || []).concat([{ snap: this.snapOf(this.state), label: entry.label, scope: entry.scope }]);
+    this.applySnap(entry.snap, entry.scope);
+    this.flashToast('ยกเลิกแล้ว: ' + entry.label);
+  }
+  redo() {
+    const stack = this._redoStack || [];
+    if (!stack.length) return;
+    const entry = stack[stack.length - 1];
+    this._redoStack = stack.slice(0, -1);
+    this._undoStack = (this._undoStack || []).concat([{ snap: this.snapOf(this.state), label: entry.label, scope: entry.scope }]);
+    this.applySnap(entry.snap, entry.scope);
+    this.flashToast('ทำซ้ำแล้ว: ' + entry.label);
+  }
+  flashToast(line) {
+    const n = { id: 'U' + Date.now(), to: '', toName: '', subject: '', line: line, at: Date.now(), read: true, plain: true };
+    this.setState({ toast: n });
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      this.setState(function (s) { return s.toast && s.toast.id === n.id ? { toast: null } : {}; });
+    }, 2600);
   }
 
   patch(id, field, value) {
     const prev = this.state.tasks.filter(function (t) { return t.id === id; })[0];
+    this.mark(({ status: 'เปลี่ยนสถานะ', assignee: 'เปลี่ยนผู้รับผิดชอบ', due: 'เปลี่ยนวันครบกำหนด',
+      start: 'เปลี่ยนวันเริ่ม', priority: 'เปลี่ยนความสำคัญ', list: 'ย้าย list', name: 'แก้ชื่องาน',
+      tags: 'แก้ tags', cost: 'แก้งบ', qty: 'แก้จำนวน', channel: 'เปลี่ยน channel', platform: 'เปลี่ยน platform' })[field] || 'แก้ไขงาน');
     this.setState(function (s) {
       const tasks = s.tasks.map(function (t) {
         if (t.id !== id) return t;
@@ -3759,6 +4143,26 @@ class Component extends DCLogic {
   }
 
   // ---- email notifications (simulated outbox) ----
+  // หาสมาชิกที่ถูก @ แท็กในข้อความ (รองรับชื่อมีเว้นวรรค เทียบชื่อยาวก่อน)
+  mentionsIn(text) {
+    const t = String(text || '');
+    const found = [], seen = {};
+    (this.state.members || [])
+      .filter(function (m) { return m.email && m.n; })
+      .slice()
+      .sort(function (a, b) { return b.n.length - a.n.length; })
+      .forEach(function (m) {
+        if (seen[m.email]) return;
+        if (t.indexOf('@' + m.n) >= 0) { seen[m.email] = 1; found.push(m); }
+      });
+    return found;
+  }
+  insertMention(name) {
+    const cur = this.state.newComment || '';
+    const sep = (cur && !/\s$/.test(cur)) ? ' ' : '';
+    this.setState({ newComment: cur + sep + '@' + name + ' ' });
+  }
+
   emailFor(name) {
     const m = this.memberMeta(name);
     if (m && m.email) return { name: m.n, email: m.email };
@@ -3804,10 +4208,90 @@ class Component extends DCLogic {
     }, () => this.persist());
   }
 
+  // ลบ = ย้ายลงถังขยะ (ติดธง deleted) งานยังอยู่ใน JSON กู้คืนได้
   removeTask(id) {
+    this.mark('ลบงาน');
+    const who = this.me().n || this.me().email || '';
+    const when = new Date().toISOString();
     this.setState(function (s) {
-      return { tasks: s.tasks.filter(function (t) { return t.id !== id; }), selected: s.selected === id ? null : s.selected };
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (t.id !== id) return t;
+          return Object.assign({}, t, { deleted: true, deletedAt: when, deletedBy: who });
+        }),
+        selected: s.selected === id ? null : s.selected
+      };
     }, () => this.persist());
+  }
+
+  liveTasks() {
+    return (this.state.tasks || []).filter(function (t) { return !t.deleted; });
+  }
+  trashTasks() {
+    return (this.state.tasks || []).filter(function (t) { return !!t.deleted; })
+      .sort(function (a, b) { return String(b.deletedAt || '').localeCompare(String(a.deletedAt || '')); });
+  }
+  restoreTask(id) {
+    this.mark('กู้คืนงาน');
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (t.id !== id) return t;
+          const c = Object.assign({}, t);
+          delete c.deleted; delete c.deletedAt; delete c.deletedBy;
+          return c;
+        })
+      };
+    }, () => this.persist());
+  }
+  purgeTask(id) {
+    const t = (this.state.tasks || []).filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    if (!window.confirm('ลบ "' + t.name + '" ถาวร? กู้คืนไม่ได้อีก')) return;
+    this.setState(function (s) {
+      return { tasks: s.tasks.filter(function (x) { return x.id !== id; }) };
+    }, () => this.persist());
+  }
+  restoreAll() {
+    this.mark('กู้คืนทั้งหมด');
+    const n = this.trashTasks().length;
+    if (!n) return;
+    if (!window.confirm('กู้คืนงานทั้งหมด ' + n + ' ชิ้นจากถังขยะ?')) return;
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (!t.deleted) return t;
+          const c = Object.assign({}, t);
+          delete c.deleted; delete c.deletedAt; delete c.deletedBy;
+          return c;
+        })
+      };
+    }, () => this.persist());
+  }
+  emptyTrash() {
+    this.mark('ล้างถังขยะ');
+    const n = this.trashTasks().length;
+    if (!n) return;
+    if (!window.confirm('ลบงานในถังขยะทั้งหมด ' + n + ' ชิ้นถาวร? กู้คืนไม่ได้อีก')) return;
+    this.setState(function (s) {
+      return { tasks: s.tasks.filter(function (t) { return !t.deleted; }) };
+    }, () => this.persist());
+  }
+  // ล้างของที่อยู่ในถังเกิน 30 วันทิ้งเอง
+  autoPurge() {
+    const cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+    const keep = (this.state.tasks || []).filter(function (t) {
+      return !(t.deleted && t.deletedAt && t.deletedAt < cutoff);
+    });
+    if (keep.length === (this.state.tasks || []).length) return;
+    this.setState({ tasks: keep }, () => this.persist());
+  }
+  trashAge(t) {
+    if (!t.deletedAt) return '';
+    const days = Math.floor((Date.now() - new Date(t.deletedAt).getTime()) / 86400000);
+    const left = 30 - days;
+    const when = days <= 0 ? 'วันนี้' : (days === 1 ? 'เมื่อวาน' : days + ' วันก่อน');
+    return when + ' · ล้างอัตโนมัติในอีก ' + (left > 0 ? left : 0) + ' วัน';
   }
 
   addTask(status, intoList) {
@@ -3815,7 +4299,7 @@ class Component extends DCLogic {
     let list = intoList || this.state.list;
     const scope = this.scopeLists();
     if (!intoList && scope) list = scope[0] || 'Tasks';
-    if (list === '__all' || (list || '').indexOf('__space:') === 0) {
+    if (list === '__all' || list === '__trash' || (list || '').indexOf('__space:') === 0) {
       const all = [];
       this.state.spaces.forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
       list = all[0] || 'Tasks';
@@ -3839,19 +4323,54 @@ class Component extends DCLogic {
     this.syncDom();
     const self = this;
     window.PawdySync.onData(function (snap) {
+      const incoming = snap.tasks || [];
+      const before = {};
+      (self.state.tasks || []).forEach(function (t) { before[t.id] = JSON.stringify(t); });
+      const changed = {};
+      incoming.forEach(function (t) {
+        const s0 = JSON.stringify(t);
+        if (before[t.id] !== undefined && before[t.id] !== s0) changed[t.id] = Date.now();
+      });
       self.setState(function (st) {
         return {
-          tasks: snap.tasks || [],
+          tasks: incoming,
           spaces: (snap.spaces && snap.spaces.length) ? snap.spaces : st.spaces,
           fields: snap.fields || st.fields || [],
           config: snap.config || st.config || null,
-          members: (snap.members && snap.members.length > 1) ? snap.members : st.members
+          members: (snap.members && snap.members.length > 1) ? snap.members : st.members,
+          flash: Object.keys(changed).length ? changed : st.flash
         };
       });
+      if (Object.keys(changed).length) {
+        clearTimeout(self._flashTimer);
+        self._flashTimer = setTimeout(function () { self.setState({ flash: null }); }, 1500);
+      }
+      if (!self._undoing) self._prevSnap = self.snapOf(self.state);   // เส้นฐาน undo ขยับตามข้อมูลล่าสุด
     });
     if (window.PawdySync.onStatus) window.PawdySync.onStatus(function (st) { self.setState({ sync: st }); });
+    setTimeout(function () { try { self.autoPurge(); } catch (e) {} }, 4000);   // ล้างของในถังที่เกิน 30 วัน
+    setTimeout(function () { self._prevSnap = self.snapOf(self.state); }, 2500);  // จุดตั้งต้นของ undo
+
+    this._onResize = function () {
+      const narrow = window.innerWidth < 760;
+      if (narrow !== self.state.viewportNarrow) self.setState({ viewportNarrow: narrow });
+    };
+    window.addEventListener('resize', this._onResize);
+
+    this._onKey = function (e) {
+      const k = (e.key || '').toLowerCase();
+      if (k !== 'z' || !(e.metaKey || e.ctrlKey)) return;
+      const el = document.activeElement;
+      const tag = el && el.tagName ? el.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || (el && el.isContentEditable)) return;  // ปล่อยให้ช่องพิมพ์ undo ตัวเอง
+      e.preventDefault();
+      if (e.shiftKey) self.redo(); else self.undo();
+    };
+    document.addEventListener('keydown', this._onKey);
     if (window.PawdySync.onPresence) window.PawdySync.onPresence(function (list) { self.setState({ online: list || [] }); });
-    if (window.PawdyTheme) window.PawdyTheme.onChange(function (pref) { self.setState({ theme: pref }); });
+    if (window.PawdyTheme) window.PawdyTheme.onChange(function (pref, resolved) {
+      self.setState({ theme: pref, themeResolved: resolved });
+    });
     window.PawdySync.onNotifList(function (list) { self.setState({ notifs: list || [] }); });
     window.PawdySync.onNotif(function (n) {
       self.setState(function (st) { return { notifs: [n].concat(st.notifs).slice(0, 60), toast: n }; });
@@ -3860,6 +4379,45 @@ class Component extends DCLogic {
         self.setState(function (s) { return s.toast && s.toast.id === n.id ? { toast: null } : {}; });
       }, 4200);
     });
+  }
+
+  // ---- เพิ่มงานเร็วในหน้า Table: พิมพ์ชื่อ Enter ได้งานเลย ----
+  openRowComposer(key) {
+    this._focusRowComposer = true;
+    this.setState({ rowComposer: key, rowComposerText: '' });
+  }
+  closeRowComposer() { this.setState({ rowComposer: null, rowComposerText: '' }); }
+  addQuick(groupField, key) {
+    const name = (this.state.rowComposerText || '').trim();
+    if (!name) { this.closeRowComposer(); return; }
+    this.mark('เพิ่มงาน');
+    let list = groupField === 'list' ? key : this.state.list;
+    const scope = this.scopeLists();
+    if (groupField !== 'list') {
+      if (scope) list = scope[0] || 'Tasks';
+      if (list === '__all' || list === '__trash' || (list || '').indexOf('__space:') === 0) {
+        const all = [];
+        this.state.spaces.forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
+        list = all[0] || 'Tasks';
+      }
+    }
+    const status = groupField === 'status' ? key : (this.statuses()[0] || {}).k;
+    let maxPos = 0;
+    this.state.tasks.forEach(function (t) { if (t.status === status && (t.pos || 0) > maxPos) maxPos = t.pos || 0; });
+    const t = {
+      id: 'T' + Math.floor(Math.random() * 90000 + 10000),
+      list: list, name: name, status: status,
+      assignee: groupField === 'assignee' ? key : 'Unassigned',
+      start: TODAY, due: d(7),
+      priority: groupField === 'priority' ? key : 'Normal',
+      tags: [],
+      channel: groupField === 'channel' ? key : '—',
+      platform: '—',
+      cost: 0, qty: 1, pos: maxPos + 1000,
+      subtasks: [], comments: [], attachments: [], desc: ''
+    };
+    this._focusRowComposer = true;
+    this.setState(function (s) { return { tasks: s.tasks.concat([t]), rowComposerText: '' }; }, () => this.persist());
   }
 
   // ---- Trello-style board behaviours ----
@@ -3878,7 +4436,7 @@ class Component extends DCLogic {
     let list = this.state.list;
     const scope = this.scopeLists();
     if (scope) list = scope[0] || 'Tasks';
-    if (list === '__all' || (list || '').indexOf('__space:') === 0) {
+    if (list === '__all' || list === '__trash' || (list || '').indexOf('__space:') === 0) {
       const all = [];
       this.state.spaces.forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
       list = all[0] || 'Tasks';
@@ -3896,13 +4454,14 @@ class Component extends DCLogic {
   }
 
   moveCard(dragId, targetId, status) {
+    this.mark('ย้ายการ์ด');
     const prev = this.state.tasks.filter(function (t) { return t.id === dragId; })[0];
     if (!prev) return;
     this.setState(function (s) {
       const dragged = s.tasks.filter(function (t) { return t.id === dragId; })[0];
       if (!dragged) return {};
       const col = s.tasks
-        .filter(function (t) { return t.status === status && t.id !== dragId; })
+        .filter(function (t) { return !t.deleted && t.status === status && t.id !== dragId; })
         .sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
       let idx = col.length;
       if (targetId) {
@@ -4203,6 +4762,7 @@ class Component extends DCLogic {
   }
 
   addField() {
+    this.mark('เพิ่มฟิลด์');
     const name = window.prompt('ชื่อฟิลด์ใหม่ (เช่น Brief link, งบจริง, สถานะ QC)');
     if (!name || !name.trim()) return;
     let type = (window.prompt('ประเภทฟิลด์ — พิมพ์อย่างใดอย่างหนึ่ง:\n\ntext = ข้อความ\nnumber = ตัวเลข\ndate = วันเดียว\nselect = ตัวเลือก dropdown\ntimeline = ช่วงวัน (โชว์เป็นแถบในหน้า Timeline)', 'text') || 'text').trim().toLowerCase();
@@ -4222,6 +4782,7 @@ class Component extends DCLogic {
   }
 
   removeField(id) {
+    this.mark('ลบฟิลด์');
     const f = (this.state.fields || []).filter(function (x) { return x.id === id; })[0];
     if (!f) return;
     if (!window.confirm('ลบฟิลด์ "' + f.label + '" ออกจากทุก task ทั้ง workspace?')) return;
@@ -4246,6 +4807,7 @@ class Component extends DCLogic {
     return { from: '', to: '' };
   }
   setTl(taskId, fid, part) {
+    this.mark('ปรับช่วงวัน');
     const self = this;
     this.patchTask(taskId, function (t) {
       const cur = self.tlRange(t, fid);
@@ -4317,7 +4879,10 @@ class Component extends DCLogic {
   }
   activeCols() {
     const c = this.cols();
-    return this.colOrder().filter(function (k) { return !!c[k]; });
+    const on = this.colOrder().filter(function (k) { return !!c[k]; });
+    if (!this.isMobile()) return on;
+    const keep = { status: 1, due: 1, assignee: 1 };      // จอแคบเอาแค่ 3 คอลัมน์ที่ใช้จริง
+    return on.filter(function (k) { return keep[k]; });
   }
   colWidth(k) {
     const live = this.state.colW;
@@ -4328,6 +4893,10 @@ class Component extends DCLogic {
   }
   gridCols() {
     const self = this;
+    if (this.isMobile()) {
+      const w = { status: '100px', assignee: '34px', due: '84px' };
+      return ['22px', 'minmax(120px, 1fr)'].concat(this.activeCols().map(function (k) { return w[k] || '80px'; })).join(' ');
+    }
     const nw = this.colWidth('name');
     const parts = ['26px', nw ? (nw + 'px') : 'minmax(240px, 2fr)'];
     this.activeCols().forEach(function (k) { parts.push(self.colWidth(k) + 'px'); });
@@ -4335,6 +4904,7 @@ class Component extends DCLogic {
   }
   tableWidth() {
     const self = this;
+    if (this.isMobile()) return 0;      // 0 = ไม่ล็อกความกว้าง ให้พอดีจอ
     let sum = 26 + (this.colWidth('name') || 240) + 40;
     this.activeCols().forEach(function (k) { sum += self.colWidth(k); });
     return sum;
@@ -4376,6 +4946,7 @@ class Component extends DCLogic {
   }
   // ย้ายคอลัมน์ — ทุกคนทำได้ ไม่ต้องเป็น admin
   moveCol(fromKey, toKey) {
+    this.mark('ย้ายคอลัมน์');
     if (!fromKey || fromKey === toKey) return;
     const order = this.colOrder().filter(function (k) { return k !== fromKey; });
     const at = toKey ? order.indexOf(toKey) : order.length;
@@ -4464,9 +5035,12 @@ class Component extends DCLogic {
       return { label: t, style: 'font-size:10.5px;padding:2px 7px;border-radius:11px;background:' + c + '18;color:' + c + ';white-space:nowrap;font-weight:500;' };
     });
   }
+  isDark() { return this.state.themeResolved === 'dark'; }
+  // ธีมมืด: พื้นป้ายพาสเทลจะสว่างจ้าเกินไป ใช้สีเดียวกับตัวหนังสือแบบโปร่งแทน
+  chipBg(m) { return this.isDark() ? (m.c + '2e') : m.bg; }
   chip(k) {
     const m = this.statusMeta(k);
-    return 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + m.bg + ';color:' + m.c + ';white-space:nowrap;';
+    return 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + this.chipBg(m) + ';color:' + m.c + ';white-space:nowrap;';
   }
   baht(n) {
     if (!n) return '฿0';
@@ -4498,14 +5072,72 @@ class Component extends DCLogic {
     return sp ? sp.lists : [];
   }
 
+  // ---- ตัวกรอง (เป็นค่าส่วนตัวของแต่ละคน ไม่กวนคนอื่น) ----
+  filt() {
+    const f = this.state.filters || {};
+    return {
+      status: f.status || [], assignee: f.assignee || [], priority: f.priority || [],
+      channel: f.channel || [], platform: f.platform || [], due: f.due || ''
+    };
+  }
+  filterCount() {
+    const f = this.filt();
+    return f.status.length + f.assignee.length + f.priority.length + f.channel.length + f.platform.length + (f.due ? 1 : 0);
+  }
+  toggleFilter(kind, val) {
+    this.setState(function (s) {
+      const f = Object.assign({ status: [], assignee: [], priority: [], channel: [], platform: [], due: '' }, s.filters || {});
+      if (kind === 'due') { f.due = f.due === val ? '' : val; }
+      else {
+        const arr = (f[kind] || []).slice();
+        const i = arr.indexOf(val);
+        if (i >= 0) arr.splice(i, 1); else arr.push(val);
+        f[kind] = arr;
+      }
+      return { filters: f };
+    }, () => this.persist());
+  }
+  clearFilters() {
+    this.setState({ filters: { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' } }, () => this.persist());
+  }
+  passFilter(t) {
+    const f = this.filt();
+    if (f.status.length && f.status.indexOf(t.status) < 0) return false;
+    if (f.assignee.length && f.assignee.indexOf(t.assignee) < 0) return false;
+    if (f.priority.length && f.priority.indexOf(t.priority) < 0) return false;
+    if (f.channel.length && f.channel.indexOf(t.channel) < 0) return false;
+    if (f.platform.length && f.platform.indexOf(t.platform) < 0) return false;
+    if (f.due) {
+      const done = this.isDone(t.status);
+      if (f.due === 'overdue' && !(t.due < TODAY && !done)) return false;
+      if (f.due === 'today' && t.due !== TODAY) return false;
+      if (f.due === 'week' && !(t.due >= TODAY && t.due <= d(7))) return false;
+      if (f.due === 'later' && !(t.due > d(7))) return false;
+    }
+    return true;
+  }
+
+  isMobile() {
+    const p = this.state.mobilePref;
+    return p === null || p === undefined ? !!this.state.viewportNarrow : !!p;
+  }
+
+  isTrash() { return this.state.list === '__trash'; }
+
   visibleTasks() {
     const s = this.state;
     const q = s.query.trim().toLowerCase();
     const hideDone = !!this.props.hideDone;
     const doneKey = this.doneKey();
     const scope = this.scopeLists();
+    const trash = this.isTrash();
+    const self = this;
     return s.tasks.filter(function (t) {
-      if (scope) { if (scope.indexOf(t.list) < 0) return false; }
+      if (!trash && !self.passFilter(t)) return false;
+      if (trash) { if (!t.deleted) return false; }
+      else if (t.deleted) return false;
+      if (trash) { /* ถังขยะไม่กรองตาม list */ }
+      else if (scope) { if (scope.indexOf(t.list) < 0) return false; }
       else if (s.list !== '__all' && t.list !== s.list) return false;
       if (hideDone && t.status === doneKey) return false;
       if (!q) return true;
@@ -4558,7 +5190,7 @@ class Component extends DCLogic {
       progressStyle: 'height:100%;width:' + pct + '%;background:' + sm.c + ';border-radius:3px;',
       rowStyle: 'display:grid;grid-template-columns:' + this.gridCols() + ';align-items:center;padding:0 12px;height:' + (this.props.density === 'Comfortable' ? 42 : 32) + 'px;border-bottom:1px solid var(--pw-line);background:var(--pw-surface);cursor:default;',
       checkStyle: 'width:14px;height:14px;border-radius:50%;border:1.5px solid ' + sm.c + ';background:' + (this.isDone(t.status) ? sm.c : 'transparent') + ';cursor:pointer;padding:0;',
-      statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + sm.bg + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;width:110px;',
+      statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + this.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
       onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '' }); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
@@ -4585,6 +5217,7 @@ class Component extends DCLogic {
         self.patch(t.id, 'tags', e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean));
       },
       onList: function (e) { self.patch(t.id, 'list', e.target.value); },
+      flash: !!(self.state.flash && self.state.flash[t.id]) || null,
       cells: self.state.view !== 'table' ? [] : (function () {
         const O = self._opt || self.buildOpts();
         const dm2 = self.dueMeta(t.due, t.status);
@@ -4599,7 +5232,7 @@ class Component extends DCLogic {
                 if (self.optionPick('statuses', v, t.status, function (n) { self.patch(t.id, 'status', n); })) return;
                 self.patch(t.id, 'status', v);
               },
-              style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + sm.bg + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;width:100%;min-width:0;' };
+              style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + self.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;' };
           },
           assignee: function () {
             return { key: 'assignee', isAssignee: true, options: O.members, value: t.assignee,
@@ -4695,7 +5328,7 @@ class Component extends DCLogic {
         name: sp.name,
         open: !!s.open[sp.name],
         caret: s.open[sp.name] ? '▾' : '▸',
-        count: s.tasks.filter(function (t) { return sp.lists.indexOf(t.list) >= 0; }).length,
+        count: s.tasks.filter(function (t) { return !t.deleted && sp.lists.indexOf(t.list) >= 0; }).length,
         rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;font-size:12.5px;font-weight:' + (spActive ? '600' : '500') + ';background:' + (spActive ? '#2a2e3b' : 'transparent') + ';color:' + (spActive ? '#fff' : 'var(--pw-border)') + ';',
         dotStyle: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + sp.color + ';',
         onSelect: function () {
@@ -4722,7 +5355,7 @@ class Component extends DCLogic {
           }, () => self.persist());
         },
         onDelete: function () {
-          const count = s.tasks.filter(function (t) { return sp.lists.indexOf(t.list) >= 0; }).length;
+          const count = s.tasks.filter(function (t) { return !t.deleted && sp.lists.indexOf(t.list) >= 0; }).length;
           const msg = 'Delete space "' + sp.name + '"' + (count ? ' with its ' + sp.lists.length + ' list(s) and ' + count + ' task(s)?' : ' and its ' + sp.lists.length + ' list(s)?');
           if (!window.confirm(msg)) return;
           self.setState(function (st) {
@@ -4755,11 +5388,11 @@ class Component extends DCLogic {
           const active = s.list === ln;
           return {
             name: ln,
-            count: s.tasks.filter(function (t) { return t.list === ln; }).length,
+            count: s.tasks.filter(function (t) { return !t.deleted && t.list === ln; }).length,
             rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px;border-radius:6px;font-size:12.5px;background:' + (active ? '#2a2e3b' : 'transparent') + ';color:' + (active ? '#fff' : '#a7adba') + ';font-weight:' + (active ? '600' : '400') + ';',
             onSelect: function () { self.setState({ list: ln }, () => self.persist()); },
             onDelete: function () {
-              const count = s.tasks.filter(function (t) { return t.list === ln; }).length;
+              const count = s.tasks.filter(function (t) { return !t.deleted && t.list === ln; }).length;
               if (count && !window.confirm('Delete "' + ln + '" and its ' + count + ' task(s)?')) return;
               self.setState(function (st) {
                 const spaces = st.spaces.map(function (x, i) {
@@ -4821,7 +5454,7 @@ class Component extends DCLogic {
         const c = groupField === 'assignee' ? self.memberMeta(key).c
           : (groupField === 'priority' ? self.prioMeta(key).c
           : (groupField === 'list' ? spaceColor : '#4f46e5'));
-        chipStyle = 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + c + '15;color:' + c + ';white-space:nowrap;';
+        chipStyle = 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + c + (self.isDark() ? '2e' : '15') + ';color:' + c + ';white-space:nowrap;';
       }
       return {
         status: key === '—' ? 'No channel' : key,
@@ -4829,10 +5462,23 @@ class Component extends DCLogic {
         tasks: list,
         costLabel: cost ? self.baht(cost) + ' budgeted' : '',
         chipStyle: chipStyle,
-        onAdd: function () {
-          if (groupField === 'list') self.addTask('Backlog', key);
-          else self.addTask(groupField === 'status' ? key : 'Backlog');
-        }
+        composerOpen: s.rowComposer === key,
+        composerClosed: s.rowComposer !== key,
+        composerText: s.rowComposer === key ? s.rowComposerText : '',
+        composerRef: function (el) {
+          if (!el) return;
+          const v = s.rowComposer === key ? s.rowComposerText : '';
+          if (el.value !== v) el.value = v;
+          if (s.rowComposer === key && self._focusRowComposer) { el.focus(); self._focusRowComposer = false; }
+        },
+        onComposerText: function (e) { self.setState({ rowComposerText: e.target.value }); },
+        onComposerKey: function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); self.addQuick(groupField, key); }
+          if (e.key === 'Escape') self.closeRowComposer();
+        },
+        onComposerAdd: function () { self.addQuick(groupField, key); },
+        onComposerClose: function () { self.closeRowComposer(); },
+        onAdd: function () { self.openRowComposer(key); }
       };
     }).filter(function (g) { return g.count > 0 || ((groupField === 'status' || groupField === 'list') && s.query === ''); });
 
@@ -5198,6 +5844,15 @@ class Component extends DCLogic {
           self.patch(sel.id, 'priority', v);
         },
         onDatePick: function (e) { self.openPicker(e); },
+        mentionChips: (s.members || []).filter(function (m) { return m.email && m.n !== self.me().n; }).map(function (m) {
+          return {
+            label: '@' + m.n,
+            style: 'display:flex;align-items:center;gap:5px;border:1px solid var(--pw-border);background:var(--pw-surface);border-radius:20px;padding:3px 9px 3px 3px;font-size:11px;color:var(--pw-text2);cursor:pointer;',
+            avatarStyle: self.avatar(m.n, 17),
+            initials: self.initials(m.n),
+            onPick: function () { self.insertMention(m.n); }
+          };
+        }),
         onStart: function (e) { self.patch(sel.id, 'start', e.target.value); },
         onDue: function (e) { self.patch(sel.id, 'due', e.target.value); },
         onChannel: function (e) {
@@ -5229,8 +5884,28 @@ class Component extends DCLogic {
     const addComment = function () {
       const v = self.state.newComment.trim();
       if (!v || !sel) return;
+      self.mark('เพิ่มคอมเมนต์');
       self.patchTask(sel.id, function (t) { t.comments = t.comments.concat([{ author: self.me().n, text: v, when: 'just now' }]); return t; });
-      self.sendEmail(self.emailFor(sel.assignee), '[' + sel.list + '] ' + sel.name, 'New comment from ' + self.me().n, '“' + v + '”');
+
+      const subject = '[' + sel.list + '] ' + sel.name;
+      const mine = String(self.me().email || '').toLowerCase();
+      const sentTo = {};
+
+      // เจ้าของงานได้ก่อน (ถ้าไม่ใช่ตัวเราเอง)
+      const owner = self.emailFor(sel.assignee);
+      if (owner && owner.email && String(owner.email).toLowerCase() !== mine) {
+        sentTo[String(owner.email).toLowerCase()] = 1;
+        self.sendEmail(owner, subject, 'New comment from ' + self.me().n, '“' + v + '”');
+      }
+
+      // แล้วค่อยคนที่ถูก @ แท็ก — ไม่ส่งซ้ำถ้าได้ไปแล้ว
+      self.mentionsIn(v).forEach(function (m) {
+        const key = String(m.email || '').toLowerCase();
+        if (!key || key === mine || sentTo[key]) return;
+        sentTo[key] = 1;
+        self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”');
+      });
+
       self.setState({ newComment: '' });
     };
 
@@ -5275,18 +5950,18 @@ class Component extends DCLogic {
           };
         }, () => self.persist());
       },
-      canRename: s.list !== '__all' && !spaceName,
+      canRename: s.list !== '__all' && !spaceName && !self.isTrash(),
       viewTabs: tabs,
-      totalCount: s.tasks.length,
+      totalCount: self.liveTasks().length,
       query: s.query,
       queryRef: self.syncRef(s.query),
       onQuery: function (e) { self.setState({ query: e.target.value }); },
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
-      breadcrumb: s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : '')),
+      breadcrumb: self.isTrash() ? 'Workspace' : (s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : ''))),
       allLists: allLists,
-      listTitle: s.list === '__all' ? 'Everything' : (spaceName || s.list),
-      listTitleRef: self.syncRef(s.list === '__all' ? 'Everything' : (spaceName || s.list)),
-      isEverything: s.list === '__all' || !!spaceName,
+      listTitle: self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
+      listTitleRef: self.syncRef(self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
+      isEverything: self.isTrash() || s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
       memberChips: s.members.slice(1, 7).map(function (m) {
         const isOn = onlineEmails.indexOf(String(m.email || '').toLowerCase()) >= 0;
@@ -5330,11 +6005,11 @@ class Component extends DCLogic {
         to: s.toast.to, subject: s.toast.subject, line: s.toast.line
       } : {},
       onDismissToast: function () { self.setState({ toast: null }); },
-      isTable: s.view === 'table',
-      isBoard: s.view === 'board',
-      isCalendar: s.view === 'calendar',
-      isTimeline: s.view === 'timeline',
-      isDashboard: s.view === 'dashboard',
+      isTable: s.view === 'table' && !self.isTrash(),
+      isBoard: s.view === 'board' && !self.isTrash(),
+      isCalendar: s.view === 'calendar' && !self.isTrash(),
+      isTimeline: s.view === 'timeline' && !self.isTrash(),
+      isDashboard: s.view === 'dashboard' && !self.isTrash(),
       groups: groups,
       columns: columns,
       statusNames: self._opt.status,
@@ -5378,6 +6053,89 @@ class Component extends DCLogic {
       },
       onCloseDetail: function () { self.setState({ selected: null }); },
       onAddField: function () { self.addField(); },
+      filterOpen: s.filterOpen,
+      filterCount: self.filterCount(),
+      hasFilter: self.filterCount() > 0,
+      filterBtnStyle: 'display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:7px;border:1px solid ' + ((s.filterOpen || self.filterCount()) ? '#4f46e5' : 'var(--pw-border)') + ';background:' + ((s.filterOpen || self.filterCount()) ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' + ((s.filterOpen || self.filterCount()) ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:12px;white-space:nowrap;',
+      filterBadge: self.filterCount() ? String(self.filterCount()) : '',
+      onToggleFilter: function () { self.setState(function (st) { return { filterOpen: !st.filterOpen }; }); },
+      onCloseFilter: function () { self.setState({ filterOpen: false }); },
+      onClearFilters: function () { self.clearFilters(); },
+      filterGroups: (function () {
+        const f = self.filt();
+        const mk = function (kind, label, values, colorOf) {
+          return {
+            label: label,
+            items: values.map(function (v) {
+              const on = f[kind].indexOf(v) >= 0;
+              const c = colorOf ? colorOf(v) : '#4f46e5';
+              return {
+                label: v,
+                style: 'display:flex;align-items:center;gap:5px;border:1px solid ' + (on ? c : 'var(--pw-border)') +
+                  ';background:' + (on ? (c + (self.isDark() ? '2e' : '16')) : 'var(--pw-surface)') +
+                  ';color:' + (on ? c : 'var(--pw-text2)') + ';border-radius:20px;padding:4px 10px;font-size:11.5px;cursor:pointer;white-space:nowrap;',
+                onToggle: function () { self.toggleFilter(kind, v); }
+              };
+            })
+          };
+        };
+        return [
+          mk('status', 'สถานะ', self.statuses().map(function (x) { return x.k; }), function (v) { return self.statusMeta(v).c; }),
+          mk('assignee', 'ผู้รับผิดชอบ', (s.members || []).map(function (x) { return x.n; }), function (v) { return self.memberMeta(v).c; }),
+          mk('priority', 'ความสำคัญ', self.priorities().map(function (x) { return x.k; }), function (v) { return self.prioMeta(v).c; }),
+          mk('channel', 'Channel', self.channels(), null),
+          mk('platform', 'Platform', self.platforms(), null)
+        ];
+      })(),
+      dueFilters: [['overdue', 'เลยกำหนด'], ['today', 'ครบวันนี้'], ['week', 'ใน 7 วัน'], ['later', 'หลังจากนั้น']].map(function (o) {
+        const on = self.filt().due === o[0];
+        return {
+          label: o[1],
+          style: 'border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (on ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') +
+            ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';border-radius:20px;padding:4px 10px;font-size:11.5px;cursor:pointer;white-space:nowrap;',
+          onToggle: function () { self.toggleFilter('due', o[0]); }
+        };
+      }),
+      isMobile: self.isMobile(),
+      notMobile: !self.isMobile(),
+      rootAttr: self.isMobile() ? (s.navOpen ? 'mobile nav' : 'mobile') : '',
+      mobileIcon: self.isMobile() ? '🖥' : '📱',
+      mobileTitle: self.isMobile() ? 'กำลังดูแบบมือถือ — กดเพื่อกลับเป็นจอใหญ่' : 'ดูแบบมือถือ',
+      onToggleMobile: function () {
+        self.setState(function (st) { return { mobilePref: !self.isMobile(), navOpen: false }; });
+      },
+      navOpen: s.navOpen,
+      onToggleNav: function () { self.setState(function (st) { return { navOpen: !st.navOpen }; }); },
+      onCloseNav: function () { self.setState({ navOpen: false }); },
+      canUndo: self.canUndo(),
+      canRedo: self.canRedo(),
+      undoStyle: 'width:30px;height:30px;border-radius:7px;border:1px solid var(--pw-border);background:var(--pw-surface);color:' + (self.canUndo() ? 'var(--pw-muted)' : 'var(--pw-faint)') + ';cursor:' + (self.canUndo() ? 'pointer' : 'default') + ';font-size:14px;display:grid;place-items:center;',
+      redoStyle: 'width:30px;height:30px;border-radius:7px;border:1px solid var(--pw-border);background:var(--pw-surface);color:' + (self.canRedo() ? 'var(--pw-muted)' : 'var(--pw-faint)') + ';cursor:' + (self.canRedo() ? 'pointer' : 'default') + ';font-size:14px;display:grid;place-items:center;',
+      undoTitle: self.canUndo() ? ('ยกเลิก: ' + self.undoLabel() + '  (⌘Z)') : 'ยังไม่มีอะไรให้ยกเลิก',
+      redoTitle: self.canRedo() ? ('ทำซ้ำ: ' + self.redoLabel() + '  (⌘⇧Z)') : 'ยังไม่มีอะไรให้ทำซ้ำ',
+      onUndo: function () { self.undo(); },
+      onRedo: function () { self.redo(); },
+      isTrash: self.isTrash(),
+      notTrash: !self.isTrash(),
+      trashCount: self.trashTasks().length,
+      trashBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isTrash() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isTrash() ? '#fff' : '#cbd2de') + ';',
+      onOpenTrash: function () { self.setState({ list: '__trash', selected: null }, function () { self.persist(); }); },
+      onRestoreAll: function () { self.restoreAll(); },
+      onEmptyTrash: function () { self.emptyTrash(); },
+      trashRows: self.trashTasks().map(function (t) {
+        const sm2 = self.statusMeta(t.status);
+        return {
+          name: t.name,
+          list: t.list,
+          chipStyle: self.chip(t.status),
+          status: t.status,
+          who: t.deletedBy || '—',
+          age: self.trashAge(t),
+          onRestore: function () { self.restoreTask(t.id); },
+          onPurge: function () { self.purgeTask(t.id); }
+        };
+      }),
+      trashEmpty: self.trashTasks().length === 0,
       isAdmin: self.isAdmin(),
       onExport: function () { self.exportXlsx(); },
       meEmail: self.me().email || '',
