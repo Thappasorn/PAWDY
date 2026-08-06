@@ -3689,7 +3689,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
                 <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
-                  <div style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px;">
+                  <div sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; cursor: pointer;">
                     <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
                   <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                     <button sc-camel-on-click="{{ row.onOpen }}" style="flex: 0 0 auto; background: transparent; border: 1px solid var(--pw-border); color: var(--pw-muted); border-radius: 4px; font-size: 10.5px; padding: 2px 6px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
@@ -7030,6 +7030,11 @@ class Component extends DCLogic {
       statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + this.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
       onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '' }); },
+      onOpenFromNameCell: function (e) {
+        const target = e && e.target;
+        if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
+        self.setState({ selected: t.id, newComment: '', newSubtask: '' });
+      },
       onContext: function (e) { self.openCtx(e, t.id); },
       expanded: !!(self.state.expanded && self.state.expanded[t.id]),
       collapsed: !(self.state.expanded && self.state.expanded[t.id]),
