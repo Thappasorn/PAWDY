@@ -3761,13 +3761,30 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <sc-if value="{{ cell.isActivity }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--pw-muted2); font-size: 11px; font-family: 'IBM Plex Mono', monospace;">
                         <span title="Subtasks">☑ {{ cell.subLabel }}</span>
-                        <span title="Comments">💬 {{ cell.commentCount }}</span>
+                        <button sc-camel-on-click="{{ cell.onCommentOpen }}" title="เปิดกล่อง Comment" aria-label="เปิดกล่อง Comment" style="{{ cell.commentStyle }}">💬 {{ cell.commentCount }}</button>
                         <button sc-camel-on-click="{{ cell.onDelete }}" title="Delete task" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
                       </div>
                     </sc-if>
                   </sc-for>
                   <span></span>
                 </div>
+
+                <sc-if value="{{ row.commentComposerOpen }}" hint-placeholder-val="{{ false }}">
+                  <div data-comment-composer style="display:flex;justify-content:flex-end;padding:8px 42px 10px 12px;border-bottom:1px solid var(--pw-line);background:var(--pw-surface2);">
+                    <div style="width:min(440px,100%);display:flex;flex-direction:column;gap:8px;border:1px solid var(--pw-border);border-radius:12px;padding:10px;background:var(--pw-surface);box-shadow:0 10px 26px rgba(8,10,14,.18);">
+                      <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
+                      <div style="display:flex;align-items:center;gap:5px;">
+                        <button type="button" title="เพิ่ม" style="width:28px;height:28px;border:0;border-radius:50%;background:var(--pw-surface3);color:var(--pw-muted);cursor:pointer;font-size:17px;">+</button>
+                        <span style="width:1px;height:18px;background:var(--pw-line);margin:0 2px;"></span>
+                        <button type="button" style="height:28px;border:1px solid var(--pw-border);border-radius:7px;padding:0 9px;background:var(--pw-surface2);color:var(--pw-text2);font-size:11.5px;cursor:default;">Comment⌄</button>
+                        <button type="button" title="แนบไฟล์" style="width:26px;height:26px;border:0;background:transparent;color:var(--pw-muted2);cursor:pointer;font-size:14px;">⌕</button>
+                        <button type="button" title="แท็กสมาชิก" style="width:26px;height:26px;border:0;background:transparent;color:var(--pw-muted2);cursor:pointer;font-size:14px;">@</button>
+                        <button sc-camel-on-click="{{ row.onCommentClose }}" type="button" title="ปิด (Esc)" style="margin-left:auto;width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--pw-muted2);cursor:pointer;font-size:16px;">×</button>
+                        <button sc-camel-on-click="{{ row.onCommentSubmit }}" type="button" title="ส่ง Comment (Enter)" aria-label="ส่ง Comment" style="width:30px;height:30px;border:0;border-radius:8px;background:#4f46e5;color:#fff;cursor:pointer;font-size:14px;display:grid;place-items:center;" style-hover="background:#4338ca;">➤</button>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
 
                 <sc-if value="{{ row.expanded }}" hint-placeholder-val="{{ false }}">
                   <div data-panel style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 8px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
@@ -4962,6 +4979,8 @@ class Component extends DCLogic {
       subComposer: null,     // taskId ที่เปิดช่องพิมพ์ subtask
       subComposerText: '',
       subComposerDraft: null,
+      commentComposer: null, // taskId ที่เปิดกล่องคอมเมนต์จากคอลัมน์ Comment
+      commentComposerText: '',
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -5854,6 +5873,41 @@ class Component extends DCLogic {
       const parent = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
       this.setState({ subComposerText: '', subComposerDraft: parent ? this.makeSubtask(parent, '') : null });
     }
+  }
+  openCommentComposer(id) {
+    this._focusRowComment = true;
+    this.setState({ commentComposer: id, commentComposerText: '' });
+  }
+  closeCommentComposer() {
+    this.setState({ commentComposer: null, commentComposerText: '' });
+  }
+  addCommentTo(id) {
+    const v = String(this.state.commentComposerText || '').trim();
+    const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
+    if (!v || !task) return;
+    this.mark('เพิ่มคอมเมนต์');
+    this.patchTask(id, function (t) {
+      t.comments = (t.comments || []).concat([{ author: this.me().n, text: v, when: 'just now' }]);
+      return t;
+    }.bind(this));
+
+    const subject = '[' + task.list + '] ' + task.name;
+    const mine = String(this.me().email || '').toLowerCase();
+    const sentTo = {};
+    const owner = this.emailFor(task.assignee);
+    if (owner && owner.email && String(owner.email).toLowerCase() !== mine) {
+      sentTo[String(owner.email).toLowerCase()] = 1;
+      this.sendEmail(owner, subject, 'New comment from ' + this.me().n, '“' + v + '”');
+    }
+    const self = this;
+    this.mentionsIn(v).forEach(function (m) {
+      const key = String(m.email || '').toLowerCase();
+      if (!key || key === mine || sentTo[key]) return;
+      sentTo[key] = 1;
+      self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”');
+    });
+    this._focusRowComment = true;
+    this.setState({ commentComposerText: '' });
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
@@ -7143,11 +7197,11 @@ class Component extends DCLogic {
       checkStyle: 'width:14px;height:14px;border-radius:50%;border:1.5px solid ' + sm.c + ';background:' + (this.isDone(t.status) ? sm.c : 'transparent') + ';cursor:pointer;padding:0;',
       statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + this.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
-      onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '' }); },
+      onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '' }); },
       onOpenFromNameCell: function (e) {
         const target = e && e.target;
         if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
-        self.setState({ selected: t.id, newComment: '', newSubtask: '' });
+        self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '' });
       },
       onContext: function (e) { self.openCtx(e, t.id); },
       expanded: !!(self.state.expanded && self.state.expanded[t.id]),
@@ -7177,7 +7231,7 @@ class Component extends DCLogic {
           onOpenFromNameCell: function (e) {
             const target = e && e.target;
             if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
-            self.setState({ selected: t.id, newComment: '', newSubtask: '' });
+            self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '' });
           },
           onRemove: function () { self.removeSub(t.id, i); }
         };
@@ -7211,6 +7265,25 @@ class Component extends DCLogic {
         }, 0);
       },
       onSubClose: function () { self.closeSubComposer(); },
+      commentComposerOpen: self.state.commentComposer === t.id,
+      commentComposerText: self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '',
+      commentComposerRef: function (el) {
+        if (!el) return;
+        const v = self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '';
+        if (el.value !== v) el.value = v;
+        if (self.state.commentComposer === t.id && self._focusRowComment) {
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+          self._focusRowComment = false;
+        }
+      },
+      onCommentText: function (e) { self.setState({ commentComposerText: e.target.value }); },
+      onCommentKey: function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.addCommentTo(t.id); }
+        if (e.key === 'Escape') { e.preventDefault(); self.closeCommentComposer(); }
+      },
+      onCommentSubmit: function () { self.addCommentTo(t.id); },
+      onCommentClose: function () { self.closeCommentComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
       onCycleStatus: function () {
@@ -7339,6 +7412,15 @@ class Component extends DCLogic {
           activity: function () {
             return { key: 'activity', isActivity: true,
               subLabel: doneSubs + '/' + t.subtasks.length, commentCount: t.comments.length,
+              commentStyle: 'min-width:34px;height:26px;display:inline-flex;align-items:center;justify-content:center;gap:3px;border:1px solid ' +
+                (self.state.commentComposer === t.id ? '#4f46e5' : 'transparent') + ';border-radius:6px;background:' +
+                (self.state.commentComposer === t.id ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' +
+                (self.state.commentComposer === t.id ? '#4f46e5' : 'var(--pw-muted2)') + ';font:11px \'IBM Plex Mono\',monospace;cursor:pointer;padding:0 5px;',
+              onCommentOpen: function (e) {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (self.state.commentComposer === t.id) self.closeCommentComposer();
+                else self.openCommentComposer(t.id);
+              },
               onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); } };
           }
         };
