@@ -3691,8 +3691,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
                   <div sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; cursor: pointer;">
                     <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
-                  <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="width: 100%; background: transparent; border: 0; outline: 0; font-size: 12.5px; font-weight: 500; padding: 3px 4px; border-radius: 4px; text-overflow: ellipsis;" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
-                    <button sc-camel-on-click="{{ row.onOpen }}" style="flex: 0 0 auto; background: transparent; border: 1px solid var(--pw-border); color: var(--pw-muted); border-radius: 4px; font-size: 10.5px; padding: 2px 6px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
+                  <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="{{ row.nameInputStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                    <button sc-camel-on-click="{{ row.onOpen }}" style="margin-left:auto;flex:0 0 auto;background:transparent;border:1px solid var(--pw-border);color:var(--pw-muted);border-radius:4px;font-size:10.5px;padding:2px 6px;cursor:pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
                   </div>
                   <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="8">
                     <sc-if value="{{ cell.isSelect }}" hint-placeholder-val="{{ true }}">
@@ -7007,6 +7007,7 @@ class Component extends DCLogic {
       tagChips: this.tagChips(t.tags),
       tagText: (t.tags || []).join(', '),
       nameRef: this.syncRef(t.name),
+      nameInputStyle: 'width:min(100%,' + Math.max(72, Math.min(360, 28 + String(t.name || '').length * 8)) + 'px);flex:0 1 auto;min-width:72px;background:transparent;border:0;outline:0;font-size:12.5px;font-weight:500;padding:3px 4px;border-radius:4px;text-overflow:ellipsis;',
       statusRef: this.syncRef(t.status),
       assigneeRef: this.syncRef(t.assignee),
       dueRef: this.syncRef(t.due),
