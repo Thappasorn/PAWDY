@@ -3691,7 +3691,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
                   <div sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; cursor: pointer;">
                     <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
-                  <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" style="{{ row.nameInputStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                  <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" sc-camel-on-key-down="{{ row.onNameKey }}" sc-camel-on-blur="{{ row.onNameBlur }}" style="{{ row.nameInputStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                     <button sc-camel-on-click="{{ row.onOpen }}" style="margin-left:auto;flex:0 0 auto;background:transparent;border:1px solid var(--pw-border);color:var(--pw-muted);border-radius:4px;font-size:10.5px;padding:2px 6px;cursor:pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
                   </div>
                   <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="8">
@@ -3736,8 +3736,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <sc-for list="{{ row.subs }}" as="sb2" hint-placeholder-count="2">
                       <div style="display: grid; grid-template-columns: {{ row.subGridCols }}; align-items: center; min-height: 30px; border-radius: 6px;" style-hover="background: var(--pw-hover);">
                         <button sc-camel-on-click="{{ sb2.onToggle }}" title="ติ๊กเสร็จ" style="{{ sb2.markStyle }}">{{ sb2.mark }}</button>
-                        <div style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;">
-                          <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                        <div sc-camel-on-click="{{ sb2.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;cursor:pointer;">
+                          <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" sc-camel-on-key-down="{{ sb2.onRenameKey }}" sc-camel-on-blur="{{ sb2.onRenameBlur }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                         </div>
                         <sc-for list="{{ sb2.cells }}" as="scell" hint-placeholder-count="8">
                           <sc-if value="{{ scell.isSelect }}" hint-placeholder-val="{{ true }}">
@@ -3771,7 +3771,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     </sc-for>
 
                     <sc-if value="{{ row.subComposerOpen }}" hint-placeholder-val="{{ false }}">
-                      <div style="display:grid;grid-template-columns:{{ row.subGridCols }};align-items:center;min-height:34px;border:1px solid #4f46e5;border-radius:7px;background:var(--pw-surface);box-shadow:0 0 0 1px rgba(79,70,229,.12);">
+                      <div sc-camel-on-blur="{{ row.onSubComposerBlur }}" style="display:grid;grid-template-columns:{{ row.subGridCols }};align-items:center;min-height:34px;border:1px solid #4f46e5;border-radius:7px;background:var(--pw-surface);box-shadow:0 0 0 1px rgba(79,70,229,.12);">
                         <span style="width:15px;height:15px;border-radius:50%;border:1.5px dashed #4f46e5;justify-self:start;"></span>
                         <div style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;">
                           <input ref="{{ row.subComposerRef }}" data-sync="{{ row.subComposerText }}" value="{{ row.subComposerText }}" sc-camel-on-change="{{ row.onSubText }}" sc-camel-on-key-down="{{ row.onSubKey }}" placeholder="ชื่อ subtask แล้วกด Enter · Esc ปิด" style="width:100%;min-width:0;background:transparent;border:0;outline:0;padding:5px 5px;font-size:12.5px;color:var(--pw-text);">
@@ -5784,7 +5784,7 @@ class Component extends DCLogic {
     });
   }
   closeSubComposer() { this.setState({ subComposer: null, subComposerText: '', subComposerDraft: null }); }
-  addSubtaskTo(id) {
+  addSubtaskTo(id, finish) {
     const title = String(this.state.subComposerText || '').trim();
     if (!title) { this.closeSubComposer(); return; }
     this.mark('เพิ่ม subtask');
@@ -5795,8 +5795,12 @@ class Component extends DCLogic {
       t.subtasks = (t.subtasks || []).concat([Object.assign({}, draft, { title: title })]);
       return t;
     });
-    const parent = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
-    this.setState({ subComposerText: '', subComposerDraft: parent ? this.makeSubtask(parent, '') : null });
+    if (finish) {
+      this.closeSubComposer();
+    } else {
+      const parent = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
+      this.setState({ subComposerText: '', subComposerDraft: parent ? this.makeSubtask(parent, '') : null });
+    }
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
@@ -7051,11 +7055,21 @@ class Component extends DCLogic {
           markStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:50%;border:1.5px solid ' + (x.done ? '#059669' : 'var(--pw-faint)') +
             ';background:' + (x.done ? '#059669' : 'transparent') + ';color:#fff;font-size:9px;line-height:1;display:grid;place-items:center;cursor:pointer;padding:0;',
           mark: x.done ? '✓' : '',
-          textStyle: 'flex:1;min-width:0;background:transparent;border:0;outline:0;font-size:12.5px;padding:3px 5px;border-radius:5px;color:' +
+          textStyle: 'width:min(100%,' + Math.max(72, Math.min(360, 28 + String(x.title || '').length * 8)) + 'px);flex:0 1 auto;min-width:72px;background:transparent;border:0;outline:0;font-size:12.5px;padding:3px 5px;border-radius:5px;color:' +
             (x.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';' + (x.done ? 'text-decoration:line-through;' : ''),
           cells: self.subCells(t, x, i),
           onToggle: function () { self.toggleSub(t.id, i); },
           onRename: function (e) { self.renameSub(t.id, i, e.target.value); },
+          onRenameKey: function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+            if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); }
+          },
+          onRenameBlur: function () {},
+          onOpenFromNameCell: function (e) {
+            const target = e && e.target;
+            if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
+            self.setState({ selected: t.id, newComment: '', newSubtask: '' });
+          },
           onRemove: function () { self.removeSub(t.id, i); }
         };
       }),
@@ -7073,11 +7087,20 @@ class Component extends DCLogic {
       },
       onSubText: function (e) { self.setState({ subComposerText: e.target.value }); },
       onSubKey: function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); self.addSubtaskTo(t.id); }
+        if (e.key === 'Enter') { e.preventDefault(); self.addSubtaskTo(t.id, true); }
         if (e.key === 'Escape') self.closeSubComposer();
       },
       onSubAdd: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openSubComposer(t.id); },
-      onSubCommit: function () { self.addSubtaskTo(t.id); },
+      onSubCommit: function () { self.addSubtaskTo(t.id, true); },
+      onSubComposerBlur: function (e) {
+        const box = e.currentTarget;
+        setTimeout(function () {
+          if (self.state.subComposer !== t.id) return;
+          if (box && box.contains && box.contains(document.activeElement)) return;
+          if (String(self.state.subComposerText || '').trim()) self.addSubtaskTo(t.id, true);
+          else self.closeSubComposer();
+        }, 0);
+      },
       onSubClose: function () { self.closeSubComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
@@ -7087,6 +7110,11 @@ class Component extends DCLogic {
         self.patch(t.id, 'status', L[(i + 1) % L.length].k);
       },
       onName: function (e) { self.patch(t.id, 'name', e.target.value); },
+      onNameKey: function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); }
+      },
+      onNameBlur: function () {},
       onStatus: function (e) { self.patch(t.id, 'status', e.target.value); },
       onAssignee: function (e) {
         const v = e.target.value;
