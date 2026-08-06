@@ -3788,8 +3788,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                             <div style="display:flex;align-items:flex-start;gap:8px;">
                               <span style="{{ rcm.avatarStyle }}">{{ rcm.initials }}</span>
                               <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
-                                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><b style="color:var(--pw-text2);">{{ rcm.author }}</b><span style="color:var(--pw-muted2);">{{ rcm.when }}</span></span>
-                                <span style="font-size:12px;line-height:1.45;color:var(--pw-text);white-space:pre-wrap;overflow-wrap:anywhere;">{{ rcm.text }}</span>
+                                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><b style="color:var(--pw-text2);">{{ rcm.author }}</b><span style="color:var(--pw-muted2);">{{ rcm.when }}</span><button sc-camel-on-click="{{ rcm.onDelete }}" title="ลบ Comment" aria-label="ลบ Comment" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);cursor:pointer;font-size:14px;line-height:1;padding:1px 4px;border-radius:4px;" style-hover="color:#dc2626;background:rgba(220,38,38,.08);">×</button></span>
+                                <span style="font-size:12px;line-height:1.45;color:var(--pw-text);white-space:pre-wrap;overflow-wrap:anywhere;"><sc-for list="{{ rcm.parts }}" as="rcp"><sc-if value="{{ rcp.isLink }}" hint-placeholder-val="{{ false }}"><a href="{{ rcp.url }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;">{{ rcp.text }}</a></sc-if><sc-if value="{{ rcp.isText }}" hint-placeholder-val="{{ false }}"><span>{{ rcp.text }}</span></sc-if></sc-for></span>
                               </span>
                             </div>
                           </sc-for>
@@ -6002,6 +6002,35 @@ class Component extends DCLogic {
   closeCommentComposer() {
     this.setState({ commentComposer: null, commentComposerText: '', commentComposerPos: null });
   }
+  commentParts(text) {
+    const value = String(text || '');
+    const parts = [];
+    const matcher = /https?:\/\/[^\s<>"']+/gi;
+    let cursor = 0;
+    let match;
+    while ((match = matcher.exec(value))) {
+      if (match.index > cursor) parts.push({ isText: true, isLink: false, text: value.slice(cursor, match.index), url: '' });
+      let url = match[0];
+      let trailing = '';
+      while (url && /[),.;!?]$/.test(url)) {
+        trailing = url.slice(-1) + trailing;
+        url = url.slice(0, -1);
+      }
+      if (url) parts.push({ isText: false, isLink: true, text: url, url: url });
+      if (trailing) parts.push({ isText: true, isLink: false, text: trailing, url: '' });
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < value.length) parts.push({ isText: true, isLink: false, text: value.slice(cursor), url: '' });
+    if (!parts.length) parts.push({ isText: true, isLink: false, text: value, url: '' });
+    return parts;
+  }
+  deleteInlineComment(taskId, commentIndex) {
+    this.mark('ลบคอมเมนต์');
+    this.patchTask(taskId, function (t) {
+      t.comments = (t.comments || []).filter(function (_, i) { return i !== commentIndex; });
+      return t;
+    });
+  }
   addCommentTo(id) {
     const v = String(this.state.commentComposerText || '').trim();
     const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
@@ -7407,6 +7436,8 @@ class Component extends DCLogic {
     const pm = this.prioMeta(t.priority);
     const doneSubs = t.subtasks.filter(function (x) { return x.done; }).length;
     const pct = t.subtasks.length ? Math.round(doneSubs / t.subtasks.length * 100) : 0;
+    const allComments = t.comments || [];
+    const commentStartIndex = Math.max(0, allComments.length - 8);
     return {
       id: t.id, name: t.name, status: t.status, assignee: t.assignee, start: t.start, due: t.due,
       pos: t.pos || 0,
@@ -7510,9 +7541,11 @@ class Component extends DCLogic {
       onSubClose: function () { self.closeSubComposer(); },
       commentComposerOpen: self.state.commentComposer === t.id,
       commentComposerText: self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '',
-      commentHasItems: (t.comments || []).length > 0,
-      commentItems: (t.comments || []).slice(-8).map(function (c) {
-        return { author: c.author || 'Unknown', text: c.text || '', when: c.when || '', initials: self.initials(c.author || 'Unknown'), avatarStyle: self.avatar(c.author || 'Unknown', 24) };
+      commentHasItems: allComments.length > 0,
+      commentItems: allComments.slice(-8).map(function (c, visibleIndex) {
+        const text = c.text || '';
+        return { author: c.author || 'Unknown', text: text, parts: self.commentParts(text), when: c.when || '', initials: self.initials(c.author || 'Unknown'), avatarStyle: self.avatar(c.author || 'Unknown', 24),
+          onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.deleteInlineComment(t.id, commentStartIndex + visibleIndex); } };
       }),
       commentComposerWrapStyle: (function () {
         const p = self.state.commentComposerPos || { left: 12, top: 72 };
