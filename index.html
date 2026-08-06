@@ -3771,11 +3771,39 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     </sc-for>
 
                     <sc-if value="{{ row.subComposerOpen }}" hint-placeholder-val="{{ false }}">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="width: 15px; height: 15px; flex: 0 0 15px; border-radius: 50%; border: 1.5px dashed #4f46e5;"></span>
-                        <input ref="{{ row.subComposerRef }}" data-sync="{{ row.subComposerText }}" value="{{ row.subComposerText }}" sc-camel-on-change="{{ row.onSubText }}" sc-camel-on-key-down="{{ row.onSubKey }}" placeholder="ชื่อ subtask แล้วกด Enter — พิมพ์ต่อได้เรื่อยๆ · Esc ปิด" style="flex: 1; min-width: 0; background: var(--pw-surface); border: 1px solid #4f46e5; border-radius: 6px; padding: 5px 8px; font-size: 12.5px; outline: 0; color: var(--pw-text);">
-                        <button sc-camel-on-click="{{ row.onSubCommit }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 5px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #4338ca;">เพิ่ม</button>
-                        <button sc-camel-on-click="{{ row.onSubClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 14px; line-height: 1; cursor: pointer; padding: 0 3px;">×</button>
+                      <div style="display:grid;grid-template-columns:{{ row.subGridCols }};align-items:center;min-height:34px;border:1px solid #4f46e5;border-radius:7px;background:var(--pw-surface);box-shadow:0 0 0 1px rgba(79,70,229,.12);">
+                        <span style="width:15px;height:15px;border-radius:50%;border:1.5px dashed #4f46e5;justify-self:start;"></span>
+                        <div style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;">
+                          <input ref="{{ row.subComposerRef }}" data-sync="{{ row.subComposerText }}" value="{{ row.subComposerText }}" sc-camel-on-change="{{ row.onSubText }}" sc-camel-on-key-down="{{ row.onSubKey }}" placeholder="ชื่อ subtask แล้วกด Enter · Esc ปิด" style="width:100%;min-width:0;background:transparent;border:0;outline:0;padding:5px 5px;font-size:12.5px;color:var(--pw-text);">
+                        </div>
+                        <sc-for list="{{ row.subComposerCells }}" as="dcell" hint-placeholder-count="8">
+                          <sc-if value="{{ dcell.isSelect }}" hint-placeholder-val="{{ true }}">
+                            <span style="display:flex;align-items:center;min-width:0;">
+                              <sc-raw-select ref="{{ dcell.valueRef }}" data-sync="{{ dcell.value }}" value="{{ dcell.value }}" sc-camel-on-change="{{ dcell.onChange }}" style="{{ dcell.style }}">
+                                <sc-for list="{{ dcell.options }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
+                              </sc-raw-select>
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ dcell.isAssignee }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+                              <span style="{{ dcell.avatarStyle }}">{{ dcell.initials }}</span>
+                              <sc-raw-select data-assignee ref="{{ dcell.valueRef }}" data-sync="{{ dcell.value }}" value="{{ dcell.value }}" sc-camel-on-change="{{ dcell.onChange }}" style="{{ dcell.style }}">
+                                <sc-for list="{{ dcell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+                              </sc-raw-select>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ dcell.isInput }}" hint-placeholder-val="{{ false }}">
+                            <input ref="{{ dcell.valueRef }}" data-sync="{{ dcell.value }}" type="{{ dcell.inputType }}" value="{{ dcell.value }}" placeholder="{{ dcell.placeholder }}" sc-camel-on-change="{{ dcell.onChange }}" sc-camel-on-click="{{ dcell.onPick }}" style="{{ dcell.style }}" style-focus="background:var(--pw-surface2);box-shadow:0 0 0 1.5px #4f46e5;border-radius:4px;color:var(--pw-text);">
+                          </sc-if>
+                          <sc-if value="{{ dcell.isRange }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:flex;align-items:center;gap:3px;min-width:0;">
+                              <input ref="{{ dcell.fromRef }}" data-sync="{{ dcell.fromValue }}" type="date" value="{{ dcell.fromValue }}" sc-camel-on-click="{{ dcell.onPick }}" sc-camel-on-change="{{ dcell.onFrom }}" title="วันเริ่ม" style="{{ dcell.style }}">
+                              <span style="color:var(--pw-muted2);font-size:10px;">→</span>
+                              <input ref="{{ dcell.toRef }}" data-sync="{{ dcell.toValue }}" type="date" value="{{ dcell.toValue }}" sc-camel-on-click="{{ dcell.onPick }}" sc-camel-on-change="{{ dcell.onTo }}" title="วันสิ้นสุด" style="{{ dcell.style }}">
+                            </div>
+                          </sc-if>
+                        </sc-for>
+                        <button sc-camel-on-click="{{ row.onSubCommit }}" title="เพิ่ม subtask (Enter)" style="width:24px;height:24px;min-height:24px;border:0;border-radius:5px;background:#4f46e5;color:#fff;cursor:pointer;font-size:13px;display:grid;place-items:center;padding:0;">✓</button>
                       </div>
                     </sc-if>
 
@@ -4880,6 +4908,7 @@ class Component extends DCLogic {
       expanded: {},          // taskId -> กาง subtask อยู่
       subComposer: null,     // taskId ที่เปิดช่องพิมพ์ subtask
       subComposerText: '',
+      subComposerDraft: null,
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -5746,13 +5775,15 @@ class Component extends DCLogic {
   }
   openSubComposer(id) {
     this._focusSub = true;
+    const parent = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
+    const draft = parent ? this.makeSubtask(parent, '') : null;
     this.setState(function (s) {
       const e = Object.assign({}, s.expanded || {});
       e[id] = true;
-      return { expanded: e, subComposer: id, subComposerText: '' };
+      return { expanded: e, subComposer: id, subComposerText: '', subComposerDraft: draft };
     });
   }
-  closeSubComposer() { this.setState({ subComposer: null, subComposerText: '' }); }
+  closeSubComposer() { this.setState({ subComposer: null, subComposerText: '', subComposerDraft: null }); }
   addSubtaskTo(id) {
     const title = String(this.state.subComposerText || '').trim();
     if (!title) { this.closeSubComposer(); return; }
@@ -5760,10 +5791,12 @@ class Component extends DCLogic {
     this._focusSub = true;
     const self = this;
     this.patchTask(id, function (t) {
-      t.subtasks = (t.subtasks || []).concat([self.makeSubtask(t, title)]);
+      const draft = self.state.subComposerDraft || self.makeSubtask(t, title);
+      t.subtasks = (t.subtasks || []).concat([Object.assign({}, draft, { title: title })]);
       return t;
     });
-    this.setState({ subComposerText: '' });
+    const parent = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
+    this.setState({ subComposerText: '', subComposerDraft: parent ? this.makeSubtask(parent, '') : null });
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
@@ -6844,10 +6877,30 @@ class Component extends DCLogic {
     });
   }
 
+  patchSubDraft(field, value) {
+    const self = this;
+    this.setState(function (s) {
+      const draft = Object.assign({}, s.subComposerDraft || {});
+      draft[field] = value;
+      if (field === 'status') draft.done = self.isDone(value);
+      return { subComposerDraft: draft };
+    });
+  }
+
+  patchSubDraftCustom(fieldId, value) {
+    this.setState(function (s) {
+      const draft = Object.assign({}, s.subComposerDraft || {}, { custom: Object.assign({}, (s.subComposerDraft && s.subComposerDraft.custom) || {}) });
+      draft.custom[fieldId] = value;
+      return { subComposerDraft: draft };
+    });
+  }
+
   makeSubtask(parent, title) {
+    const firstOpen = (this.statuses().filter((s) => !this.isDone(s.k))[0] || {}).k;
+    const initialStatus = this.isDone(parent.status) ? (firstOpen || parent.status) : parent.status;
     return {
       title: title, done: false,
-      status: parent.status, assignee: parent.assignee, start: parent.start, due: parent.due,
+      status: initialStatus, assignee: parent.assignee, start: parent.start, due: parent.due,
       priority: parent.priority, tags: (parent.tags || []).slice(), list: parent.list,
       channel: parent.channel, platform: parent.platform, cost: parent.cost, qty: parent.qty,
       custom: JSON.parse(JSON.stringify(parent.custom || {}))
@@ -6869,7 +6922,15 @@ class Component extends DCLogic {
     const pm = this.prioMeta(priority);
     const dm = this.dueMeta(due, status);
     const sel = 'background:transparent;border:0;outline:0;font-size:11.5px;color:var(--pw-text2);cursor:pointer;width:100%;min-width:0;';
-    const set = function (field, value) { self.patchSub(t.id, idx, field, value); };
+    const isDraft = idx < 0;
+    const set = function (field, value) {
+      if (isDraft) self.patchSubDraft(field, value);
+      else self.patchSub(t.id, idx, field, value);
+    };
+    const setCustom = function (fieldId, value) {
+      if (isDraft) self.patchSubDraftCustom(fieldId, value);
+      else self.patchSubCustom(t.id, idx, fieldId, value);
+    };
     const mk = {
       status: function () { return { key: 'status', isSelect: true,
         options: O.status.filter(function (v) { return v !== OPT_ARCHIVE && v !== OPT_MANAGE; }), value: status, valueRef: self.syncRef(status),
@@ -6910,20 +6971,20 @@ class Component extends DCLogic {
         const range = raw && typeof raw === 'object' ? raw : { from: '', to: '' };
         return { key: k, isRange: true, fromValue: range.from || '', toValue: range.to || '',
           fromRef: self.syncRef(range.from || ''), toRef: self.syncRef(range.to || ''),
-          onFrom: function (e) { self.patchSubCustom(t.id, idx, f.id, { from: e.target.value, to: range.to || '' }); },
-          onTo: function (e) { self.patchSubCustom(t.id, idx, f.id, { from: range.from || '', to: e.target.value }); },
+          onFrom: function (e) { setCustom(f.id, { from: e.target.value, to: range.to || '' }); },
+          onTo: function (e) { setCustom(f.id, { from: range.from || '', to: e.target.value }); },
           onPick: function (e) { self.openPicker(e); }, style: sel + 'font-family:\'IBM Plex Mono\',monospace;' };
       }
       if (f.type === 'select') {
         const value = String(raw || '');
         const col = value ? self.optColorOf(k, value) : null;
         return { key: k, isSelect: true, options: [''].concat(f.options || []), value: value, valueRef: self.syncRef(value),
-          onChange: function (e) { const v = e.target.value; if (self.optionPick(k, v, value, function (n) { self.patchSubCustom(t.id, idx, f.id, n); }, t.id)) return; self.patchSubCustom(t.id, idx, f.id, v); },
+          onChange: function (e) { const v = e.target.value; if (self.optionPick(k, v, value, function (n) { setCustom(f.id, n); }, t.id)) return; setCustom(f.id, v); },
           style: col ? ('font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:5px;background:' + col + (self.isDark() ? '2e' : '1f') + ';color:' + col + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;') : sel };
       }
       return { key: k, isInput: true, inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
         value: String(raw || ''), valueRef: self.syncRef(String(raw || '')), placeholder: f.type === 'text' ? '—' : '',
-        onChange: function (e) { self.patchSubCustom(t.id, idx, f.id, e.target.value); },
+        onChange: function (e) { setCustom(f.id, e.target.value); },
         onPick: function (e) { if (f.type === 'date') self.openPicker(e); }, style: sel + (f.type === 'number' ? 'text-align:right;font-family:\'IBM Plex Mono\',monospace;' : '') };
     };
     return this.activeCols().map(function (k) { return String(k).indexOf('cf:') === 0 ? customCell(k) : (mk[k] ? mk[k]() : { key: k }); });
@@ -6995,6 +7056,9 @@ class Component extends DCLogic {
       subGridCols: this.gridCols(),
       subComposerOpen: self.state.subComposer === t.id,
       subComposerText: self.state.subComposer === t.id ? (self.state.subComposerText || '') : '',
+      subComposerCells: self.state.subComposer === t.id
+        ? self.subCells(t, self.state.subComposerDraft || self.makeSubtask(t, ''), -1)
+        : [],
       subComposerRef: function (el) {
         if (!el) return;
         const v = self.state.subComposer === t.id ? (self.state.subComposerText || '') : '';
