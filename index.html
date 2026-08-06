@@ -3561,26 +3561,19 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </sc-for>
                   <button sc-camel-on-click="{{ onAddSubOfCurrent }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 5px 11px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ หน้าย่อย</button>
                 </div>
-                <sc-if value="{{ doc.hasDetectedLink }}" hint-placeholder-val="{{ false }}">
-                  <div data-panel style="display:flex;flex-direction:column;gap:9px;border:1px solid #4f46e5;border-radius:10px;padding:11px 12px;background:var(--pw-accent-soft);">
-                    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                      <span style="width:26px;height:26px;border-radius:7px;background:#4f46e5;color:#fff;display:grid;place-items:center;flex:0 0 26px;">⛓</span>
-                      <span style="display:flex;flex-direction:column;gap:2px;min-width:0;">
-                        <span style="font-size:12px;font-weight:600;color:var(--pw-text);">พบลิงก์ — ต้องการแสดงแบบไหน?</span>
-                        <span style="font-size:11px;color:var(--pw-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ doc.detectedLink }}</span>
-                      </span>
+                <div data-doceditor style="position:relative;display:flex;flex-direction:column;border:1px solid var(--pw-border);border-radius:10px;background:var(--pw-surface);overflow:visible;" style-focus-within="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.12);">
+                  <textarea ref="{{ doc.bodyRef }}" data-sync="{{ doc.body }}" value="{{ doc.body }}" sc-camel-on-change="{{ doc.onBody }}" rows="12" placeholder="พิมพ์เนื้อหาเอกสารที่นี่ — ทุกคนในทีมเห็นและแก้ได้ บันทึกอัตโนมัติ" style="width:100%;min-height:260px;border:0;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.7;outline:0;resize:vertical;background:transparent;color:var(--pw-text);font-family:'IBM Plex Sans',system-ui,sans-serif;"></textarea>
+                  <sc-if value="{{ doc.hasDetectedLink }}" hint-placeholder-val="{{ false }}">
+                    <div data-panel style="position:absolute;top:12px;right:12px;width:224px;display:flex;flex-direction:column;gap:5px;border:1px solid var(--pw-border);border-radius:9px;padding:7px;background:var(--pw-surface);box-shadow:0 14px 34px rgba(8,10,14,.28);z-index:24;">
+                      <span style="font-size:10.5px;color:var(--pw-muted2);padding:3px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ doc.detectedLink }}</span>
+                      <button sc-camel-on-click="{{ doc.onDetectedUrl }}" style="display:flex;align-items:center;gap:9px;width:100%;border:0;border-radius:6px;padding:8px 9px;background:transparent;color:var(--pw-text2);font-size:12px;cursor:pointer;text-align:left;" style-hover="background:var(--pw-hover);color:#4f46e5;"><span style="width:16px;text-align:center;">⛓</span>แสดงเป็น URL</button>
+                      <button sc-camel-on-click="{{ doc.onDetectedBookmark }}" style="display:flex;align-items:center;gap:9px;width:100%;border:0;border-radius:6px;padding:8px 9px;background:transparent;color:var(--pw-text2);font-size:12px;cursor:pointer;text-align:left;" style-hover="background:var(--pw-hover);color:#4f46e5;"><span style="width:16px;text-align:center;">▣</span>แสดงเป็น Bookmark</button>
+                      <button sc-camel-on-click="{{ doc.onDetectedPreview }}" style="display:flex;align-items:center;gap:9px;width:100%;border:0;border-radius:6px;padding:8px 9px;background:transparent;color:var(--pw-text2);font-size:12px;cursor:pointer;text-align:left;" style-hover="background:var(--pw-hover);color:#4f46e5;"><span style="width:16px;text-align:center;">◉</span>แสดง Preview</button>
                     </div>
-                    <div style="display:flex;gap:7px;flex-wrap:wrap;">
-                      <button sc-camel-on-click="{{ doc.onDetectedUrl }}" style="border:1px solid var(--pw-border);border-radius:7px;padding:6px 11px;background:var(--pw-surface);color:var(--pw-text2);font-size:11.5px;cursor:pointer;">URL</button>
-                      <button sc-camel-on-click="{{ doc.onDetectedBookmark }}" style="border:1px solid var(--pw-border);border-radius:7px;padding:6px 11px;background:var(--pw-surface);color:var(--pw-text2);font-size:11.5px;cursor:pointer;">Bookmark</button>
-                      <button sc-camel-on-click="{{ doc.onDetectedPreview }}" style="border:0;border-radius:7px;padding:6px 11px;background:#4f46e5;color:#fff;font-size:11.5px;font-weight:600;cursor:pointer;">Preview</button>
-                    </div>
-                  </div>
-                </sc-if>
-                <textarea ref="{{ doc.bodyRef }}" data-sync="{{ doc.body }}" value="{{ doc.body }}" sc-camel-on-change="{{ doc.onBody }}" rows="22" placeholder="พิมพ์เนื้อหาเอกสารที่นี่ — ทุกคนในทีมเห็นและแก้ได้ บันทึกอัตโนมัติ" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.7; outline: 0; resize: vertical; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5;"></textarea>
+                  </sc-if>
 
                 <sc-for list="{{ doc.links }}" as="dl" hint-placeholder-count="2">
-                  <div style="display:flex;flex-direction:column;gap:7px;border:1px solid var(--pw-border);border-radius:10px;padding:9px 10px;background:var(--pw-surface2);">
+                  <div style="display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--pw-border);padding:10px 12px;background:var(--pw-surface2);">
                     <div style="display:flex;align-items:center;gap:8px;">
                       <span style="color:var(--pw-muted2);font-size:13px;">{{ dl.icon }}</span>
                       <span style="font-size:12px;font-weight:600;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ dl.name }}</span>
@@ -3606,6 +3599,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     </sc-if>
                   </div>
                 </sc-for>
+                </div>
               </div>
             </sc-if>
             <sc-if value="{{ doc.none }}" hint-placeholder-val="{{ false }}">
