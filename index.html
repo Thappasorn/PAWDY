@@ -3751,6 +3751,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <sc-if value="{{ cell.isInput }}" hint-placeholder-val="{{ false }}">
                       <input ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" type="{{ cell.inputType }}" value="{{ cell.value }}" placeholder="{{ cell.placeholder }}" sc-camel-on-change="{{ cell.onChange }}" sc-camel-on-click="{{ cell.onPick }}" style="{{ cell.style }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px; color: var(--pw-text);">
                     </sc-if>
+                    <sc-if value="{{ cell.isComment }}" hint-placeholder-val="{{ false }}">
+                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เปิดกล่อง Comment" aria-label="เปิดกล่อง Comment" style="{{ cell.style }}">💬 {{ cell.commentCount }}</button>
+                    </sc-if>
                     <sc-if value="{{ cell.isRange }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; gap: 3px; min-width: 0;">
                         <input ref="{{ cell.fromRef }}" data-sync="{{ cell.fromValue }}" type="date" value="{{ cell.fromValue }}" sc-camel-on-click="{{ cell.onPick }}" sc-camel-on-change="{{ cell.onFrom }}" title="วันเริ่ม" style="{{ cell.style }}">
@@ -6454,6 +6457,10 @@ class Component extends DCLogic {
     const id = String(k).slice(3);
     return (this.state.fields || []).filter(function (f) { return f.id === id; })[0] || null;
   }
+  isCommentField(f) {
+    const label = String((f && f.label) || '').trim().toLowerCase();
+    return label === 'comment' || label === 'comments' || label === 'คอมเมนต์' || label === 'ความคิดเห็น';
+  }
   cdef(k) {
     const f = this.fieldOfKey(k);
     if (f) return { k: k, label: this.colLabel(k, f.label), w: f.type === 'timeline' ? 168 : (f.type === 'number' ? 96 : 148), field: f };
@@ -7427,6 +7434,20 @@ class Component extends DCLogic {
         const cfCell = function (k) {
           const f = self.fieldOfKey(k);
           if (!f) return { key: k };
+          if (self.isCommentField(f)) {
+            const open = self.state.commentComposer === t.id;
+            return {
+              key: k, isComment: true, commentCount: (t.comments || []).length,
+              onOpen: function (e) {
+                if (e && e.stopPropagation) e.stopPropagation();
+                if (open) self.closeCommentComposer(); else self.openCommentComposer(t.id);
+              },
+              style: 'width:100%;height:28px;display:flex;align-items:center;justify-content:flex-start;border:1px solid ' +
+                (open ? '#4f46e5' : 'transparent') + ';border-radius:5px;background:' +
+                (open ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' +
+                (open ? '#4f46e5' : 'var(--pw-muted2)') + ';font:11px \'IBM Plex Mono\',monospace;cursor:pointer;padding:0 8px;'
+            };
+          }
           if (f.type === 'timeline') {
             const r = self.tlRange(t, f.id);
             return {
