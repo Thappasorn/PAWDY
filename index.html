@@ -3215,6 +3215,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   /* หัวหน้าจอบีบให้เตี้ยลง */
   [data-root~="mobile"] [data-topbar] { gap: 7px !important; }
   [data-root~="mobile"] [data-onlinelabel] { display: none !important; }
+  [data-root~="mobile"] [data-mobile-nav] { order: -100; flex: 0 0 36px; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -3339,6 +3340,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     <header style="background: var(--pw-surface); border-bottom: 1px solid var(--pw-border); padding: 10px 16px 0; display: flex; flex-direction: column; gap: 9px; flex: 0 0 auto;">
       <div data-topbar style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <button data-mobile-only data-mobile-nav sc-camel-on-click="{{ onToggleNav }}" title="{{ navToggleTitle }}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 16px; display: none; place-items: center;">☰</button>
         <div style="display: flex; align-items: baseline; gap: 8px; min-width: 0;">
           <span style="font-size: 11px; color: var(--pw-muted2);">{{ breadcrumb }}</span>
         </div>
@@ -3451,7 +3453,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
             </sc-if>
           </div>
-          <button data-mobile-only sc-camel-on-click="{{ onToggleNav }}" title="{{ navToggleTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 14px; display: none; place-items: center;">☰</button>
           <button sc-camel-on-click="{{ onToggleMobile }}" title="{{ mobileTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ mobileIcon }}</button>
           <button sc-camel-on-click="{{ onUndo }}" title="{{ undoTitle }}" style="{{ undoStyle }}">↶</button>
           <button sc-camel-on-click="{{ onRedo }}" title="{{ redoTitle }}" style="{{ redoStyle }}">↷</button>
@@ -3731,11 +3732,40 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
 
                 <sc-if value="{{ row.expanded }}" hint-placeholder-val="{{ false }}">
-                  <div data-panel style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 8px 58px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
+                  <div data-panel style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 8px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
                     <sc-for list="{{ row.subs }}" as="sb2" hint-placeholder-count="2">
-                      <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="display: grid; grid-template-columns: {{ row.subGridCols }}; align-items: center; min-height: 30px; border-radius: 6px;" style-hover="background: var(--pw-hover);">
                         <button sc-camel-on-click="{{ sb2.onToggle }}" title="ติ๊กเสร็จ" style="{{ sb2.markStyle }}">{{ sb2.mark }}</button>
-                        <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                        <div style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;">
+                          <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
+                        </div>
+                        <sc-for list="{{ sb2.cells }}" as="scell" hint-placeholder-count="8">
+                          <sc-if value="{{ scell.isSelect }}" hint-placeholder-val="{{ true }}">
+                            <span style="display:flex;align-items:center;min-width:0;">
+                              <sc-raw-select ref="{{ scell.valueRef }}" data-sync="{{ scell.value }}" value="{{ scell.value }}" sc-camel-on-change="{{ scell.onChange }}" style="{{ scell.style }}">
+                                <sc-for list="{{ scell.options }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
+                              </sc-raw-select>
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ scell.isAssignee }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+                              <span style="{{ scell.avatarStyle }}">{{ scell.initials }}</span>
+                              <sc-raw-select data-assignee ref="{{ scell.valueRef }}" data-sync="{{ scell.value }}" value="{{ scell.value }}" sc-camel-on-change="{{ scell.onChange }}" style="{{ scell.style }}">
+                                <sc-for list="{{ scell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+                              </sc-raw-select>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ scell.isInput }}" hint-placeholder-val="{{ false }}">
+                            <input ref="{{ scell.valueRef }}" data-sync="{{ scell.value }}" type="{{ scell.inputType }}" value="{{ scell.value }}" placeholder="{{ scell.placeholder }}" sc-camel-on-change="{{ scell.onChange }}" sc-camel-on-click="{{ scell.onPick }}" style="{{ scell.style }}" style-focus="background:var(--pw-surface);box-shadow:0 0 0 1.5px #4f46e5;border-radius:4px;color:var(--pw-text);">
+                          </sc-if>
+                          <sc-if value="{{ scell.isRange }}" hint-placeholder-val="{{ false }}">
+                            <div style="display:flex;align-items:center;gap:3px;min-width:0;">
+                              <input ref="{{ scell.fromRef }}" data-sync="{{ scell.fromValue }}" type="date" value="{{ scell.fromValue }}" sc-camel-on-click="{{ scell.onPick }}" sc-camel-on-change="{{ scell.onFrom }}" title="วันเริ่ม" style="{{ scell.style }}">
+                              <span style="color:var(--pw-muted2);font-size:10px;">→</span>
+                              <input ref="{{ scell.toRef }}" data-sync="{{ scell.toValue }}" type="date" value="{{ scell.toValue }}" sc-camel-on-click="{{ scell.onPick }}" sc-camel-on-change="{{ scell.onTo }}" title="วันสิ้นสุด" style="{{ scell.style }}">
+                            </div>
+                          </sc-if>
+                        </sc-for>
                         <button sc-camel-on-click="{{ sb2.onRemove }}" title="ลบ subtask" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 13px; cursor: pointer; padding: 0 3px;" style-hover="color: #dc2626;">×</button>
                       </div>
                     </sc-for>
@@ -5728,8 +5758,9 @@ class Component extends DCLogic {
     if (!title) { this.closeSubComposer(); return; }
     this.mark('เพิ่ม subtask');
     this._focusSub = true;
+    const self = this;
     this.patchTask(id, function (t) {
-      t.subtasks = (t.subtasks || []).concat([{ title: title, done: false }]);
+      t.subtasks = (t.subtasks || []).concat([self.makeSubtask(t, title)]);
       return t;
     });
     this.setState({ subComposerText: '' });
@@ -5737,8 +5768,18 @@ class Component extends DCLogic {
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
     this.firePulse(id);
+    const self = this;
     this.patchTask(id, function (t) {
-      t.subtasks = (t.subtasks || []).map(function (x, i) { return i === idx ? Object.assign({}, x, { done: !x.done }) : x; });
+      t.subtasks = (t.subtasks || []).map(function (x, i) {
+        if (i !== idx) return x;
+        const done = !x.done;
+        const next = Object.assign({}, x, { done: done });
+        if (done) next.status = self.doneKey();
+        else if (self.isDone(next.status)) next.status = t.status === self.doneKey()
+          ? ((self.statuses().filter(function (s) { return s.k !== self.doneKey(); })[0] || {}).k || t.status)
+          : t.status;
+        return next;
+      });
       return t;
     });
   }
@@ -6775,6 +6816,119 @@ class Component extends DCLogic {
     return vm;
   }
 
+  patchSub(id, idx, field, value) {
+    this.mark('แก้ไข subtask');
+    const self = this;
+    this.patchTask(id, function (t) {
+      t.subtasks = (t.subtasks || []).map(function (x, i) {
+        if (i !== idx) return x;
+        const n = Object.assign({}, x);
+        n[field] = value;
+        if (field === 'status') n.done = self.isDone(value);
+        return n;
+      });
+      return t;
+    });
+  }
+
+  patchSubCustom(id, idx, fieldId, value) {
+    this.mark('แก้ไข field ของ subtask');
+    this.patchTask(id, function (t) {
+      t.subtasks = (t.subtasks || []).map(function (x, i) {
+        if (i !== idx) return x;
+        const n = Object.assign({}, x, { custom: Object.assign({}, x.custom || {}) });
+        n.custom[fieldId] = value;
+        return n;
+      });
+      return t;
+    });
+  }
+
+  makeSubtask(parent, title) {
+    return {
+      title: title, done: false,
+      status: parent.status, assignee: parent.assignee, start: parent.start, due: parent.due,
+      priority: parent.priority, tags: (parent.tags || []).slice(), list: parent.list,
+      channel: parent.channel, platform: parent.platform, cost: parent.cost, qty: parent.qty,
+      custom: JSON.parse(JSON.stringify(parent.custom || {}))
+    };
+  }
+
+  subCells(t, x, idx) {
+    const self = this;
+    const O = this._opt || this.buildOpts();
+    const pick = function (key, fallback) {
+      return x[key] !== undefined && x[key] !== null ? x[key] : fallback;
+    };
+    const status = pick('status', x.done ? this.doneKey() : t.status);
+    const assignee = pick('assignee', t.assignee);
+    const due = pick('due', t.due);
+    const priority = pick('priority', t.priority);
+    const tags = pick('tags', t.tags || []);
+    const sm = this.statusMeta(status);
+    const pm = this.prioMeta(priority);
+    const dm = this.dueMeta(due, status);
+    const sel = 'background:transparent;border:0;outline:0;font-size:11.5px;color:var(--pw-text2);cursor:pointer;width:100%;min-width:0;';
+    const set = function (field, value) { self.patchSub(t.id, idx, field, value); };
+    const mk = {
+      status: function () { return { key: 'status', isSelect: true,
+        options: O.status.filter(function (v) { return v !== OPT_ARCHIVE && v !== OPT_MANAGE; }), value: status, valueRef: self.syncRef(status),
+        onChange: function (e) { const v = e.target.value; if (self.optionPick('statuses', v, status, function (n) { set('status', n); }, t.id)) return; set('status', v); },
+        style: 'font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:5px;background:' + self.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;' }; },
+      assignee: function () { return { key: 'assignee', isAssignee: true, options: O.members, value: assignee,
+        valueRef: self.syncRef(assignee), initials: self.initials(assignee), avatarStyle: self.avatar(assignee, 18),
+        onChange: function (e) { const v = e.target.value; if (v === ADD_MEMBER) { self.promptMember(function (n) { set('assignee', n); }); return; } set('assignee', v); }, style: sel }; },
+      due: function () { return { key: 'due', isInput: true, inputType: 'date', value: due, valueRef: self.syncRef(due), placeholder: '',
+        onChange: function (e) { set('due', e.target.value); }, onPick: function (e) { self.openPicker(e); },
+        style: 'background:transparent;border:0;outline:0;font-size:10.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm.color + ';width:100%;min-width:0;cursor:pointer;' }; },
+      priority: function () { return { key: 'priority', isSelect: true, options: O.priority.filter(function (v) { return v !== OPT_MANAGE; }), value: priority, valueRef: self.syncRef(priority),
+        onChange: function (e) { const v = e.target.value; if (self.optionPick('priorities', v, priority, function (n) { set('priority', n); }, t.id)) return; set('priority', v); },
+        style: 'font-size:11px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:100%;min-width:0;' }; },
+      tags: function () { return { key: 'tags', isInput: true, inputType: 'text', value: (tags || []).join(', '),
+        valueRef: self.syncRef((tags || []).join(', ')), placeholder: '+ tag',
+        onChange: function (e) { set('tags', e.target.value.split(',').map(function (v) { return v.trim(); }).filter(Boolean)); },
+        style: 'width:100%;background:transparent;border:0;outline:0;font-size:11px;color:#4f46e5;padding:3px 5px;border-radius:4px;' }; },
+      list: function () { const value = pick('list', t.list); return { key: 'list', isSelect: true, options: O.lists, value: value,
+        valueRef: self.syncRef(value), onChange: function (e) { set('list', e.target.value); }, style: sel }; },
+      channel: function () { const value = pick('channel', t.channel); return { key: 'channel', isSelect: true, options: O.channels.filter(function (v) { return v !== OPT_MANAGE; }), value: value,
+        valueRef: self.syncRef(value), onChange: function (e) { const v = e.target.value; if (self.optionPick('channels', v, value, function (n) { set('channel', n); }, t.id)) return; set('channel', v); }, style: sel }; },
+      platform: function () { const value = pick('platform', t.platform); return { key: 'platform', isSelect: true, options: O.platforms.filter(function (v) { return v !== OPT_MANAGE; }), value: value,
+        valueRef: self.syncRef(value), onChange: function (e) { const v = e.target.value; if (self.optionPick('platforms', v, value, function (n) { set('platform', n); }, t.id)) return; set('platform', v); }, style: sel }; },
+      cost: function () { const value = pick('cost', t.cost || 0); return { key: 'cost', isInput: true, inputType: 'text', value: String(value), valueRef: self.syncRef(value), placeholder: '',
+        onChange: function (e) { set('cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); }, style: sel + 'text-align:right;font-family:\'IBM Plex Mono\',monospace;' }; },
+      qty: function () { const value = pick('qty', t.qty || 0); return { key: 'qty', isInput: true, inputType: 'text', value: String(value), valueRef: self.syncRef(value), placeholder: '',
+        onChange: function (e) { set('qty', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); }, style: sel + 'text-align:right;font-family:\'IBM Plex Mono\',monospace;' }; },
+      activity: function () { return { key: 'activity' }; }
+    };
+    const customCell = function (k) {
+      const f = self.fieldOfKey(k);
+      if (!f) return { key: k };
+      const own = x.custom && x.custom[f.id] !== undefined ? x.custom[f.id] : undefined;
+      const inherited = t.custom && t.custom[f.id] !== undefined ? t.custom[f.id] : '';
+      const raw = own !== undefined ? own : inherited;
+      if (f.type === 'timeline') {
+        const range = raw && typeof raw === 'object' ? raw : { from: '', to: '' };
+        return { key: k, isRange: true, fromValue: range.from || '', toValue: range.to || '',
+          fromRef: self.syncRef(range.from || ''), toRef: self.syncRef(range.to || ''),
+          onFrom: function (e) { self.patchSubCustom(t.id, idx, f.id, { from: e.target.value, to: range.to || '' }); },
+          onTo: function (e) { self.patchSubCustom(t.id, idx, f.id, { from: range.from || '', to: e.target.value }); },
+          onPick: function (e) { self.openPicker(e); }, style: sel + 'font-family:\'IBM Plex Mono\',monospace;' };
+      }
+      if (f.type === 'select') {
+        const value = String(raw || '');
+        const col = value ? self.optColorOf(k, value) : null;
+        return { key: k, isSelect: true, options: [''].concat(f.options || []), value: value, valueRef: self.syncRef(value),
+          onChange: function (e) { const v = e.target.value; if (self.optionPick(k, v, value, function (n) { self.patchSubCustom(t.id, idx, f.id, n); }, t.id)) return; self.patchSubCustom(t.id, idx, f.id, v); },
+          style: col ? ('font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:5px;background:' + col + (self.isDark() ? '2e' : '1f') + ';color:' + col + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;') : sel };
+      }
+      return { key: k, isInput: true, inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
+        value: String(raw || ''), valueRef: self.syncRef(String(raw || '')), placeholder: f.type === 'text' ? '—' : '',
+        onChange: function (e) { self.patchSubCustom(t.id, idx, f.id, e.target.value); },
+        onPick: function (e) { if (f.type === 'date') self.openPicker(e); }, style: sel + (f.type === 'number' ? 'text-align:right;font-family:\'IBM Plex Mono\',monospace;' : '') };
+    };
+    return this.activeCols().map(function (k) { return String(k).indexOf('cf:') === 0 ? customCell(k) : (mk[k] ? mk[k]() : { key: k }); });
+  }
+
   buildTaskVM(t) {
     const self = this;
     const dm = this.dueMeta(t.due, t.status);
@@ -6832,11 +6986,13 @@ class Component extends DCLogic {
           mark: x.done ? '✓' : '',
           textStyle: 'flex:1;min-width:0;background:transparent;border:0;outline:0;font-size:12.5px;padding:3px 5px;border-radius:5px;color:' +
             (x.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';' + (x.done ? 'text-decoration:line-through;' : ''),
+          cells: self.subCells(t, x, i),
           onToggle: function () { self.toggleSub(t.id, i); },
           onRename: function (e) { self.renameSub(t.id, i, e.target.value); },
           onRemove: function () { self.removeSub(t.id, i); }
         };
       }),
+      subGridCols: this.gridCols(),
       subComposerOpen: self.state.subComposer === t.id,
       subComposerText: self.state.subComposer === t.id ? (self.state.subComposerText || '') : '',
       subComposerRef: function (el) {
@@ -7575,15 +7731,12 @@ class Component extends DCLogic {
             boxStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:4px;border:1.5px solid ' + (st.done ? '#059669' : 'var(--pw-faint)') + ';background:' + (st.done ? '#059669' : 'var(--pw-surface)') + ';color:#fff;font-size:9px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;',
             textStyle: 'flex:1;border:0;outline:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:4px;color:' + (st.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';text-decoration:' + (st.done ? 'line-through' : 'none') + ';',
             onToggle: function () {
-              self.patchTask(sel.id, function (t) {
-                t.subtasks = t.subtasks.map(function (x, j) { return j === i ? { title: x.title, done: !x.done } : x; });
-                return t;
-              });
+              self.toggleSub(sel.id, i);
             },
             onTitle: function (e) {
               const v = e.target.value;
               self.patchTask(sel.id, function (t) {
-                t.subtasks = t.subtasks.map(function (x, j) { return j === i ? { title: v, done: x.done } : x; });
+                t.subtasks = t.subtasks.map(function (x, j) { return j === i ? Object.assign({}, x, { title: v }) : x; });
                 return t;
               });
             },
@@ -7669,7 +7822,7 @@ class Component extends DCLogic {
     const addSub = function () {
       const v = self.state.newSubtask.trim();
       if (!v || !sel) return;
-      self.patchTask(sel.id, function (t) { t.subtasks = t.subtasks.concat([{ title: v, done: false }]); return t; });
+      self.patchTask(sel.id, function (t) { t.subtasks = t.subtasks.concat([self.makeSubtask(t, v)]); return t; });
       self.setState({ newSubtask: '' });
     };
     const addComment = function () {
