@@ -3761,6 +3761,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                         <input ref="{{ cell.toRef }}" data-sync="{{ cell.toValue }}" type="date" value="{{ cell.toValue }}" sc-camel-on-click="{{ cell.onPick }}" sc-camel-on-change="{{ cell.onTo }}" title="วันสิ้นสุด" style="{{ cell.style }}">
                       </div>
                     </sc-if>
+                    <sc-if value="{{ cell.isTimelinePicker }}" hint-placeholder-val="{{ false }}">
+                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เลือกช่วงวัน" aria-label="เลือกช่วงวัน Timeline" style="{{ cell.style }}">{{ cell.rangeLabel }}</button>
+                    </sc-if>
                     <sc-if value="{{ cell.isActivity }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--pw-muted2); font-size: 11px; font-family: 'IBM Plex Mono', monospace;">
                         <span title="Subtasks">☑ {{ cell.subLabel }}</span>
@@ -4736,6 +4739,42 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </div>
   </sc-if>
 
+  <sc-if value="{{ timelinePicker.open }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ timelinePicker.onClose }}" style="position:fixed;inset:0;z-index:84;background:transparent;"></div>
+    <div data-timeline-picker data-panel style="{{ timelinePicker.style }}">
+      <div style="display:grid;grid-template-columns:1fr 18px 1fr auto;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--pw-line);">
+        <button sc-camel-on-click="{{ timelinePicker.onFocusFrom }}" style="{{ timelinePicker.fromStyle }}"><span style="color:#4f46e5;">▣</span>{{ timelinePicker.fromLabel }}</button>
+        <span style="color:var(--pw-muted2);text-align:center;">→</span>
+        <button sc-camel-on-click="{{ timelinePicker.onFocusTo }}" style="{{ timelinePicker.toStyle }}"><span style="color:#4f46e5;">▣</span>{{ timelinePicker.toLabel }}</button>
+        <button sc-camel-on-click="{{ timelinePicker.onClose }}" title="ปิด" style="width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--pw-muted2);font-size:16px;cursor:pointer;">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(118px,150px) minmax(176px,1fr);min-height:286px;">
+        <div style="display:flex;flex-direction:column;padding:7px;border-right:1px solid var(--pw-line);">
+          <sc-for list="{{ timelinePicker.presets }}" as="tpreset" hint-placeholder-count="7">
+            <button sc-camel-on-click="{{ tpreset.onPick }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;height:34px;border:0;border-radius:7px;background:transparent;color:var(--pw-text2);font-size:12px;text-align:left;padding:0 9px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#4f46e5;"><span>{{ tpreset.label }}</span><span style="font-size:10px;color:var(--pw-muted2);">{{ tpreset.hint }}</span></button>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;padding:10px 11px 11px;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span style="font-size:12.5px;font-weight:600;flex:1;">{{ timelinePicker.monthLabel }}</span>
+            <button sc-camel-on-click="{{ timelinePicker.onToday }}" style="height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted);font-size:10.5px;cursor:pointer;">วันนี้</button>
+            <button sc-camel-on-click="{{ timelinePicker.onPrev }}" aria-label="เดือนก่อน" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted);font-size:15px;cursor:pointer;">‹</button>
+            <button sc-camel-on-click="{{ timelinePicker.onNext }}" aria-label="เดือนถัดไป" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted);font-size:15px;cursor:pointer;">›</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;">
+            <sc-for list="{{ timelinePicker.weekdays }}" as="twd" hint-placeholder-count="7"><span style="font-size:9.5px;color:var(--pw-muted2);padding:3px 0;">{{ twd }}</span></sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+            <sc-for list="{{ timelinePicker.days }}" as="tday" hint-placeholder-count="42">
+              <button sc-camel-on-click="{{ tday.onPick }}" title="{{ tday.title }}" style="{{ tday.style }}">{{ tday.num }}</button>
+            </sc-for>
+          </div>
+          <span style="font-size:10px;color:var(--pw-muted2);padding-top:2px;">เลือกวันเริ่ม แล้วเลือกวันสิ้นสุด · ตัวเลือกลัดด้านซ้ายเลือกได้ในคลิกเดียว</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ optPanel.open }}" hint-placeholder-val="{{ false }}">
     <div data-scrim sc-camel-on-click="{{ optPanel.onClose }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.45); z-index: 74;"></div>
     <div data-dropdown data-panel style="position: fixed; top: 74px; right: 22px; width: 330px; max-height: 78vh; overflow-y: auto; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 12px; box-shadow: 0 20px 50px rgba(8, 10, 14, 0.32); z-index: 75; padding: 12px 13px; display: flex; flex-direction: column; gap: 11px;">
@@ -4986,6 +5025,7 @@ class Component extends DCLogic {
       commentComposer: null, // taskId ที่เปิดกล่องคอมเมนต์จากคอลัมน์ Comment
       commentComposerText: '',
       commentComposerPos: null,
+      timelinePicker: null,     // date-range popover ของฟิลด์ Timeline ในตาราง
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -6410,6 +6450,82 @@ class Component extends DCLogic {
       return t;
     });
   }
+  openTimelinePicker(e, taskId, fieldId, range) {
+    const target = e && e.currentTarget;
+    const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+    const vw = Math.max(320, window.innerWidth || 1024);
+    const vh = Math.max(420, window.innerHeight || 768);
+    const width = Math.min(520, vw - 24);
+    const height = 382;
+    let left = rect ? rect.left : 12;
+    let top = rect ? rect.bottom + 7 : 72;
+    left = Math.max(12, Math.min(left, vw - width - 12));
+    if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 7);
+    const from = (range && range.from) || '';
+    const to = (range && range.to) || '';
+    const base = from || to || TODAY;
+    this.setState({ timelinePicker: {
+      taskId: taskId, fieldId: fieldId, from: from, to: to, focus: 'from',
+      month: base.slice(0, 7) + '-01', left: left, top: top
+    }});
+  }
+  closeTimelinePicker() { this.setState({ timelinePicker: null }); }
+  focusTimelinePart(part) {
+    this.setState(function (s) {
+      return s.timelinePicker ? { timelinePicker: Object.assign({}, s.timelinePicker, { focus: part }) } : null;
+    });
+  }
+  shiftTimelineMonth(delta) {
+    this.setState(function (s) {
+      if (!s.timelinePicker) return null;
+      const p = s.timelinePicker;
+      const d = new Date(p.month + 'T00:00:00');
+      d.setMonth(d.getMonth() + delta, 1);
+      const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+      return { timelinePicker: Object.assign({}, p, { month: iso }) };
+    });
+  }
+  pickTimelineDay(iso) {
+    const p = this.state.timelinePicker;
+    if (!p) return;
+    if (p.focus === 'from' || !p.from) {
+      const to = p.to && p.to >= iso ? p.to : '';
+      this.setState({ timelinePicker: Object.assign({}, p, { from: iso, to: to, focus: 'to' }) });
+      return;
+    }
+    let from = p.from;
+    let to = iso;
+    if (to < from) { const tmp = from; from = to; to = tmp; }
+    this.setTl(p.taskId, p.fieldId, { from: from, to: to });
+    this.closeTimelinePicker();
+  }
+  applyTimelinePreset(kind) {
+    const p = this.state.timelinePicker;
+    if (!p) return;
+    const isoOf = function (d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    };
+    const add = function (base, n) { const d = new Date(base.getTime()); d.setDate(d.getDate() + n); return d; };
+    const now = new Date(TODAY + 'T00:00:00');
+    let from = now, to = now;
+    if (kind === 'tomorrow') from = to = add(now, 1);
+    if (kind === 'weekend') {
+      const sat = (6 - now.getDay() + 7) % 7;
+      from = add(now, sat); to = add(from, 1);
+    }
+    if (kind === 'nextweek') {
+      const monday = ((8 - now.getDay()) % 7) || 7;
+      from = add(now, monday); to = add(from, 6);
+    }
+    if (kind === 'nextweekend') {
+      const sat = ((6 - now.getDay() + 7) % 7) || 7;
+      from = add(now, sat); to = add(from, 1);
+    }
+    if (kind === '2weeks') to = add(now, 14);
+    if (kind === '4weeks') to = add(now, 28);
+    this.setTl(p.taskId, p.fieldId, { from: isoOf(from), to: isoOf(to) });
+    this.closeTimelinePicker();
+  }
   tlFields() {
     return (this.state.fields || []).filter(function (f) { return f.type === 'timeline'; });
   }
@@ -7467,13 +7583,14 @@ class Component extends DCLogic {
           if (f.type === 'timeline') {
             const r = self.tlRange(t, f.id);
             return {
-              key: k, isRange: true,
-              fromValue: r.from, toValue: r.to,
-              fromRef: self.syncRef(r.from), toRef: self.syncRef(r.to),
-              onFrom: function (e) { self.setTl(t.id, f.id, { from: e.target.value }); },
-              onTo: function (e) { self.setTl(t.id, f.id, { to: e.target.value }); },
-              onPick: function (e) { self.openPicker(e); },
-              style: 'background:transparent;border:0;outline:0;font-size:11px;font-family:\'IBM Plex Mono\',monospace;color:var(--pw-text2);width:100%;min-width:0;cursor:pointer;'
+              key: k, isTimelinePicker: true,
+              rangeLabel: r.from ? ('▣ ' + self.shortDate(r.from) + ' → ' + (r.to ? self.shortDate(r.to) : 'เลือกวันสิ้นสุด')) : '▣ เลือกช่วงวัน',
+              onOpen: function (e) {
+                if (e && e.stopPropagation) e.stopPropagation();
+                self.openTimelinePicker(e, t.id, f.id, r);
+              },
+              style: 'width:100%;height:28px;display:flex;align-items:center;justify-content:flex-start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
+                'background:transparent;border:1px solid transparent;border-radius:5px;outline:0;font-size:10.5px;font-family:\'IBM Plex Mono\',monospace;color:var(--pw-text2);cursor:pointer;padding:0 6px;'
             };
           }
           const raw = (t.custom && t.custom[f.id] !== undefined && t.custom[f.id] !== null) ? t.custom[f.id] : '';
@@ -8300,6 +8417,69 @@ class Component extends DCLogic {
             { icon: '⤓', label: 'บันทึกทับด้วยค่าปัจจุบัน', style: item, onPick: function () { self.closeViewMenu(); self.updateSavedView(v.id); } },
             { icon: '🗑', label: 'ลบมุมมองนี้', style: item + 'color:#dc2626;', onPick: function () { self.closeViewMenu(); self.removeSavedView(v.id); } }
           ]
+        };
+      })(),
+      timelinePicker: (function () {
+        const p = s.timelinePicker;
+        if (!p) return { open: false };
+        const monthDate = new Date(p.month + 'T00:00:00');
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        const first = new Date(year, month, 1);
+        const gridStart = new Date(year, month, 1 - first.getDay());
+        const isoOf = function (d) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        };
+        const days = [];
+        for (let i = 0; i < 42; i++) {
+          const d2 = new Date(gridStart.getTime());
+          d2.setDate(gridStart.getDate() + i);
+          const iso = isoOf(d2);
+          const isFrom = iso === p.from;
+          const isTo = iso === p.to;
+          const inRange = !!(p.from && p.to && iso > p.from && iso < p.to);
+          const today = iso === TODAY;
+          const other = d2.getMonth() !== month;
+          let bg = inRange ? 'var(--pw-accent-soft)' : 'transparent';
+          let color = other ? 'var(--pw-faint)' : 'var(--pw-text2)';
+          let border = today ? '#4f46e5' : 'transparent';
+          if (isFrom) { bg = '#ef4444'; color = '#fff'; border = '#ef4444'; }
+          if (isTo) { bg = '#2563eb'; color = '#fff'; border = '#2563eb'; }
+          days.push({
+            num: d2.getDate(), title: iso,
+            style: 'height:29px;border:1px solid ' + border + ';border-radius:50%;background:' + bg + ';color:' + color +
+              ';font-size:11px;cursor:pointer;padding:0;display:grid;place-items:center;',
+            onPick: (function (v) { return function () { self.pickTimelineDay(v); }; })(iso)
+          });
+        }
+        const fieldBase = 'height:34px;display:flex;align-items:center;gap:7px;min-width:0;border:1px solid ';
+        const presets = [
+          ['today', 'วันนี้', 'วันนี้'], ['tomorrow', 'พรุ่งนี้', '+1 วัน'], ['weekend', 'สุดสัปดาห์นี้', 'ส.–อา.'],
+          ['nextweek', 'สัปดาห์หน้า', 'จ.–อา.'], ['nextweekend', 'สุดสัปดาห์หน้า', 'ส.–อา.'],
+          ['2weeks', 'อีก 2 สัปดาห์', '14 วัน'], ['4weeks', 'อีก 4 สัปดาห์', '28 วัน']
+        ].map(function (x) {
+          return { label: x[1], hint: x[2], onPick: function () { self.applyTimelinePreset(x[0]); } };
+        });
+        return {
+          open: true,
+          style: 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(520px,calc(100vw - 24px));' +
+            'background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:12px;box-shadow:0 22px 54px rgba(8,10,14,.38);z-index:85;overflow:hidden;',
+          fromLabel: p.from ? self.shortDate(p.from) : 'วันเริ่ม',
+          toLabel: p.to ? self.shortDate(p.to) : 'วันสิ้นสุด',
+          fromStyle: fieldBase + (p.focus === 'from' ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:8px;background:var(--pw-surface2);color:var(--pw-text2);font-size:11.5px;padding:0 10px;cursor:pointer;overflow:hidden;white-space:nowrap;',
+          toStyle: fieldBase + (p.focus === 'to' ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:8px;background:var(--pw-surface2);color:var(--pw-text2);font-size:11.5px;padding:0 10px;cursor:pointer;overflow:hidden;white-space:nowrap;',
+          monthLabel: MONTHS_TH[month] + ' ' + (year + 543),
+          weekdays: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
+          days: days,
+          presets: presets,
+          onFocusFrom: function () { self.focusTimelinePart('from'); },
+          onFocusTo: function () { self.focusTimelinePart('to'); },
+          onPrev: function () { self.shiftTimelineMonth(-1); },
+          onNext: function () { self.shiftTimelineMonth(1); },
+          onToday: function () {
+            self.setState({ timelinePicker: Object.assign({}, self.state.timelinePicker, { month: TODAY.slice(0, 7) + '-01' }) });
+          },
+          onClose: function () { self.closeTimelinePicker(); }
         };
       })(),
       totalCount: self.liveTasks().length,
