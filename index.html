@@ -4390,17 +4390,32 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="color: var(--pw-muted2); font-size: 12px;">{{ att.icon }}</span>
                 <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; color: var(--pw-text2);" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
-                <sc-if value="{{ att.hasPreviewBtn }}" hint-placeholder-val="{{ false }}">
-                  <button sc-camel-on-click="{{ att.onTogglePreview }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 6px; padding: 3px 9px; font-size: 11px; color: var(--pw-text2); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ att.previewLabel }}</button>
-                </sc-if>
                 <sc-if value="{{ att.hasUrl }}" hint-placeholder-val="{{ false }}">
-                  <button sc-camel-on-click="{{ att.onOpen }}" title="เปิดในแท็บใหม่" style="background: transparent; border: 0; color: var(--pw-muted); cursor: pointer; font-size: 12px;" style-hover="color: #4f46e5;">↗</button>
+                  <sc-raw-select ref="{{ att.displayRef }}" data-sync="{{ att.display }}" value="{{ att.display }}" sc-camel-on-change="{{ att.onDisplay }}" title="เลือกรูปแบบการแสดงลิงก์" style="border:1px solid var(--pw-border);border-radius:6px;padding:4px 24px 4px 8px;background:var(--pw-surface);font-size:11px;color:var(--pw-text2);cursor:pointer;">
+                    <sc-for list="{{ att.displayOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
+                  </sc-raw-select>
                   <button sc-camel-on-click="{{ att.onCopy }}" title="คัดลอกลิงก์" style="background: transparent; border: 0; color: var(--pw-muted); cursor: pointer; font-size: 12px;" style-hover="color: #4f46e5;">⧉</button>
                 </sc-if>
                 <button sc-camel-on-click="{{ att.onDelete }}" title="ลบไฟล์แนบ" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="color: #dc2626;">×</button>
                 </div>
-                <sc-if value="{{ att.canPreview }}" hint-placeholder-val="{{ false }}">
-                  <iframe src="{{ att.previewSrc }}" style="width: 100%; height: 380px; border: 1px solid var(--pw-border); border-radius: 8px; background: var(--pw-surface);"></iframe>
+                <sc-if value="{{ att.isUrlMode }}" hint-placeholder-val="{{ false }}">
+                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" title="เปิดลิงก์ในแท็บใหม่" style="font-size:12px;color:#4f46e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 2px;">{{ att.url }}</a>
+                </sc-if>
+                <sc-if value="{{ att.isBookmarkMode }}" hint-placeholder-val="{{ false }}">
+                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;border:1px solid var(--pw-border);border-radius:8px;padding:10px 11px;background:var(--pw-surface);color:var(--pw-text);text-decoration:none;">
+                    <span style="width:32px;height:32px;border-radius:8px;background:var(--pw-accent-soft);color:#4f46e5;display:grid;place-items:center;font-size:15px;flex:0 0 32px;">{{ att.icon }}</span>
+                    <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
+                      <span style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.name }}</span>
+                      <span style="font-size:11px;color:var(--pw-muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.domain }}</span>
+                    </span>
+                    <span style="color:var(--pw-muted);font-size:13px;">↗</span>
+                  </a>
+                </sc-if>
+                <sc-if value="{{ att.isPreviewMode }}" hint-placeholder-val="{{ false }}">
+                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#4f46e5;padding:2px;text-decoration:none;">
+                    <span>{{ att.provider }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.domain }}</span><span>↗</span>
+                  </a>
+                  <iframe src="{{ att.previewSrc }}" title="{{ att.name }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width:100%;height:380px;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-surface);"></iframe>
                 </sc-if>
               </div>
             </sc-for>
@@ -7773,27 +7788,49 @@ class Component extends DCLogic {
           };
         }),
         attachments: sel.attachments.map(function (a, ai) {
-          const url = a.url || (/^https?:\/\//i.test(a.name || '') ? a.name : '');
-          const drive = /drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]{20,})/.exec(url);
-          const docs = /docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]{20,})/.exec(url);
-          let preview = '';
-          if (drive) preview = 'https://drive.google.com/file/d/' + drive[1] + '/preview';
-          else if (docs) preview = 'https://docs.google.com/' + docs[1] + '/d/' + docs[2] + '/preview';
-          const open = self.state.attachOpen === (sel.id + ':' + ai);
+          let url = a.url || (/^https?:\/\//i.test(a.name || '') ? a.name : '');
+          if (url && !/^https?:\/\//i.test(url)) url = '';
+          const drive = /drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/i.exec(url);
+          const docs = /docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]+)/i.exec(url);
+          const yt = /(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(url);
+          let preview = url;
+          let provider = 'เว็บไซต์';
+          let icon = url ? '⛓' : '⛁';
+          if (drive) {
+            preview = 'https://drive.google.com/file/d/' + drive[1] + '/preview';
+            provider = 'Google Drive'; icon = '▲';
+          } else if (docs) {
+            preview = 'https://docs.google.com/' + docs[1] + '/d/' + docs[2] + '/preview';
+            provider = docs[1] === 'spreadsheets' ? 'Google Sheets' : (docs[1] === 'presentation' ? 'Google Slides' : 'Google Docs');
+            icon = '▤';
+          } else if (yt) {
+            preview = 'https://www.youtube.com/embed/' + yt[1];
+            provider = 'YouTube'; icon = '▶';
+          }
+          let domain = '';
+          try { domain = url ? new URL(url).hostname.replace(/^www\./, '') : ''; } catch (e) {}
+          const display = ['URL', 'Bookmark', 'Preview'].indexOf(a.display) >= 0 ? a.display : 'Bookmark';
           return {
             name: a.name,
             hasUrl: !!url,
             url: url,
-            icon: drive ? '▲' : (docs ? '▤' : (url ? '⛓' : '⛁')),
-            canPreview: !!preview && open,
+            domain: domain,
+            provider: provider,
+            icon: icon,
+            display: display,
+            displayRef: self.syncRef(display),
+            displayOptions: ['URL', 'Bookmark', 'Preview'],
+            isUrlMode: !!url && display === 'URL',
+            isBookmarkMode: !!url && display === 'Bookmark',
+            isPreviewMode: !!url && display === 'Preview',
             previewSrc: preview,
-            hasPreviewBtn: !!preview,
-            previewLabel: open ? 'ซ่อนตัวอย่าง' : 'แสดงตัวอย่าง',
-            onTogglePreview: function () {
-              const key = sel.id + ':' + ai;
-              self.setState(function (st) { return { attachOpen: st.attachOpen === key ? null : key }; });
+            onDisplay: function (e) {
+              const mode = e.target.value;
+              self.patchTask(sel.id, function (t) {
+                t.attachments = t.attachments.map(function (x, j) { return j === ai ? Object.assign({}, x, { display: mode }) : x; });
+                return t;
+              });
             },
-            onOpen: function () { if (url) window.open(url, '_blank', 'noopener'); },
             onCopy: function () {
               if (!url) return;
               try {
@@ -8251,15 +8288,28 @@ class Component extends DCLogic {
       onAddComment: addComment,
       onAddAttachment: function () {
         if (!sel) return;
-        const url = (window.prompt('วางลิงก์ไฟล์ (Google Drive / Figma / URL อะไรก็ได้)\nเว้นว่างไว้ถ้าจะพิมพ์แค่ชื่อไฟล์') || '').trim();
+        let url = (window.prompt('วางลิงก์ (Google Drive / YouTube / เว็บไซต์อื่น)\nเว้นว่างไว้ถ้าจะพิมพ์แค่ชื่อไฟล์') || '').trim();
+        if (/^www\./i.test(url)) url = 'https://' + url;
+        if (url && !/^https?:\/\//i.test(url)) {
+          window.alert('ลิงก์ต้องขึ้นต้นด้วย https:// หรือ http://');
+          return;
+        }
         let name = url;
+        let display = '';
+        if (url) {
+          let domain = '';
+          try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
+          name = /youtu(?:\.be|be\.com)/i.test(url) ? 'YouTube' : (/drive\.google\.com/i.test(url) ? 'Google Drive' : (/docs\.google\.com/i.test(url) ? 'Google Workspace' : (domain || url)));
+          const picked = (window.prompt('ต้องการแสดงลิงก์แบบไหน?\n\nURL = ข้อความลิงก์ที่คลิกได้\nBookmark = การ์ดชื่อเว็บ\nPreview = แสดงเนื้อหาในงาน', 'Bookmark') || 'Bookmark').trim().toLowerCase();
+          display = picked === 'url' || picked === '1' ? 'URL' : (picked === 'preview' || picked === '3' ? 'Preview' : 'Bookmark');
+        }
         if (!url) {
           name = (window.prompt('ชื่อไฟล์') || '').trim();
           if (!name) return;
         }
         self.mark('เพิ่มไฟล์แนบ');
         self.patchTask(sel.id, function (t) {
-          t.attachments = (t.attachments || []).concat([{ name: name, url: url || '' }]);
+          t.attachments = (t.attachments || []).concat([{ name: name, url: url || '', display: display }]);
           return t;
         });
       },
