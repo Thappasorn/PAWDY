@@ -3754,6 +3754,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <sc-if value="{{ cell.isComment }}" hint-placeholder-val="{{ false }}">
                       <button sc-camel-on-click="{{ cell.onOpen }}" title="เปิดกล่อง Comment" aria-label="เปิดกล่อง Comment" style="{{ cell.style }}">💬 {{ cell.commentCount }}</button>
                     </sc-if>
+                    <sc-if value="{{ cell.isMultiSelect }}" hint-placeholder-val="{{ false }}">
+                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เลือกได้หลายค่า" style="{{ cell.style }}">{{ cell.label }}</button>
+                    </sc-if>
                     <sc-if value="{{ cell.isRange }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; gap: 3px; min-width: 0;">
                         <input ref="{{ cell.fromRef }}" data-sync="{{ cell.fromValue }}" type="date" value="{{ cell.fromValue }}" sc-camel-on-click="{{ cell.onPick }}" sc-camel-on-change="{{ cell.onFrom }}" title="วันเริ่ม" style="{{ cell.style }}">
@@ -3779,6 +3782,19 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <div sc-camel-on-click="{{ row.onCommentClose }}" style="position:fixed;inset:0;z-index:54;background:transparent;"></div>
                   <div data-comment-composer style="{{ row.commentComposerWrapStyle }}">
                     <div style="width:min(440px,100%);display:flex;flex-direction:column;gap:8px;border:1px solid var(--pw-border);border-radius:12px;padding:10px;background:var(--pw-surface);box-shadow:0 10px 26px rgba(8,10,14,.18);">
+                      <sc-if value="{{ row.commentHasItems }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-direction:column;gap:8px;max-height:160px;overflow-y:auto;padding:2px 2px 8px;border-bottom:1px solid var(--pw-line);">
+                          <sc-for list="{{ row.commentItems }}" as="rcm" hint-placeholder-count="3">
+                            <div style="display:flex;align-items:flex-start;gap:8px;">
+                              <span style="{{ rcm.avatarStyle }}">{{ rcm.initials }}</span>
+                              <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
+                                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><b style="color:var(--pw-text2);">{{ rcm.author }}</b><span style="color:var(--pw-muted2);">{{ rcm.when }}</span></span>
+                                <span style="font-size:12px;line-height:1.45;color:var(--pw-text);white-space:pre-wrap;overflow-wrap:anywhere;">{{ rcm.text }}</span>
+                              </span>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
                       <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
                       <div style="display:flex;align-items:center;gap:5px;">
                         <button type="button" title="เพิ่ม" style="width:28px;height:28px;border:0;border-radius:50%;background:var(--pw-surface3);color:var(--pw-muted);cursor:pointer;font-size:17px;">+</button>
@@ -3808,6 +3824,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                                 <sc-for list="{{ scell.options }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
                               </sc-raw-select>
                             </span>
+                          </sc-if>
+                          <sc-if value="{{ scell.isMultiSelect }}" hint-placeholder-val="{{ false }}">
+                            <button sc-camel-on-click="{{ scell.onOpen }}" title="เลือกได้หลายค่า" style="{{ scell.style }}">{{ scell.label }}</button>
                           </sc-if>
                           <sc-if value="{{ scell.isAssignee }}" hint-placeholder-val="{{ false }}">
                             <div style="display:flex;align-items:center;gap:5px;min-width:0;">
@@ -4406,6 +4425,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <sc-for list="{{ cf.options }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
                 </sc-raw-select>
               </sc-if>
+              <sc-if value="{{ cf.isMultiSelect }}" hint-placeholder-val="{{ false }}">
+                <button sc-camel-on-click="{{ cf.onMultiOpen }}" style="flex:1;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;background:var(--pw-surface);color:var(--pw-text2);padding:0 9px;font-size:11.5px;cursor:pointer;">{{ cf.multiLabel }}</button>
+              </sc-if>
               <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
                 <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-click="{{ cf.onPick }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
               </sc-if>
@@ -4739,6 +4761,44 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </div>
   </sc-if>
 
+  <sc-if value="{{ fieldBuilder.open }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ fieldBuilder.onClose }}" style="position:fixed;inset:0;background:rgba(8,10,14,.34);z-index:88;"></div>
+    <div data-field-builder data-panel style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(480px,calc(100vw - 24px));max-height:88vh;overflow-y:auto;z-index:89;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:14px;box-shadow:0 26px 70px rgba(8,10,14,.42);padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:15px;font-weight:700;">สร้าง Field ใหม่</span><button sc-camel-on-click="{{ fieldBuilder.onClose }}" style="margin-left:auto;width:28px;height:28px;border:0;background:transparent;color:var(--pw-muted2);font-size:17px;cursor:pointer;">×</button></div>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--pw-muted);">ชื่อ Field
+        <input ref="{{ fieldBuilder.nameRef }}" data-sync="{{ fieldBuilder.name }}" value="{{ fieldBuilder.name }}" sc-camel-on-change="{{ fieldBuilder.onName }}" sc-camel-on-key-down="{{ fieldBuilder.onKey }}" placeholder="เช่น Format, ขั้นตอนงาน, ช่องทาง" style="height:40px;border:1px solid var(--pw-border);border-radius:9px;background:var(--pw-surface2);color:var(--pw-text);padding:0 12px;font-size:13px;outline:0;" style-focus="border-color:#4f46e5;"></label>
+      <span style="font-size:11px;color:var(--pw-muted);">เลือกประเภท Field</span>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <sc-for list="{{ fieldBuilder.types }}" as="ft" hint-placeholder-count="5">
+          <button sc-camel-on-click="{{ ft.onPick }}" style="{{ ft.style }}"><span style="font-size:18px;width:26px;">{{ ft.icon }}</span><span style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;"><b>{{ ft.label }}</b><small style="font-weight:400;color:var(--pw-muted2);">{{ ft.hint }}</small></span></button>
+        </sc-for>
+      </div>
+      <sc-if value="{{ fieldBuilder.isDropdown }}" hint-placeholder-val="{{ false }}">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--pw-muted);">ตัวเลือก Dropdown — ใส่หนึ่งตัวเลือกต่อบรรทัด
+          <textarea ref="{{ fieldBuilder.optionsRef }}" data-sync="{{ fieldBuilder.options }}" value="{{ fieldBuilder.options }}" sc-camel-on-change="{{ fieldBuilder.onOptions }}" rows="4" placeholder="VDO&#10;Artwork&#10;Blog" style="border:1px solid var(--pw-border);border-radius:9px;background:var(--pw-surface2);color:var(--pw-text);padding:10px 12px;font:12.5px/1.5 'IBM Plex Sans',sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;"></textarea>
+          <span style="font-size:10.5px;color:#4f46e5;">Dropdown ที่สร้างใหม่เลือกได้หลายค่า</span>
+        </label>
+      </sc-if>
+      <div style="display:flex;align-items:center;gap:8px;padding-top:2px;">
+        <button sc-camel-on-click="{{ fieldBuilder.onCreate }}" style="{{ fieldBuilder.createStyle }}">สร้าง Field</button>
+        <button sc-camel-on-click="{{ fieldBuilder.onClose }}" style="height:38px;border:1px solid var(--pw-border);border-radius:8px;background:transparent;color:var(--pw-muted);padding:0 14px;font-size:12px;cursor:pointer;">ยกเลิก</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ multiSelect.open }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ multiSelect.onClose }}" style="position:fixed;inset:0;z-index:86;background:transparent;"></div>
+    <div data-multi-select data-panel style="{{ multiSelect.style }}">
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--pw-line);"><b style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ multiSelect.title }}</b><span style="font-size:10px;color:var(--pw-muted2);">เลือกได้หลายค่า</span><button sc-camel-on-click="{{ multiSelect.onClose }}" style="border:0;background:transparent;color:var(--pw-muted2);font-size:15px;cursor:pointer;">×</button></div>
+      <div style="display:flex;flex-direction:column;gap:3px;padding:7px;max-height:280px;overflow-y:auto;">
+        <sc-for list="{{ multiSelect.options }}" as="mso" hint-placeholder-count="5">
+          <button sc-camel-on-click="{{ mso.onToggle }}" style="{{ mso.style }}"><span style="{{ mso.checkStyle }}">{{ mso.check }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ mso.label }}</span></button>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-top:1px solid var(--pw-line);"><button sc-camel-on-click="{{ multiSelect.onClear }}" style="border:0;background:transparent;color:var(--pw-muted2);font-size:11px;cursor:pointer;">ล้างทั้งหมด</button><button sc-camel-on-click="{{ multiSelect.onManage }}" style="border:0;background:transparent;color:#4f46e5;font-size:11px;cursor:pointer;">จัดการตัวเลือก</button><button sc-camel-on-click="{{ multiSelect.onClose }}" style="margin-left:auto;height:30px;border:0;border-radius:7px;background:#4f46e5;color:#fff;padding:0 13px;font-size:11.5px;font-weight:600;cursor:pointer;">เสร็จ</button></div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ timelinePicker.open }}" hint-placeholder-val="{{ false }}">
     <div sc-camel-on-click="{{ timelinePicker.onClose }}" style="position:fixed;inset:0;z-index:84;background:transparent;"></div>
     <div data-timeline-picker data-panel style="{{ timelinePicker.style }}">
@@ -4983,6 +5043,10 @@ class Component extends DCLogic {
       settingsOpen: false,
       colDrag: null,
       colMenuOpen: false,
+      fieldBuilderOpen: false,
+      fieldBuilderName: '',
+      fieldBuilderType: 'text',
+      fieldBuilderOptions: '',
       calMobileMode: (ui.calMobileMode === 'month' ? 'month' : 'agenda'),
       collapsedGroups: (ui.collapsedGroups && typeof ui.collapsedGroups === 'object') ? ui.collapsedGroups : {},
       viewPicker: false,        // panel เลือกชนิดมุมมองตอนกด + View
@@ -5026,6 +5090,7 @@ class Component extends DCLogic {
       commentComposerText: '',
       commentComposerPos: null,
       timelinePicker: null,     // date-range popover ของฟิลด์ Timeline ในตาราง
+      multiSelectPicker: null,  // custom dropdown แบบเลือกหลายค่า
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -5926,7 +5991,8 @@ class Component extends DCLogic {
     const vw = Math.max(320, window.innerWidth || 1024);
     const vh = Math.max(320, window.innerHeight || 768);
     const width = Math.min(440, vw - 24);
-    const height = 126;
+    const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
+    const height = task && (task.comments || []).length ? 286 : 126;
     let left = rect ? rect.right - width : vw - width - 12;
     let top = rect ? rect.bottom + 8 : 72;
     left = Math.max(12, Math.min(left, vw - width - 12));
@@ -5962,7 +6028,9 @@ class Component extends DCLogic {
       self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”');
     });
     this._focusRowComment = true;
-    this.setState({ commentComposerText: '' });
+    const pos = this.state.commentComposerPos;
+    const nextPos = pos ? Object.assign({}, pos, { top: Math.max(12, Math.min(pos.top, (window.innerHeight || 768) - 298)) }) : pos;
+    this.setState({ commentComposerText: '', commentComposerPos: nextPos });
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
@@ -6392,23 +6460,27 @@ class Component extends DCLogic {
   }
 
   addField() {
+    this._focusFieldBuilder = true;
+    this.setState({ fieldBuilderOpen: true, fieldBuilderName: '', fieldBuilderType: 'text', fieldBuilderOptions: '' });
+  }
+  closeFieldBuilder() {
+    this.setState({ fieldBuilderOpen: false, fieldBuilderName: '', fieldBuilderType: 'text', fieldBuilderOptions: '' });
+  }
+  createField() {
+    const name = String(this.state.fieldBuilderName || '').trim();
+    const type = ['text', 'number', 'date', 'select', 'timeline'].indexOf(this.state.fieldBuilderType) >= 0 ? this.state.fieldBuilderType : 'text';
+    if (!name) return;
+    const options = type === 'select' ? String(this.state.fieldBuilderOptions || '').split(/[,\n]/).map(function (x) { return x.trim(); }).filter(Boolean) : [];
+    if (type === 'select' && !options.length) return;
     this.mark('เพิ่มฟิลด์');
-    const name = window.prompt('ชื่อฟิลด์ใหม่ (เช่น Brief link, งบจริง, สถานะ QC)');
-    if (!name || !name.trim()) return;
-    let type = (window.prompt('ประเภทฟิลด์ — พิมพ์อย่างใดอย่างหนึ่ง:\n\ntext = ข้อความ\nnumber = ตัวเลข\ndate = วันเดียว\nselect = ตัวเลือก dropdown\ntimeline = ช่วงวัน (โชว์เป็นแถบในหน้า Timeline)', 'text') || 'text').trim().toLowerCase();
-    if (['text', 'number', 'date', 'select', 'timeline'].indexOf(type) < 0) type = 'text';
-    let options = [];
-    if (type === 'select') {
-      const raw = window.prompt('ตัวเลือกของ dropdown (คั่นด้วยเครื่องหมาย , )', '') || '';
-      options = raw.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-      if (!options.length) type = 'text';
-    }
     const used = {};
     (this.state.fields || []).forEach(function (x) { used[x.id] = 1; });
     let fid;
     do { fid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); } while (used[fid]);
-    const f = { id: fid, label: name.trim(), type: type, options: options };
-    this.setState(function (st) { return { fields: (st.fields || []).concat([f]) }; }, () => this.persist());
+    const f = { id: fid, label: name, type: type, options: options, multi: type === 'select' };
+    this.setState(function (st) {
+      return { fields: (st.fields || []).concat([f]), fieldBuilderOpen: false, fieldBuilderName: '', fieldBuilderType: 'text', fieldBuilderOptions: '' };
+    }, () => this.persist());
   }
 
   removeField(id) {
@@ -6536,6 +6608,37 @@ class Component extends DCLogic {
       t.custom[fieldId] = value;
       return t;
     });
+  }
+  openMultiSelect(e, taskId, fieldId, values, subIndex) {
+    const target = e && e.currentTarget;
+    const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+    const vw = Math.max(320, window.innerWidth || 1024);
+    const vh = Math.max(320, window.innerHeight || 768);
+    const width = Math.min(280, vw - 24);
+    const field = (this.state.fields || []).filter(function (f) { return f.id === fieldId; })[0];
+    const count = field ? (field.options || []).length : 0;
+    const height = Math.min(360, 92 + count * 38);
+    let left = rect ? rect.left : 12;
+    let top = rect ? rect.bottom + 6 : 72;
+    left = Math.max(12, Math.min(left, vw - width - 12));
+    if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 6);
+    this.setState({ multiSelectPicker: { taskId: taskId, fieldId: fieldId, subIndex: subIndex, values: Array.isArray(values) ? values.slice() : (values ? [String(values)] : []), left: left, top: top } });
+  }
+  closeMultiSelect() { this.setState({ multiSelectPicker: null }); }
+  toggleMultiSelect(value) {
+    const p = this.state.multiSelectPicker;
+    if (!p) return;
+    const values = p.values.indexOf(value) >= 0 ? p.values.filter(function (x) { return x !== value; }) : p.values.concat([value]);
+    if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSubCustom(p.taskId, p.subIndex, p.fieldId, values);
+    else this.setCustom(p.taskId, p.fieldId, values);
+    this.setState({ multiSelectPicker: Object.assign({}, p, { values: values }) });
+  }
+  clearMultiSelect() {
+    const p = this.state.multiSelectPicker;
+    if (!p) return;
+    if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSubCustom(p.taskId, p.subIndex, p.fieldId, []);
+    else this.setCustom(p.taskId, p.fieldId, []);
+    this.setState({ multiSelectPicker: Object.assign({}, p, { values: [] }) });
   }
 
   // คลิกที่ตัวเลขวันที่ = เปิดปฏิทินให้เลย ไม่ต้องเล็งไอคอน
@@ -7278,11 +7381,16 @@ class Component extends DCLogic {
           onPick: function (e) { self.openPicker(e); }, style: sel + 'font-family:\'IBM Plex Mono\',monospace;' };
       }
       if (f.type === 'select') {
-        const value = String(raw || '');
-        const col = value ? self.optColorOf(k, value) : null;
-        return { key: k, isSelect: true, options: [''].concat(f.options || []), value: value, valueRef: self.syncRef(value),
-          onChange: function (e) { const v = e.target.value; if (self.optionPick(k, v, value, function (n) { setCustom(f.id, n); }, t.id)) return; setCustom(f.id, v); },
-          style: col ? ('font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:5px;background:' + col + (self.isDark() ? '2e' : '1f') + ';color:' + col + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;') : sel };
+        const values = Array.isArray(raw) ? raw : (raw ? [String(raw)] : []);
+        if (isDraft) {
+          const value = values[0] || '';
+          return { key: k, isSelect: true, options: [''].concat(f.options || []), value: value, valueRef: self.syncRef(value),
+            onChange: function (e) { setCustom(f.id, e.target.value ? [e.target.value] : []); }, style: sel };
+        }
+        return { key: k, isMultiSelect: true, label: values.length ? values.join(' · ') : '+ เลือก',
+          onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, f.id, values, idx); },
+          style: 'width:100%;height:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' +
+            (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 6px;' };
       }
       return { key: k, isInput: true, inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
         value: String(raw || ''), valueRef: self.syncRef(String(raw || '')), placeholder: f.type === 'text' ? '—' : '',
@@ -7402,6 +7510,10 @@ class Component extends DCLogic {
       onSubClose: function () { self.closeSubComposer(); },
       commentComposerOpen: self.state.commentComposer === t.id,
       commentComposerText: self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '',
+      commentHasItems: (t.comments || []).length > 0,
+      commentItems: (t.comments || []).slice(-8).map(function (c) {
+        return { author: c.author || 'Unknown', text: c.text || '', when: c.when || '', initials: self.initials(c.author || 'Unknown'), avatarStyle: self.avatar(c.author || 'Unknown', 24) };
+      }),
       commentComposerWrapStyle: (function () {
         const p = self.state.commentComposerPos || { left: 12, top: 72 };
         return 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(440px,calc(100vw - 24px));z-index:55;';
@@ -7595,21 +7707,13 @@ class Component extends DCLogic {
           }
           const raw = (t.custom && t.custom[f.id] !== undefined && t.custom[f.id] !== null) ? t.custom[f.id] : '';
           if (f.type === 'select') {
-            const col = raw ? self.optColorOf(k, String(raw)) : null;
+            const values = Array.isArray(raw) ? raw : (raw ? [String(raw)] : []);
             return {
-              key: k, isSelect: true,
-              options: [''].concat(f.options || []).concat([OPT_MANAGE]),
-              value: String(raw),
-              valueRef: self.syncRef(String(raw)),
-              onChange: function (e) {
-                const v = e.target.value;
-                if (self.optionPick(k, v, String(raw), function (n) { self.setCustom(t.id, f.id, n); }, t.id)) return;
-                self.setCustom(t.id, f.id, v);
-              },
-              style: col
-                ? ('font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + col + (self.isDark() ? '2e' : '1f') +
-                   ';color:' + col + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;')
-                : sel
+              key: k, isMultiSelect: true,
+              label: values.length ? values.join(' · ') : '+ เลือก',
+              onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, f.id, values, null); },
+              style: 'width:100%;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' +
+                (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10.5px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 7px;'
             };
           }
           return {
@@ -8098,13 +8202,16 @@ class Component extends DCLogic {
           const r = self.tlRange(sel, f.id);
           return {
             label: f.label,
-            isSelect: f.type === 'select',
+            isSelect: false,
+            isMultiSelect: f.type === 'select',
             isTimeline: f.type === 'timeline',
             isInput: f.type !== 'select' && f.type !== 'timeline',
             inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
             options: [''].concat(f.options || []),
-            value: String(f.type === 'timeline' ? '' : val),
+            value: String(f.type === 'timeline' || f.type === 'select' ? '' : val),
             valueRef: self.syncRef(String(f.type === 'timeline' ? '' : val)),
+            multiLabel: f.type === 'select' ? ((Array.isArray(val) ? val : (val ? [String(val)] : [])).join(' · ') || '+ เลือก') : '',
+            onMultiOpen: function (e) { self.openMultiSelect(e, sel.id, f.id, Array.isArray(val) ? val : (val ? [String(val)] : []), null); },
             fromValue: r.from,
             toValue: r.to,
             fromRef: self.syncRef(r.from),
@@ -8417,6 +8524,62 @@ class Component extends DCLogic {
             { icon: '⤓', label: 'บันทึกทับด้วยค่าปัจจุบัน', style: item, onPick: function () { self.closeViewMenu(); self.updateSavedView(v.id); } },
             { icon: '🗑', label: 'ลบมุมมองนี้', style: item + 'color:#dc2626;', onPick: function () { self.closeViewMenu(); self.removeSavedView(v.id); } }
           ]
+        };
+      })(),
+      fieldBuilder: (function () {
+        const types = [
+          ['text', 'Aa', 'ข้อความ', 'ข้อความหรือลิงก์'], ['number', '#', 'ตัวเลข', 'งบประมาณหรือจำนวน'],
+          ['date', '▣', 'วันที่', 'เลือกวันเดียว'], ['select', '☷', 'Dropdown', 'เลือกได้หลายค่า'],
+          ['timeline', '↔', 'Timeline', 'วันเริ่มและวันสิ้นสุด']
+        ].map(function (x) {
+          const on = s.fieldBuilderType === x[0];
+          return {
+            icon: x[1], label: x[2], hint: x[3],
+            style: 'display:flex;align-items:center;gap:9px;min-height:58px;border:1px solid ' + (on ? '#4f46e5' : 'var(--pw-border)') +
+              ';border-radius:10px;background:' + (on ? 'var(--pw-accent-soft)' : 'var(--pw-surface2)') + ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';padding:9px 11px;text-align:left;cursor:pointer;',
+            onPick: function () { self.setState({ fieldBuilderType: x[0] }); }
+          };
+        });
+        const valid = !!String(s.fieldBuilderName || '').trim() && (s.fieldBuilderType !== 'select' || !!String(s.fieldBuilderOptions || '').trim());
+        return {
+          open: !!s.fieldBuilderOpen,
+          name: s.fieldBuilderName || '', nameRef: function (el) {
+            if (!el) return;
+            const v = s.fieldBuilderName || '';
+            if (el.value !== v) el.value = v;
+            if (s.fieldBuilderOpen && self._focusFieldBuilder) { el.focus(); self._focusFieldBuilder = false; }
+          },
+          options: s.fieldBuilderOptions || '', optionsRef: self.syncRef(s.fieldBuilderOptions || ''),
+          types: types, isDropdown: s.fieldBuilderType === 'select',
+          createStyle: 'height:38px;border:0;border-radius:8px;background:' + (valid ? '#4f46e5' : 'var(--pw-surface3)') + ';color:' + (valid ? '#fff' : 'var(--pw-muted2)') + ';padding:0 17px;font-size:12px;font-weight:600;cursor:' + (valid ? 'pointer' : 'not-allowed') + ';',
+          onName: function (e) { self.setState({ fieldBuilderName: e.target.value }); },
+          onOptions: function (e) { self.setState({ fieldBuilderOptions: e.target.value }); },
+          onKey: function (e) { if (e.key === 'Enter' && s.fieldBuilderType !== 'select') { e.preventDefault(); self.createField(); } if (e.key === 'Escape') self.closeFieldBuilder(); },
+          onCreate: function () { self.createField(); },
+          onClose: function () { self.closeFieldBuilder(); }
+        };
+      })(),
+      multiSelect: (function () {
+        const p = s.multiSelectPicker;
+        if (!p) return { open: false };
+        const f = (s.fields || []).filter(function (x) { return x.id === p.fieldId; })[0];
+        if (!f) return { open: false };
+        return {
+          open: true, title: f.label,
+          style: 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(280px,calc(100vw - 24px));background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;box-shadow:0 18px 46px rgba(8,10,14,.36);z-index:87;overflow:hidden;',
+          options: (f.options || []).map(function (o, i) {
+            const on = p.values.indexOf(o) >= 0;
+            const c = OPT_PALETTE[i % OPT_PALETTE.length];
+            return {
+              label: o, check: on ? '✓' : '',
+              checkStyle: 'width:18px;height:18px;flex:0 0 18px;border-radius:5px;border:1px solid ' + (on ? c : 'var(--pw-border)') + ';background:' + (on ? c : 'transparent') + ';color:#fff;display:grid;place-items:center;font-size:10px;',
+              style: 'display:flex;align-items:center;gap:9px;width:100%;height:36px;border:0;border-radius:7px;background:' + (on ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';font-size:12px;text-align:left;padding:0 8px;cursor:pointer;',
+              onToggle: function () { self.toggleMultiSelect(o); }
+            };
+          }),
+          onClear: function () { self.clearMultiSelect(); },
+          onManage: function () { self.closeMultiSelect(); self.openOptEditor('cf:' + f.id, p.taskId); },
+          onClose: function () { self.closeMultiSelect(); }
         };
       })(),
       timelinePicker: (function () {
