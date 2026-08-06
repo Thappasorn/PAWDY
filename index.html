@@ -20,7 +20,7 @@ window.PAWDY_CONFIG = {
      ตอนนี้บน Supabase ชื่อ clever-function ถ้าวันหลัง deploy ใหม่ชื่อ notify ก็แก้บรรทัดนี้ */
   notifyFunction: 'clever-function',
   /* ป้ายเวอร์ชันไฟล์ — โชว์ในแถบ ⚙ ใช้เช็คว่าเว็บที่เปิดอยู่เป็นไฟล์ตัวไหน */
-  build: 'B9 · 2026-08-05'
+  build: 'B10 · 2026-08-05'
 };
 window.__resources = {};  /* template ฝังในไฟล์แล้ว ไม่ต้อง fetch หน้าตัวเองซ้ำ */
 
@@ -3275,6 +3275,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ docsCount }}</span>
       </button>
 
+      <button sc-camel-on-click="{{ onOpenArchive }}" title="งานที่เก็บเข้าคลัง — ไม่โชว์ในหน้าทำงาน แต่ไม่ได้ลบ" style="{{ archiveBtnStyle }}" style-hover="background: #1d202a;">
+        <span style="width: 16px; text-align: center; opacity: 0.7;">📦</span>Archive
+        <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ archiveCount }}</span>
+      </button>
+
       <button sc-camel-on-click="{{ onOpenTrash }}" title="งานที่ลบไป กู้คืนได้ภายใน 30 วัน" style="{{ trashBtnStyle }}" style-hover="background: #1d202a;">
         <span style="width: 16px; text-align: center; opacity: 0.7;">🗑</span>ถังขยะ
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ trashCount }}</span>
@@ -3343,6 +3348,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <h1 style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px;">{{ listTitle }}</h1>
         </sc-if>
         <span style="font-size: 11.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace;">{{ filteredCount }} tasks</span>
+
+        <button data-mobile-only sc-camel-on-click="{{ onToggleListSheet }}" title="เลือก space / list" style="display: none; align-items: center; gap: 6px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-text2); border-radius: 8px; padding: 6px 11px; font-size: 12.5px; cursor: pointer; max-width: 62vw;">
+          <span style="opacity: 0.6; font-size: 11px;">▤</span>
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ listPickerLabel }}</span>
+          <span style="opacity: 0.6; font-size: 9px;">▾</span>
+        </button>
 
         <sc-if value="{{ notTrash }}" hint-placeholder-val="{{ true }}">
           <div style="position: relative; display: flex; align-items: center;">
@@ -3562,6 +3573,35 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
       </sc-if>
 
+      <sc-if value="{{ isArchive }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 14px 16px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+            <span style="font-size: 12px; color: var(--pw-muted); line-height: 1.5;">งานที่เก็บไว้จะไม่โชว์ในหน้าทำงานและไม่ถูกนับในสถิติ แต่ยังอยู่ครบและเอากลับได้ทุกเมื่อ</span>
+            <button sc-camel-on-click="{{ onArchiveAllDone }}" style="margin-left: auto; background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 6px 12px; font-size: 12px; color: var(--pw-text2); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">เก็บงานที่เสร็จแล้วทั้งหมดเข้าที่นี่</button>
+          </div>
+
+          <sc-if value="{{ archiveEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 60px 0; color: var(--pw-muted2);">
+              <span style="font-size: 26px; opacity: 0.5;">📦</span>
+              <span style="font-size: 13px;">ยังไม่มีงานใน Archive</span>
+              <span style="font-size: 11.5px;">เลือก "📦 เก็บเข้า Archive" ในช่องสถานะ หรือคลิกขวาที่งาน</span>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ archiveRows }}" as="ar" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface); margin-bottom: 8px;">
+              <span style="{{ ar.chipStyle }}">{{ ar.status }}</span>
+              <div sc-camel-on-click="{{ ar.onOpen }}" style="display: flex; flex-direction: column; min-width: 0; flex: 1; cursor: pointer;">
+                <span style="font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ar.name }}</span>
+                <span style="font-size: 11px; color: var(--pw-muted2);">{{ ar.list }} · เก็บโดย {{ ar.who }} · {{ ar.age }}</span>
+              </div>
+              <button sc-camel-on-click="{{ ar.onRestore }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 11px; font-size: 11.5px; color: var(--pw-text2); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">เอากลับ</button>
+              <button sc-camel-on-click="{{ ar.onTrash }}" title="ย้ายลงถังขยะ" style="background: transparent; border: 0; color: var(--pw-faint); font-size: 14px; cursor: pointer; padding: 0 3px;" style-hover="color: #dc2626;">🗑</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
       <sc-if value="{{ isTrash }}" hint-placeholder-val="{{ false }}">
         <div style="padding: 14px 16px;">
           <sc-if value="{{ trashEmpty }}" hint-placeholder-val="{{ false }}">
@@ -3628,6 +3668,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
             <div style="display: flex; flex-direction: column; margin-bottom: 22px;">
               <div style="display: flex; align-items: center; gap: 9px; padding: 11px 12px 9px; background: var(--pw-surface); border-bottom: 1px solid var(--pw-border); position: sticky; top: 32px; z-index: 2;">
+                <button sc-camel-on-click="{{ group.onToggleGroup }}" title="พับ / กางก้อนนี้" style="{{ group.caretStyle }}" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ group.caret }}</button>
                 <span style="{{ group.chipStyle }}">{{ group.status }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2);">{{ group.costLabel }}</span>
@@ -3723,6 +3764,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
             <div style="display: flex; flex-direction: column; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 3; background: var(--pw-bg); padding: 6px 0;">
+                <button sc-camel-on-click="{{ group.onToggleGroup }}" title="พับ / กางก้อนนี้" style="{{ group.caretStyle }}">{{ group.caret }}</button>
                 <span style="{{ group.chipStyle }}">{{ group.status }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
                 <button sc-camel-on-click="{{ group.onAdd }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 5px 11px; font-size: 12px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ เพิ่มงาน</button>
@@ -3736,6 +3778,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
               </sc-if>
 
+              <sc-if value="{{ group.expanded }}" hint-placeholder-val="{{ true }}">
+              <sc-if value="{{ group.expanded }}" hint-placeholder-val="{{ true }}">
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="3">
                 <div data-flash="{{ row.flash }}" data-card data-pulse="{{ row.pulse }}" data-land="{{ row.land }}" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-click="{{ row.onOpen }}" style="{{ row.cardStyle }}">
                   <div style="display: flex; align-items: flex-start; gap: 9px;">
@@ -3758,6 +3802,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </div>
                 </div>
               </sc-for>
+              </sc-if>
+              </sc-if>
             </div>
           </sc-for>
         </div>
@@ -4395,6 +4441,78 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </aside>
   </sc-if>
 
+  <sc-if value="{{ viewPicker.open }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ viewPicker.onClose }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.45); z-index: 86;"></div>
+    <div data-dropdown data-panel style="position: fixed; top: 96px; left: 50%; transform: translateX(-50%); width: min(560px, 94vw); max-height: 78vh; overflow-y: auto; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 13px; box-shadow: 0 24px 60px rgba(8, 10, 14, 0.4); z-index: 87; padding: 13px 14px; display: flex; flex-direction: column; gap: 11px;">
+
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 13.5px; font-weight: 600;">เพิ่มมุมมองใหม่</span>
+        <button sc-camel-on-click="{{ viewPicker.onClose }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+
+      <input ref="{{ viewPicker.queryRef }}" data-sync="{{ viewPicker.query }}" value="{{ viewPicker.query }}" sc-camel-on-change="{{ viewPicker.onQuery }}" placeholder="ค้นหาชนิดมุมมอง…" style="width: 100%; border: 1.5px solid #4f46e5; border-radius: 9px; padding: 10px 12px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);">
+
+      <input ref="{{ viewPicker.nameRef }}" data-sync="{{ viewPicker.name }}" value="{{ viewPicker.name }}" sc-camel-on-change="{{ viewPicker.onName }}" placeholder="ชื่อมุมมอง (เว้นว่างได้ จะใช้ชื่อชนิดที่เลือก)" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
+
+      <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.5;">{{ viewPicker.filterNote }}</span>
+
+      <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">เลือกชนิด</span>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 7px;">
+        <sc-for list="{{ viewPicker.items }}" as="vp" hint-placeholder-count="6">
+          <button sc-camel-on-click="{{ vp.onPick }}" style="{{ vp.style }}" style-hover="border-color: #4f46e5;">
+            <span style="{{ vp.iconStyle }}">{{ vp.icon }}</span>
+            <span style="display: flex; flex-direction: column; min-width: 0; gap: 1px;">
+              <span style="font-size: 12.5px; font-weight: 600;">{{ vp.label }}</span>
+              <span style="font-size: 11px; color: var(--pw-muted2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ vp.hint }}</span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ viewPicker.empty }}" hint-placeholder-val="{{ false }}">
+        <span style="font-size: 11.5px; color: var(--pw-muted2);">ไม่พบชนิดที่ค้นหา</span>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ listSheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div data-scrim sc-camel-on-click="{{ onCloseListSheet }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.5); z-index: 84;"></div>
+    <div data-panel style="position: fixed; left: 0; right: 0; bottom: 0; max-height: 82vh; overflow-y: auto; background: var(--pw-surface); border-top: 1px solid var(--pw-border); border-radius: 16px 16px 0 0; box-shadow: 0 -18px 44px rgba(8, 10, 14, 0.4); z-index: 85; padding: 12px 12px 28px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px;">
+        <span style="font-size: 13.5px; font-weight: 600;">เลือก Space / List</span>
+        <button sc-camel-on-click="{{ onCloseListSheet }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px;" style-hover="color: var(--pw-text);">×</button>
+      </div>
+
+      <sc-for list="{{ listSheetSpecials }}" as="sp0" hint-placeholder-count="3">
+        <button sc-camel-on-click="{{ sp0.onPick }}" style="{{ sp0.style }}">
+          <span style="width: 16px; text-align: center; opacity: 0.7;">{{ sp0.icon }}</span>
+          <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sp0.label }}</span>
+          <span style="font-size: 11.5px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ sp0.count }}</span>
+        </button>
+      </sc-for>
+
+      <div style="height: 1px; background: var(--pw-border); margin: 8px 4px;"></div>
+
+      <sc-for list="{{ listSheetSpaces }}" as="ssp" hint-placeholder-count="2">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <button sc-camel-on-click="{{ ssp.onPickSpace }}" style="{{ ssp.headStyle }}">
+            <span style="{{ ssp.dotStyle }}"></span>
+            <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ ssp.name }}</span>
+            <span style="font-size: 11.5px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ ssp.count }}</span>
+          </button>
+          <sc-for list="{{ ssp.lists }}" as="sli" hint-placeholder-count="3">
+            <button sc-camel-on-click="{{ sli.onPick }}" style="{{ sli.style }}">
+              <span style="{{ sli.dotStyle }}"></span>
+              <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sli.name }}</span>
+              <span style="font-size: 11.5px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ sli.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ viewMenu.open }}" hint-placeholder-val="{{ false }}">
     <div data-scrim sc-camel-on-click="{{ viewMenu.onClose }}" sc-camel-on-context-menu="{{ viewMenu.onClose }}" style="position: fixed; inset: 0; z-index: 79;"></div>
     <div data-panel style="{{ viewMenu.style }}">
@@ -4672,6 +4790,7 @@ function seed() {
 const KEY = 'pawdy.workspace.v1';
 const ADD_MEMBER = '+ Add member by email…';
 const OPT_MANAGE = '⚙ จัดการตัวเลือก / เลือกสี…';
+const OPT_ARCHIVE = '📦 เก็บเข้า Archive';
 
 class Component extends DCLogic {
   constructor(props) {
@@ -4693,6 +4812,11 @@ class Component extends DCLogic {
       colDrag: null,
       colMenuOpen: false,
       calMobileMode: (ui.calMobileMode === 'month' ? 'month' : 'agenda'),
+      collapsedGroups: (ui.collapsedGroups && typeof ui.collapsedGroups === 'object') ? ui.collapsedGroups : {},
+      viewPicker: false,        // panel เลือกชนิดมุมมองตอนกด + View
+      viewPickerQuery: '',
+      viewPickerName: '',
+      listSheet: false,         // แผ่นเลือก space/list บนมือถือ
       customView: null,         // id ของมุมมองที่บันทึกไว้ซึ่งกำลังเปิด
       viewMenu: null,            // { id, x, y } — เมนูคลิกขวาที่แท็บมุมมอง
       attachOpen: null,         // ไฟล์แนบที่กำลังเปิดดูตัวอย่าง
@@ -4761,7 +4885,8 @@ class Component extends DCLogic {
     }
     this._prevSnap = this.snapOf(st);
     this._undoLabel = null;
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode } });
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
+        collapsedGroups: st.collapsedGroups } });
   }
 
   // ---- undo / redo ----
@@ -4962,7 +5087,70 @@ class Component extends DCLogic {
   }
 
   liveTasks() {
-    return (this.state.tasks || []).filter(function (t) { return !t.deleted; });
+    return (this.state.tasks || []).filter(function (t) { return !t.deleted && !t.archived; });
+  }
+  archivedTasks() {
+    return (this.state.tasks || []).filter(function (t) { return !t.deleted && !!t.archived; })
+      .sort(function (a, b) { return String(b.archivedAt || '').localeCompare(String(a.archivedAt || '')); });
+  }
+  isArchive() { return this.state.list === '__archive'; }
+  archiveTask(id) {
+    const who = this.me().n || '';
+    const when = new Date().toISOString();
+    this.mark('เก็บเข้า Archive');
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          return t.id === id ? Object.assign({}, t, { archived: true, archivedAt: when, archivedBy: who }) : t;
+        }),
+        selected: s.selected === id ? null : s.selected
+      };
+    }, () => this.persist());
+  }
+  unarchiveTask(id) {
+    this.mark('เอาออกจาก Archive');
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (t.id !== id) return t;
+          const c = Object.assign({}, t);
+          delete c.archived; delete c.archivedAt; delete c.archivedBy;
+          return c;
+        })
+      };
+    }, () => this.persist());
+  }
+  archiveAllDone() {
+    const dKey = this.doneKey();
+    const ids = this.liveTasks().filter(function (t) { return t.status === dKey; }).map(function (t) { return t.id; });
+    if (!ids.length) { this.flashToast('ไม่มีงานที่เสร็จแล้วให้เก็บ'); return; }
+    if (!window.confirm('เก็บงานที่สถานะ "' + dKey + '" ทั้ง ' + ids.length + ' ชิ้นเข้า Archive?')) return;
+    const who = this.me().n || '', when = new Date().toISOString();
+    this.mark('เก็บงานที่เสร็จเข้า Archive');
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          return ids.indexOf(t.id) >= 0 ? Object.assign({}, t, { archived: true, archivedAt: when, archivedBy: who }) : t;
+        })
+      };
+    }, () => this.persist());
+  }
+  archiveAge(t) {
+    if (!t.archivedAt) return '';
+    const days = Math.floor((Date.now() - new Date(t.archivedAt).getTime()) / 86400000);
+    return days <= 0 ? 'วันนี้' : (days === 1 ? 'เมื่อวาน' : days + ' วันก่อน');
+  }
+
+  // ---- พับก้อนในตาราง (ค่าส่วนตัวของแต่ละคน) ----
+  groupKeyOf(key) { return String(this.state.list || '') + '|' + String(key); }
+  isGroupCollapsed(key) { return !!(this.state.collapsedGroups || {})[this.groupKeyOf(key)]; }
+  toggleGroup(key) {
+    const k = this.groupKeyOf(key);
+    this.setState(function (s) {
+      const c = Object.assign({}, s.collapsedGroups || {});
+      if (c[k]) delete c[k]; else c[k] = true;
+      return { collapsedGroups: c };
+    }, () => this.persist());
   }
   trashTasks() {
     return (this.state.tasks || []).filter(function (t) { return !!t.deleted; })
@@ -5097,6 +5285,8 @@ class Component extends DCLogic {
 
     this._onKey = function (e) {
       if (e.key === 'Escape') {
+        if (self.state.viewPicker) { self.closeViewPicker(); return; }
+        if (self.state.listSheet) { self.setState({ listSheet: false }); return; }
         if (self.state.viewMenu) { self.closeViewMenu(); return; }
         if (self.state.listColor) { self.closeListColor(); return; }
         if (self.state.ctxMenu) { self.closeCtx(); return; }
@@ -5206,7 +5396,7 @@ class Component extends DCLogic {
       const dragged = s.tasks.filter(function (t) { return t.id === dragId; })[0];
       if (!dragged) return {};
       const col = s.tasks
-        .filter(function (t) { return !t.deleted && t.status === status && t.id !== dragId; })
+        .filter(function (t) { return !t.deleted && !t.archived && t.status === status && t.id !== dragId; })
         .sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
       let idx = col.length;
       if (targetId) {
@@ -5413,19 +5603,25 @@ class Component extends DCLogic {
     const v = this.cfg().views;
     return Array.isArray(v) ? v : [];
   }
-  addSavedView() {
-    const name = (window.prompt('ชื่อมุมมองใหม่ (เช่น "ของฉันสัปดาห์นี้", "งานเลยกำหนด")') || '').trim();
-    if (!name) return;
+  openViewPicker() {
+    this.setState({ viewPicker: true, viewPickerQuery: '', viewPickerName: '' });
+  }
+  closeViewPicker() { this.setState({ viewPicker: false }); }
+  // สร้างมุมมองใหม่จากชนิดที่เลือก + ตัวกรองที่ตั้งไว้ตอนนี้
+  createView(type, label) {
+    const typed = String(this.state.viewPickerName || '').trim();
+    const name = typed || label;
     this.mark('เพิ่มมุมมอง');
     const view = {
       id: 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name: name,
-      type: this.state.view,                                  // เก็บชนิดที่กำลังดูอยู่
-      filters: JSON.parse(JSON.stringify(this.filt())),       // เก็บตัวกรองที่ตั้งไว้ตอนนี้
+      type: type,
+      filters: JSON.parse(JSON.stringify(this.filt())),
       list: this.state.list
     };
     const next = this.savedViews().concat([view]);
-    this.setState({ customView: view.id }, () => this.saveCfg({ views: next }));
+    this.setState({ viewPicker: false, viewPickerName: '', viewPickerQuery: '', view: type, customView: view.id },
+      () => this.saveCfg({ views: next }));
   }
   openSavedView(id) {
     const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
@@ -5901,6 +6097,11 @@ class Component extends DCLogic {
 
   // ตัวกลาง: ถ้าค่าที่เลือกเป็นคำสั่งพิเศษ ให้จัดการแล้วคืน true
   optionPick(kind, picked, current, apply, taskId) {
+    if (picked === OPT_ARCHIVE) {
+      this.resync();
+      if (taskId) this.archiveTask(taskId);
+      return true;
+    }
     if (picked === OPT_MANAGE) {
       this.resync();
       this.openOptEditor(kind, taskId || null);
@@ -6201,7 +6402,7 @@ class Component extends DCLogic {
     (this.state.spaces || []).forEach(function (sp) { sp.lists.forEach(function (l) { allLists.push(l); }); });
     const extra = [OPT_MANAGE];   // เปิด panel จัดการตัวเลือก — ทุกคนใช้ได้
     this._opt = {
-      status: this.statuses().map(function (x) { return x.k; }).concat(extra),
+      status: this.statuses().map(function (x) { return x.k; }).concat([OPT_ARCHIVE]).concat(extra),
       priority: this.priorities().map(function (x) { return x.k; }).concat(extra),
       members: (this.state.members || []).map(function (x) { return x.n; }).concat([ADD_MEMBER]),
       lists: allLists,
@@ -6539,12 +6740,15 @@ class Component extends DCLogic {
     const doneKey = this.doneKey();
     const scope = this.scopeLists();
     const trash = this.isTrash();
+    const archive = this.isArchive();
     const self = this;
     return s.tasks.filter(function (t) {
-      if (!trash && !self.passFilter(t)) return false;
+      if (!trash && !archive && !self.passFilter(t)) return false;
       if (trash) { if (!t.deleted) return false; }
       else if (t.deleted) return false;
-      if (trash) { /* ถังขยะไม่กรองตาม list */ }
+      if (archive) { if (!t.archived) return false; }
+      else if (t.archived) return false;
+      if (trash || archive) { /* ถังขยะ/Archive ไม่กรองตาม list */ }
       else if (scope) { if (scope.indexOf(t.list) < 0) return false; }
       else if (s.list !== '__all' && t.list !== s.list) return false;
       if (hideDone && t.status === doneKey) return false;
@@ -6833,7 +7037,7 @@ class Component extends DCLogic {
         name: sp.name,
         open: !!s.open[sp.name],
         caret: s.open[sp.name] ? '▾' : '▸',
-        count: s.tasks.filter(function (t) { return !t.deleted && sp.lists.indexOf(t.list) >= 0; }).length,
+        count: s.tasks.filter(function (t) { return !t.deleted && !t.archived && sp.lists.indexOf(t.list) >= 0; }).length,
         rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;font-size:12.5px;font-weight:' + (spActive ? '600' : '500') + ';background:' + (spActive ? '#2a2e3b' : 'transparent') + ';color:' + (spActive ? '#fff' : 'var(--pw-border)') + ';',
         dotStyle: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + sp.color + ';',
         onSelect: function () {
@@ -6860,7 +7064,7 @@ class Component extends DCLogic {
           }, () => self.persist());
         },
         onDelete: function () {
-          const count = s.tasks.filter(function (t) { return !t.deleted && sp.lists.indexOf(t.list) >= 0; }).length;
+          const count = s.tasks.filter(function (t) { return !t.deleted && !t.archived && sp.lists.indexOf(t.list) >= 0; }).length;
           const msg = 'Delete space "' + sp.name + '"' + (count ? ' with its ' + sp.lists.length + ' list(s) and ' + count + ' task(s)?' : ' and its ' + sp.lists.length + ' list(s)?');
           if (!window.confirm(msg)) return;
           self.setState(function (st) {
@@ -6893,13 +7097,13 @@ class Component extends DCLogic {
           const active = s.list === ln;
           return {
             name: ln,
-            count: s.tasks.filter(function (t) { return !t.deleted && t.list === ln; }).length,
+            count: s.tasks.filter(function (t) { return !t.deleted && !t.archived && t.list === ln; }).length,
           dotStyle: 'width:7px;height:7px;border-radius:2px;flex:0 0 7px;background:' + self.listColorOf(ln) + ';',
           onContext: function (e) { self.openListColor(e, ln); },
             rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:5px 8px;border-radius:6px;font-size:12.5px;background:' + (active ? '#2a2e3b' : 'transparent') + ';color:' + (active ? '#fff' : '#a7adba') + ';font-weight:' + (active ? '600' : '400') + ';',
             onSelect: function () { self.setState({ list: ln }, () => self.persist()); },
             onDelete: function () {
-              const count = s.tasks.filter(function (t) { return !t.deleted && t.list === ln; }).length;
+              const count = s.tasks.filter(function (t) { return !t.deleted && !t.archived && t.list === ln; }).length;
               if (count && !window.confirm('Delete "' + ln + '" and its ' + count + ' task(s)?')) return;
               self.setState(function (st) {
                 const spaces = st.spaces.map(function (x, i) {
@@ -6987,6 +7191,11 @@ class Component extends DCLogic {
         tasks: list,
         costLabel: cost ? self.baht(cost) + ' budgeted' : '',
         chipStyle: chipStyle,
+        collapsed: self.isGroupCollapsed(key),
+        expanded: !self.isGroupCollapsed(key),
+        caret: self.isGroupCollapsed(key) ? '▸' : '▾',
+        caretStyle: 'width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;background:transparent;border:0;border-radius:6px;color:var(--pw-muted);font-size:12px;cursor:pointer;padding:0;',
+        onToggleGroup: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.toggleGroup(key); },
         composerOpen: s.rowComposer === key,
         composerClosed: s.rowComposer !== key,
         composerText: s.rowComposer === key ? s.rowComposerText : '',
@@ -7522,10 +7731,45 @@ class Component extends DCLogic {
           };
         }, () => self.persist());
       },
-      canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs(),
+      canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs() && !self.isArchive(),
       viewTabs: tabs,
       savedTabs: savedTabs,
-      onAddView: function () { self.addSavedView(); },
+      onAddView: function () { self.openViewPicker(); },
+      viewPicker: (function () {
+        if (!s.viewPicker) return { open: false, items: [] };
+        const q = String(s.viewPickerQuery || '').trim().toLowerCase();
+        const all = [
+          { k: 'table', label: 'Table', hint: 'ตารางแก้ไขได้', icon: '▦' },
+          { k: 'board', label: 'Board', hint: 'คัมบัง ลากการ์ด', icon: '▥' },
+          { k: 'calendar', label: 'Calendar', hint: 'ปฏิทินรายเดือน', icon: '▤' },
+          { k: 'timeline', label: 'Timeline', hint: 'ไทม์ไลน์ 9 สัปดาห์', icon: '▬' },
+          { k: 'gantt', label: 'Gantt', hint: 'ผังเวลา ซูมได้', icon: '⊟' },
+          { k: 'dashboard', label: 'Dashboard', hint: 'สรุปตัวเลข', icon: '◕' }
+        ].filter(function (x) {
+          return !q || x.label.toLowerCase().indexOf(q) >= 0 || x.hint.indexOf(q) >= 0;
+        });
+        return {
+          open: true,
+          query: s.viewPickerQuery || '',
+          queryRef: self.syncRef(s.viewPickerQuery || ''),
+          onQuery: function (e) { self.setState({ viewPickerQuery: e.target.value }); },
+          name: s.viewPickerName || '',
+          nameRef: self.syncRef(s.viewPickerName || ''),
+          onName: function (e) { self.setState({ viewPickerName: e.target.value }); },
+          onClose: function () { self.closeViewPicker(); },
+          empty: all.length === 0,
+          filterNote: self.filterCount() ? ('จะบันทึกตัวกรองที่ตั้งไว้ ' + self.filterCount() + ' เงื่อนไขไปด้วย') : 'ยังไม่ได้ตั้งตัวกรอง — บันทึกเป็นมุมมองเปล่า',
+          items: all.map(function (x) {
+            return {
+              label: x.label, hint: x.hint, icon: x.icon,
+              style: 'display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--pw-border);background:var(--pw-surface);' +
+                'border-radius:9px;padding:10px 11px;cursor:pointer;color:var(--pw-text);',
+              iconStyle: 'width:26px;height:26px;flex:0 0 26px;border-radius:7px;background:var(--pw-accent-soft);color:#4f46e5;display:grid;place-items:center;font-size:12px;',
+              onPick: function () { self.createView(x.k, x.label); }
+            };
+          })
+        };
+      })(),
       viewMenu: (function () {
         const vm = s.viewMenu;
         if (!vm) return { open: false };
@@ -7553,9 +7797,9 @@ class Component extends DCLogic {
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
       breadcrumb: self.isDocs() ? 'Workspace' : self.isTrash() ? 'Workspace' : (s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : ''))),
       allLists: allLists,
-      listTitle: self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
-      listTitleRef: self.syncRef(self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
-      isEverything: self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
+      listTitle: self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
+      listTitleRef: self.syncRef(self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
+      isEverything: self.isArchive() || self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
       memberOverflow: (function () {
         const n = Math.max(0, (s.members || []).length - 1 - 6);
@@ -7606,10 +7850,11 @@ class Component extends DCLogic {
         to: s.toast.to, subject: s.toast.subject, line: s.toast.line
       } : {},
       onDismissToast: function () { self.setState({ toast: null }); },
-      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isMobile(),
-      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && self.isMobile(),
-      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isMobile(),
-      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile(),
+      isArchive: self.isArchive(),
+      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isArchive() && !self.isMobile(),
+      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isArchive() && self.isMobile(),
+      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isArchive() && !self.isMobile(),
+      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isArchive() && self.isMobile(),
       isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile() && s.calMobileMode !== 'month',
       isCalMonth: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile() && s.calMobileMode === 'month',
       calModes: [['agenda', 'รายการ'], ['month', 'เดือน']].map(function (mo) {
@@ -7704,10 +7949,10 @@ class Component extends DCLogic {
       agendaEmpty: (function () { return s.view === 'calendar' && self.isMobile() && vms.length === 0; })(),
       onAddToday: function () { self.openCalAdd(TODAY); },
       isTable: s.view === 'table' && !self.isTrash() && !self.isDocs(),
-      isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs(),
+      isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
       isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs(),
-      isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs(),
-      isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs(),
+      isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
       groups: groups,
       columns: columns,
       statusNames: self._opt.status,
@@ -7801,7 +8046,7 @@ class Component extends DCLogic {
           onToggle: function () { self.toggleFilter('due', o[0]); }
         };
       }),
-      isGantt: s.view === 'gantt' && !self.isTrash() && !self.isDocs(),
+      isGantt: s.view === 'gantt' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
       gantt: (function () {
         if (s.view !== 'gantt') return { rows: [], cols: [], zooms: [], gridStyle: '', todayStyle: 'display:none;', rangeLabel: '', onPrev: function () {}, onNext: function () {}, onToday: function () {} };
         const spec = self.ganttSpec();
@@ -7883,6 +8128,57 @@ class Component extends DCLogic {
           onToday: function () { self.setState({ ganttShift: 0 }); }
         };
       })(),
+      listSheetOpen: s.listSheet,
+      onToggleListSheet: function () { self.setState(function (st) { return { listSheet: !st.listSheet }; }); },
+      onCloseListSheet: function () { self.setState({ listSheet: false }); },
+      listPickerLabel: (function () {
+        if (self.isDocs()) return 'เอกสาร';
+        if (self.isTrash()) return 'ถังขยะ';
+        if (s.list === '__all') return 'ทุกงาน';
+        const sp = self.spaceSel();
+        return sp ? (sp + ' (ทั้ง space)') : s.list;
+      })(),
+      listSheetSpecials: [
+        { label: 'ทุกงาน', icon: '≡', count: String(self.liveTasks().length), active: s.list === '__all',
+          onPick: function () { self.setState({ list: '__all', listSheet: false }, function () { self.persist(); }); } },
+        { label: 'เอกสาร', icon: '▤', count: String(self.docList().length), active: self.isDocs(),
+          onPick: function () { self.setState({ list: '__docs', listSheet: false, selected: null }, function () { self.persist(); }); } },
+        { label: 'ถังขยะ', icon: '🗑', count: String(self.trashTasks().length), active: self.isTrash(),
+          onPick: function () { self.setState({ list: '__trash', listSheet: false, selected: null }, function () { self.persist(); }); } }
+      ].map(function (x) {
+        return Object.assign({}, x, {
+          style: 'display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;border-radius:9px;padding:12px 12px;font-size:14px;cursor:pointer;' +
+            'background:' + (x.active ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (x.active ? '#4f46e5' : 'var(--pw-text)') +
+            ';font-weight:' + (x.active ? '600' : '400') + ';'
+        });
+      }),
+      listSheetSpaces: (s.spaces || []).map(function (sp) {
+        const spActive = s.list === '__space:' + sp.name;
+        return {
+          name: sp.name,
+          dotStyle: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + sp.color + ';',
+          count: String((s.tasks || []).filter(function (t) { return !t.deleted && !t.archived && sp.lists.indexOf(t.list) >= 0; }).length),
+          headStyle: 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;border-radius:9px;padding:11px 12px;font-size:13.5px;cursor:pointer;' +
+            'background:' + (spActive ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (spActive ? '#4f46e5' : 'var(--pw-text)') + ';font-weight:600;',
+          onPickSpace: function () {
+            self.setState(function (st) {
+              const o = Object.assign({}, st.open); o[sp.name] = true;
+              return { list: '__space:' + sp.name, open: o, listSheet: false, selected: null };
+            }, function () { self.persist(); });
+          },
+          lists: sp.lists.map(function (ln) {
+            const on = s.list === ln;
+            return {
+              name: ln,
+              count: String((s.tasks || []).filter(function (t) { return !t.deleted && !t.archived && t.list === ln; }).length),
+              dotStyle: 'width:7px;height:7px;border-radius:2px;flex:0 0 7px;background:' + self.listColorOf(ln) + ';',
+              style: 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;border-radius:9px;padding:11px 12px 11px 26px;font-size:13.5px;cursor:pointer;' +
+                'background:' + (on ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';font-weight:' + (on ? '600' : '400') + ';',
+              onPick: function () { self.setState({ list: ln, listSheet: false, selected: null }, function () { self.persist(); }); }
+            };
+          })
+        };
+      }),
       isMobile: self.isMobile(),
       notMobile: !self.isMobile(),
       rootAttr: self.isMobile() ? (s.navOpen ? 'mobile nav' : 'mobile') : (s.navCollapsed ? 'collapsed' : ''),
@@ -8042,6 +8338,7 @@ class Component extends DCLogic {
             mk('☺', 'เปลี่ยนผู้รับผิดชอบ', function () { self.ctxMode('assignee'); }),
             mk('◷', 'แก้วันครบกำหนด', function () { self.ctxMode('date'); }),
             mk('→', 'ย้ายไป list อื่น', function () { self.ctxMode('list'); }),
+            mk('📦', 'เก็บเข้า Archive', function () { self.archiveTask(t.id); self.closeCtx(); }),
             mk('⧉', 'ทำสำเนางาน', function () { self.duplicateTask(t.id); self.closeCtx(); }),
             mk('🗑', 'ย้ายลงถังขยะ', function () { self.removeTask(t.id); self.closeCtx(); }, true)
           ],
@@ -8087,6 +8384,24 @@ class Component extends DCLogic {
       settingsStyle: self.isMobile()
         ? 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;'
         : 'width:356px;flex:0 0 356px;background:var(--pw-surface);border-left:1px solid var(--pw-border);display:flex;flex-direction:column;overflow:hidden;',
+      archiveCount: self.archivedTasks().length,
+      archiveBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isArchive() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isArchive() ? '#fff' : '#cbd2de') + ';',
+      onOpenArchive: function () { self.setState({ list: '__archive', selected: null }, function () { self.persist(); }); },
+      onArchiveAllDone: function () { self.archiveAllDone(); },
+      archiveEmpty: self.archivedTasks().length === 0,
+      archiveRows: self.archivedTasks().map(function (t) {
+        return {
+          name: t.name,
+          list: t.list,
+          status: t.status,
+          chipStyle: self.chip(t.status),
+          who: t.archivedBy || '—',
+          age: self.archiveAge(t),
+          onRestore: function () { self.unarchiveTask(t.id); },
+          onOpen: function () { self.setState({ selected: t.id }); },
+          onTrash: function () { self.removeTask(t.id); }
+        };
+      }),
       isDocs: self.isDocs(),
       docsCount: self.docList().length,
       docsBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isDocs() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isDocs() ? '#fff' : '#cbd2de') + ';',
@@ -8140,7 +8455,7 @@ class Component extends DCLogic {
         };
       })(),
       isTrash: self.isTrash(),
-      notTrash: !self.isTrash() && !self.isDocs(),
+      notTrash: !self.isTrash() && !self.isDocs() && !self.isArchive(),
       trashCount: self.trashTasks().length,
       trashBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isTrash() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isTrash() ? '#fff' : '#cbd2de') + ';',
       onOpenTrash: function () { self.setState({ list: '__trash', selected: null }, function () { self.persist(); }); },
