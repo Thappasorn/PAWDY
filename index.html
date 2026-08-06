@@ -3773,7 +3773,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
 
                 <sc-if value="{{ row.commentComposerOpen }}" hint-placeholder-val="{{ false }}">
-                  <div data-comment-composer style="display:flex;justify-content:flex-end;padding:8px 42px 10px 12px;border-bottom:1px solid var(--pw-line);background:var(--pw-surface2);">
+                  <div sc-camel-on-click="{{ row.onCommentClose }}" style="position:fixed;inset:0;z-index:54;background:transparent;"></div>
+                  <div data-comment-composer style="{{ row.commentComposerWrapStyle }}">
                     <div style="width:min(440px,100%);display:flex;flex-direction:column;gap:8px;border:1px solid var(--pw-border);border-radius:12px;padding:10px;background:var(--pw-surface);box-shadow:0 10px 26px rgba(8,10,14,.18);">
                       <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
                       <div style="display:flex;align-items:center;gap:5px;">
@@ -4984,6 +4985,7 @@ class Component extends DCLogic {
       subComposerDraft: null,
       commentComposer: null, // taskId ที่เปิดกล่องคอมเมนต์จากคอลัมน์ Comment
       commentComposerText: '',
+      commentComposerPos: null,
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -5877,12 +5879,22 @@ class Component extends DCLogic {
       this.setState({ subComposerText: '', subComposerDraft: parent ? this.makeSubtask(parent, '') : null });
     }
   }
-  openCommentComposer(id) {
+  openCommentComposer(id, e) {
     this._focusRowComment = true;
-    this.setState({ commentComposer: id, commentComposerText: '' });
+    const target = e && e.currentTarget;
+    const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+    const vw = Math.max(320, window.innerWidth || 1024);
+    const vh = Math.max(320, window.innerHeight || 768);
+    const width = Math.min(440, vw - 24);
+    const height = 126;
+    let left = rect ? rect.right - width : vw - width - 12;
+    let top = rect ? rect.bottom + 8 : 72;
+    left = Math.max(12, Math.min(left, vw - width - 12));
+    if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 8);
+    this.setState({ commentComposer: id, commentComposerText: '', commentComposerPos: { left: left, top: top } });
   }
   closeCommentComposer() {
-    this.setState({ commentComposer: null, commentComposerText: '' });
+    this.setState({ commentComposer: null, commentComposerText: '', commentComposerPos: null });
   }
   addCommentTo(id) {
     const v = String(this.state.commentComposerText || '').trim();
@@ -7204,11 +7216,11 @@ class Component extends DCLogic {
       checkStyle: 'width:14px;height:14px;border-radius:50%;border:1.5px solid ' + sm.c + ';background:' + (this.isDone(t.status) ? sm.c : 'transparent') + ';cursor:pointer;padding:0;',
       statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + this.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
-      onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '' }); },
+      onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '', commentComposerPos: null }); },
       onOpenFromNameCell: function (e) {
         const target = e && e.target;
         if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
-        self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '' });
+        self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '', commentComposerPos: null });
       },
       onContext: function (e) { self.openCtx(e, t.id); },
       expanded: !!(self.state.expanded && self.state.expanded[t.id]),
@@ -7238,7 +7250,7 @@ class Component extends DCLogic {
           onOpenFromNameCell: function (e) {
             const target = e && e.target;
             if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
-            self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '' });
+            self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '', commentComposerPos: null });
           },
           onRemove: function () { self.removeSub(t.id, i); }
         };
@@ -7274,6 +7286,10 @@ class Component extends DCLogic {
       onSubClose: function () { self.closeSubComposer(); },
       commentComposerOpen: self.state.commentComposer === t.id,
       commentComposerText: self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '',
+      commentComposerWrapStyle: (function () {
+        const p = self.state.commentComposerPos || { left: 12, top: 72 };
+        return 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(440px,calc(100vw - 24px));z-index:55;';
+      })(),
       commentComposerRef: function (el) {
         if (!el) return;
         const v = self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '';
@@ -7426,7 +7442,7 @@ class Component extends DCLogic {
               onCommentOpen: function (e) {
                 if (e && e.stopPropagation) e.stopPropagation();
                 if (self.state.commentComposer === t.id) self.closeCommentComposer();
-                else self.openCommentComposer(t.id);
+                else self.openCommentComposer(t.id, e);
               },
               onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); } };
           }
@@ -7440,7 +7456,7 @@ class Component extends DCLogic {
               key: k, isComment: true, commentCount: (t.comments || []).length,
               onOpen: function (e) {
                 if (e && e.stopPropagation) e.stopPropagation();
-                if (open) self.closeCommentComposer(); else self.openCommentComposer(t.id);
+                if (open) self.closeCommentComposer(); else self.openCommentComposer(t.id, e);
               },
               style: 'width:100%;height:28px;display:flex;align-items:center;justify-content:flex-start;border:1px solid ' +
                 (open ? '#4f46e5' : 'transparent') + ';border-radius:5px;background:' +
