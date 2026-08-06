@@ -4397,13 +4397,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <span style="color: var(--pw-label);">Due date</span>
           <input ref="{{ detail.dueRef }}" data-sync="{{ detail.due }}" type="date" value="{{ detail.due }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onDue }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface);">
           <span style="color: var(--pw-label);">Channel</span>
-          <sc-raw-select ref="{{ detail.channelRef }}" data-sync="{{ detail.channel }}" value="{{ detail.channel }}" sc-camel-on-change="{{ detail.onChannel }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
-            <sc-for list="{{ channelNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
-          </sc-raw-select>
+          <button sc-camel-on-click="{{ detail.onChannelOpen }}" title="เลือก Channel ได้หลายค่า" style="height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;padding:0 9px;background:var(--pw-surface);color:var(--pw-text2);cursor:pointer;">{{ detail.channelLabel }}</button>
           <span style="color: var(--pw-label);">Platform</span>
-          <sc-raw-select ref="{{ detail.platformRef }}" data-sync="{{ detail.platform }}" value="{{ detail.platform }}" sc-camel-on-change="{{ detail.onPlatform }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
-            <sc-for list="{{ platformNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
-          </sc-raw-select>
+          <button sc-camel-on-click="{{ detail.onPlatformOpen }}" title="เลือก Platform ได้หลายค่า" style="height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;padding:0 9px;background:var(--pw-surface);color:var(--pw-text2);cursor:pointer;">{{ detail.platformLabel }}</button>
           <span style="color: var(--pw-label);">Cost (฿)</span>
           <input ref="{{ detail.costRef }}" data-sync="{{ detail.cost }}" value="{{ detail.cost }}" sc-camel-on-change="{{ detail.onCost }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
           <span style="color: var(--pw-label);">Quantity</span>
@@ -5707,7 +5703,7 @@ class Component extends DCLogic {
         t.id, spaceOf(t.list), t.list, t.name, t.status, t.assignee, t.priority,
         t.start, t.due,
         (t.due < TODAY && !self.isDone(t.status)) ? 'ใช่' : '',
-        (t.tags || []).join(', '), t.channel, t.platform,
+        (t.tags || []).join(', '), self.multiValues(t.channel).join(', '), self.multiValues(t.platform).join(', '),
         t.cost || 0, t.qty || 0,
         done, (t.subtasks || []).length, (t.comments || []).length,
         (t.attachments || []).map(function (a) { return a.name; }).join(', '),
@@ -6167,10 +6163,22 @@ class Component extends DCLogic {
   applyOptValue(val) {
     const ed = this.state.optEditor;
     if (!ed || !ed.taskId) return;
+    const t = (this.state.tasks || []).filter(function (x) { return x.id === ed.taskId; })[0];
+    if (!t) return;
     const kind = ed.kind;
     if (this.optIsField(kind)) {
       const f = this.fieldOfKey(kind);
-      if (f) this.setCustom(ed.taskId, f.id, val);
+      if (f) {
+        if (f.type === 'select') {
+          const current = t && t.custom ? t.custom[f.id] : [];
+          const values = this.multiValues(current);
+          this.setCustom(ed.taskId, f.id, values.indexOf(val) >= 0 ? values.filter(function (x) { return x !== val; }) : values.concat([val]));
+        } else this.setCustom(ed.taskId, f.id, val);
+      }
+    } else if (kind === 'channels' || kind === 'platforms') {
+      const field = this.optField(kind);
+      const values = this.multiValues(t[field]);
+      this.patch(ed.taskId, field, values.indexOf(val) >= 0 ? values.filter(function (x) { return x !== val; }) : values.concat([val]));
     } else {
       this.patch(ed.taskId, this.optField(kind), val);
     }
@@ -6280,9 +6288,25 @@ class Component extends DCLogic {
             return x.id === f.id ? Object.assign({}, x, { options: (x.options || []).map(function (o) { return o === oldVal ? nm : o; }) }) : x;
           }),
           tasks: s.tasks.map(function (t) {
-            if (!t.custom || t.custom[f.id] !== oldVal) return t;
-            const c2 = Object.assign({}, t.custom); c2[f.id] = nm;
-            return Object.assign({}, t, { custom: c2 });
+            let changed = false;
+            const c2 = Object.assign({}, t.custom || {});
+            if (Array.isArray(c2[f.id])) {
+              const next = c2[f.id].map(function (v) { return v === oldVal ? nm : v; });
+              changed = JSON.stringify(next) !== JSON.stringify(c2[f.id]); c2[f.id] = next;
+            } else if (c2[f.id] === oldVal) { c2[f.id] = nm; changed = true; }
+            const subs = (t.subtasks || []).map(function (sub) {
+              if (!sub.custom) return sub;
+              const sc = Object.assign({}, sub.custom);
+              if (Array.isArray(sc[f.id])) {
+                const next = sc[f.id].map(function (v) { return v === oldVal ? nm : v; });
+                if (JSON.stringify(next) === JSON.stringify(sc[f.id])) return sub;
+                sc[f.id] = next; return Object.assign({}, sub, { custom: sc });
+              }
+              if (sc[f.id] !== oldVal) return sub;
+              sc[f.id] = nm; return Object.assign({}, sub, { custom: sc });
+            });
+            if (!changed && subs.every(function (sub, i) { return sub === (t.subtasks || [])[i]; })) return t;
+            return Object.assign({}, t, { custom: c2, subtasks: subs });
           })
         };
       }, function () {
@@ -6300,8 +6324,15 @@ class Component extends DCLogic {
     this.setState(function (s) {
       return {
         tasks: s.tasks.map(function (t) {
-          if (t[field] !== oldVal) return t;
-          const n2 = Object.assign({}, t); n2[field] = nm; return n2;
+          const current = t[field];
+          const next = Array.isArray(current) ? current.map(function (v) { return v === oldVal ? nm : v; }) : (current === oldVal ? nm : current);
+          const subs = (t.subtasks || []).map(function (sub) {
+            const subCurrent = sub[field];
+            const subNext = Array.isArray(subCurrent) ? subCurrent.map(function (v) { return v === oldVal ? nm : v; }) : (subCurrent === oldVal ? nm : subCurrent);
+            return JSON.stringify(subNext) === JSON.stringify(subCurrent) ? sub : Object.assign({}, sub, { [field]: subNext });
+          });
+          if (JSON.stringify(next) === JSON.stringify(current) && subs.every(function (sub, i) { return sub === (t.subtasks || [])[i]; })) return t;
+          return Object.assign({}, t, { [field]: next, subtasks: subs });
         })
       };
     }, function () {
@@ -6331,7 +6362,7 @@ class Component extends DCLogic {
     if (this.optIsField(kind)) {
       const f = this.fieldOfKey(kind);
       if (!f) return;
-      const n = this.state.tasks.filter(function (t) { return t.custom && t.custom[f.id] === val; }).length;
+      const n = this.state.tasks.filter(function (t) { const v = t.custom && t.custom[f.id]; return Array.isArray(v) ? v.indexOf(val) >= 0 : v === val; }).length;
       if (!window.confirm('ลบตัวเลือก "' + val + '"?' + (n ? ' งาน ' + n + ' ชิ้นที่ใช้อยู่จะถูกล้างค่า' : ''))) return;
       this.mark('ลบตัวเลือก');
       this.setState(function (s) {
@@ -6340,9 +6371,19 @@ class Component extends DCLogic {
             return x.id === f.id ? Object.assign({}, x, { options: (x.options || []).filter(function (o) { return o !== val; }) }) : x;
           }),
           tasks: s.tasks.map(function (t) {
-            if (!t.custom || t.custom[f.id] !== val) return t;
-            const c2 = Object.assign({}, t.custom); c2[f.id] = '';
-            return Object.assign({}, t, { custom: c2 });
+            let changed = false;
+            const c2 = Object.assign({}, t.custom || {});
+            if (Array.isArray(c2[f.id]) && c2[f.id].indexOf(val) >= 0) { c2[f.id] = c2[f.id].filter(function (v) { return v !== val; }); changed = true; }
+            else if (c2[f.id] === val) { c2[f.id] = ''; changed = true; }
+            const subs = (t.subtasks || []).map(function (sub) {
+              if (!sub.custom) return sub;
+              const sc = Object.assign({}, sub.custom);
+              if (Array.isArray(sc[f.id]) && sc[f.id].indexOf(val) >= 0) { sc[f.id] = sc[f.id].filter(function (v) { return v !== val; }); return Object.assign({}, sub, { custom: sc }); }
+              if (sc[f.id] === val) { sc[f.id] = ''; return Object.assign({}, sub, { custom: sc }); }
+              return sub;
+            });
+            if (!changed && subs.every(function (sub, i) { return sub === (t.subtasks || [])[i]; })) return t;
+            return Object.assign({}, t, { custom: c2, subtasks: subs });
           })
         };
       }, () => this.persist());
@@ -6403,8 +6444,15 @@ class Component extends DCLogic {
     this.setState(function (s) {
       return {
         tasks: s.tasks.map(function (t) {
-          if (t[field] !== oldVal) return t;
-          const n = Object.assign({}, t); n[field] = name; return n;
+          const current = t[field];
+          const next = Array.isArray(current) ? current.map(function (v) { return v === oldVal ? name : v; }) : (current === oldVal ? name : current);
+          const subs = (t.subtasks || []).map(function (sub) {
+            const subCurrent = sub[field];
+            const subNext = Array.isArray(subCurrent) ? subCurrent.map(function (v) { return v === oldVal ? name : v; }) : (subCurrent === oldVal ? name : subCurrent);
+            return JSON.stringify(subNext) === JSON.stringify(subCurrent) ? sub : Object.assign({}, sub, { [field]: subNext });
+          });
+          if (JSON.stringify(next) === JSON.stringify(current) && subs.every(function (sub, i) { return sub === (t.subtasks || [])[i]; })) return t;
+          const n = Object.assign({}, t); n[field] = next; n.subtasks = subs; return n;
         })
       };
     }, () => {
@@ -6425,13 +6473,24 @@ class Component extends DCLogic {
     if (L.length < 2) { window.alert('ต้องเหลือไว้อย่างน้อย 1 รายการ'); return null; }
     const rest = isObj ? L.filter(function (x) { return x.k !== val; }) : L.filter(function (x) { return x !== val; });
     const fallback = (kind === 'channels' || kind === 'platforms') ? '—' : (isObj ? rest[0].k : rest[0]);
-    const n = this.state.tasks.filter(function (t) { return t[field] === val; }).length;
-    if (!window.confirm('ลบ "' + val + '" ออกจากลิสต์?' + (n ? ' งาน ' + n + ' ชิ้นจะย้ายไป "' + fallback + '"' : ''))) return null;
+    const n = this.state.tasks.filter(function (t) { return Array.isArray(t[field]) ? t[field].indexOf(val) >= 0 : t[field] === val; }).length;
+    if (!window.confirm('ลบ "' + val + '" ออกจากลิสต์?' + (n ? ' งาน ' + n + ' ชิ้นจะถูกนำค่านี้ออก' : ''))) return null;
     this.setState(function (s) {
       return {
         tasks: s.tasks.map(function (t) {
-          if (t[field] !== val) return t;
-          const c = Object.assign({}, t); c[field] = fallback; return c;
+          const current = t[field];
+          let next = current;
+          if (Array.isArray(current)) next = current.filter(function (v) { return v !== val; });
+          else if (current === val) next = (kind === 'channels' || kind === 'platforms') ? [] : fallback;
+          const subs = (t.subtasks || []).map(function (sub) {
+            const subCurrent = sub[field];
+            let subNext = subCurrent;
+            if (Array.isArray(subCurrent)) subNext = subCurrent.filter(function (v) { return v !== val; });
+            else if (subCurrent === val) subNext = (kind === 'channels' || kind === 'platforms') ? [] : fallback;
+            return JSON.stringify(subNext) === JSON.stringify(subCurrent) ? sub : Object.assign({}, sub, { [field]: subNext });
+          });
+          if (JSON.stringify(next) === JSON.stringify(current) && subs.every(function (sub, i) { return sub === (t.subtasks || [])[i]; })) return t;
+          const c = Object.assign({}, t); c[field] = next; c.subtasks = subs; return c;
         })
       };
     }, () => {
@@ -6638,34 +6697,54 @@ class Component extends DCLogic {
       return t;
     });
   }
-  openMultiSelect(e, taskId, fieldId, values, subIndex) {
+  multiValues(value) {
+    const values = Array.isArray(value) ? value : (value && value !== '—' ? [String(value)] : []);
+    return values.map(function (v) { return String(v || '').trim(); }).filter(function (v, i, all) { return v && v !== '—' && all.indexOf(v) === i; });
+  }
+  multiLabel(value) {
+    const values = this.multiValues(value);
+    return values.length ? values.join(' · ') : '+ เลือก';
+  }
+  multiHas(value, option) { const values = this.multiValues(value); return option === '—' ? values.length === 0 : values.indexOf(option) >= 0; }
+  openMultiSelect(e, taskId, fieldId, values, subIndex, source) {
     const target = e && e.currentTarget;
     const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     const vw = Math.max(320, window.innerWidth || 1024);
     const vh = Math.max(320, window.innerHeight || 768);
     const width = Math.min(280, vw - 24);
     const field = (this.state.fields || []).filter(function (f) { return f.id === fieldId; })[0];
-    const count = field ? (field.options || []).length : 0;
+    const builtInOptions = source === 'channel' ? this.channels() : (source === 'platform' ? this.platforms() : []);
+    const count = field ? (field.options || []).length : builtInOptions.length;
     const height = Math.min(360, 92 + count * 38);
     let left = rect ? rect.left : 12;
     let top = rect ? rect.bottom + 6 : 72;
     left = Math.max(12, Math.min(left, vw - width - 12));
     if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 6);
-    this.setState({ multiSelectPicker: { taskId: taskId, fieldId: fieldId, subIndex: subIndex, values: Array.isArray(values) ? values.slice() : (values ? [String(values)] : []), left: left, top: top } });
+    this.setState({ multiSelectPicker: { taskId: taskId, fieldId: fieldId, subIndex: subIndex, source: source || 'custom', values: this.multiValues(values), left: left, top: top } });
   }
   closeMultiSelect() { this.setState({ multiSelectPicker: null }); }
   toggleMultiSelect(value) {
     const p = this.state.multiSelectPicker;
     if (!p) return;
     const values = p.values.indexOf(value) >= 0 ? p.values.filter(function (x) { return x !== value; }) : p.values.concat([value]);
-    if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSubCustom(p.taskId, p.subIndex, p.fieldId, values);
+    if (p.source === 'channel' || p.source === 'platform') {
+      if (p.subIndex === -1) this.patchSubDraft(p.source, values);
+      else if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSub(p.taskId, p.subIndex, p.source, values);
+      else this.patch(p.taskId, p.source, values);
+    } else if (p.subIndex === -1) this.patchSubDraftCustom(p.fieldId, values);
+    else if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSubCustom(p.taskId, p.subIndex, p.fieldId, values);
     else this.setCustom(p.taskId, p.fieldId, values);
     this.setState({ multiSelectPicker: Object.assign({}, p, { values: values }) });
   }
   clearMultiSelect() {
     const p = this.state.multiSelectPicker;
     if (!p) return;
-    if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSubCustom(p.taskId, p.subIndex, p.fieldId, []);
+    if (p.source === 'channel' || p.source === 'platform') {
+      if (p.subIndex === -1) this.patchSubDraft(p.source, []);
+      else if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSub(p.taskId, p.subIndex, p.source, []);
+      else this.patch(p.taskId, p.source, []);
+    } else if (p.subIndex === -1) this.patchSubDraftCustom(p.fieldId, []);
+    else if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSubCustom(p.taskId, p.subIndex, p.fieldId, []);
     else this.setCustom(p.taskId, p.fieldId, []);
     this.setState({ multiSelectPicker: Object.assign({}, p, { values: [] }) });
   }
@@ -7014,8 +7093,8 @@ class Component extends DCLogic {
     if (f.status.length && f.status.indexOf(t.status) < 0) return false;
     if (f.assignee.length && f.assignee.indexOf(t.assignee) < 0) return false;
     if (f.priority.length && f.priority.indexOf(t.priority) < 0) return false;
-    if (f.channel.length && f.channel.indexOf(t.channel) < 0) return false;
-    if (f.platform.length && f.platform.indexOf(t.platform) < 0) return false;
+    if (f.channel.length && !f.channel.some((v) => this.multiHas(t.channel, v))) return false;
+    if (f.platform.length && !f.platform.some((v) => this.multiHas(t.platform, v))) return false;
     if (f.due) {
       const done = this.isDone(t.status);
       if (f.due === 'overdue' && !(t.due < TODAY && !done)) return false;
@@ -7385,10 +7464,12 @@ class Component extends DCLogic {
         style: 'width:100%;background:transparent;border:0;outline:0;font-size:11px;color:#4f46e5;padding:3px 5px;border-radius:4px;' }; },
       list: function () { const value = pick('list', t.list); return { key: 'list', isSelect: true, options: O.lists, value: value,
         valueRef: self.syncRef(value), onChange: function (e) { set('list', e.target.value); }, style: sel }; },
-      channel: function () { const value = pick('channel', t.channel); return { key: 'channel', isSelect: true, options: O.channels.filter(function (v) { return v !== OPT_MANAGE; }), value: value,
-        valueRef: self.syncRef(value), onChange: function (e) { const v = e.target.value; if (self.optionPick('channels', v, value, function (n) { set('channel', n); }, t.id)) return; set('channel', v); }, style: sel }; },
-      platform: function () { const value = pick('platform', t.platform); return { key: 'platform', isSelect: true, options: O.platforms.filter(function (v) { return v !== OPT_MANAGE; }), value: value,
-        valueRef: self.syncRef(value), onChange: function (e) { const v = e.target.value; if (self.optionPick('platforms', v, value, function (n) { set('platform', n); }, t.id)) return; set('platform', v); }, style: sel }; },
+      channel: function () { const values = self.multiValues(pick('channel', t.channel)); return { key: 'channel', isMultiSelect: true, label: self.multiLabel(values),
+        onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, '__channel', values, idx, 'channel'); },
+        style: 'width:100%;height:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' + (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 6px;' }; },
+      platform: function () { const values = self.multiValues(pick('platform', t.platform)); return { key: 'platform', isMultiSelect: true, label: self.multiLabel(values),
+        onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, '__platform', values, idx, 'platform'); },
+        style: 'width:100%;height:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' + (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 6px;' }; },
       cost: function () { const value = pick('cost', t.cost || 0); return { key: 'cost', isInput: true, inputType: 'text', value: String(value), valueRef: self.syncRef(value), placeholder: '',
         onChange: function (e) { set('cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); }, style: sel + 'text-align:right;font-family:\'IBM Plex Mono\',monospace;' }; },
       qty: function () { const value = pick('qty', t.qty || 0); return { key: 'qty', isInput: true, inputType: 'text', value: String(value), valueRef: self.syncRef(value), placeholder: '',
@@ -7411,11 +7492,6 @@ class Component extends DCLogic {
       }
       if (f.type === 'select') {
         const values = Array.isArray(raw) ? raw : (raw ? [String(raw)] : []);
-        if (isDraft) {
-          const value = values[0] || '';
-          return { key: k, isSelect: true, options: [''].concat(f.options || []), value: value, valueRef: self.syncRef(value),
-            onChange: function (e) { setCustom(f.id, e.target.value ? [e.target.value] : []); }, style: sel };
-        }
         return { key: k, isMultiSelect: true, label: values.length ? values.join(' · ') : '+ เลือก',
           onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, f.id, values, idx); },
           style: 'width:100%;height:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' +
@@ -7455,8 +7531,6 @@ class Component extends DCLogic {
       priorityRef: this.syncRef(t.priority),
       tagRef: this.syncRef((t.tags || []).join(', ')),
       listRef: this.syncRef(t.list),
-      channelRef: this.syncRef(t.channel),
-      platformRef: this.syncRef(t.platform),
       costRef: this.syncRef(t.cost),
       qtyRef: this.syncRef(t.qty),
       list: t.list,
@@ -7589,8 +7663,6 @@ class Component extends DCLogic {
       },
       onDue: function (e) { self.patch(t.id, 'due', e.target.value); },
       onPriority: function (e) { self.patch(t.id, 'priority', e.target.value); },
-      onChannel: function (e) { self.patch(t.id, 'channel', e.target.value); },
-      onPlatform: function (e) { self.patch(t.id, 'platform', e.target.value); },
       onCost: function (e) { self.patch(t.id, 'cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
       onQty: function (e) { self.patch(t.id, 'qty', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
       onTagsText: function (e) {
@@ -7608,7 +7680,7 @@ class Component extends DCLogic {
       cardStyle: 'display:flex;flex-direction:column;gap:7px;padding:11px 12px;border:1px solid var(--pw-border);border-radius:10px;background:var(--pw-surface);cursor:pointer;',
       tagLabel: (t.tags || []).length ? (t.tags || []).join(' · ') : '',
       hasTags: (t.tags || []).length > 0,
-      metaLabel: t.list + (t.channel && t.channel !== '—' ? ' · ' + t.channel : ''),
+      metaLabel: t.list + (self.multiValues(t.channel).length ? ' · ' + self.multiLabel(t.channel) : ''),
       cells: self.state.view !== 'table' ? [] : (function () {
         const O = self._opt || self.buildOpts();
         const dm2 = self.dueMeta(t.due, t.status);
@@ -7664,24 +7736,16 @@ class Component extends DCLogic {
               style: sel };
           },
           channel: function () {
-            return { key: 'channel', isSelect: true, options: O.channels, value: t.channel,
-              valueRef: self.syncRef(t.channel),
-              onChange: function (e) {
-                const v = e.target.value;
-                if (self.optionPick('channels', v, t.channel, function (n) { self.patch(t.id, 'channel', n); }, t.id)) return;
-                self.patch(t.id, 'channel', v);
-              },
-              style: sel };
+            const values = self.multiValues(t.channel);
+            return { key: 'channel', isMultiSelect: true, label: self.multiLabel(values),
+              onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, '__channel', values, null, 'channel'); },
+              style: 'width:100%;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' + (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10.5px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 7px;' };
           },
           platform: function () {
-            return { key: 'platform', isSelect: true, options: O.platforms, value: t.platform,
-              valueRef: self.syncRef(t.platform),
-              onChange: function (e) {
-                const v = e.target.value;
-                if (self.optionPick('platforms', v, t.platform, function (n) { self.patch(t.id, 'platform', n); }, t.id)) return;
-                self.patch(t.id, 'platform', v);
-              },
-              style: sel };
+            const values = self.multiValues(t.platform);
+            return { key: 'platform', isMultiSelect: true, label: self.multiLabel(values),
+              onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, '__platform', values, null, 'platform'); },
+              style: 'width:100%;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' + (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10.5px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 7px;' };
           },
           cost: function () {
             return { key: 'cost', isInput: true, inputType: 'text', value: String(t.cost), valueRef: self.syncRef(t.cost),
@@ -7921,8 +7985,8 @@ class Component extends DCLogic {
     if (spaceName) { groupField = 'list'; groupKeys = scopeLists || []; }
     const spaceColor = spaceName ? ((s.spaces.filter(function (x) { return x.name === spaceName; })[0] || {}).color || '#4f46e5') : '#4f46e5';
     const groups = groupKeys.map(function (key) {
-      const list = vms.filter(function (v) { return v[groupField] === key; }).sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
-      const cost = visible.filter(function (t) { return t[groupField] === key; }).reduce(function (a, t) { return a + (t.cost || 0); }, 0);
+      const list = vms.filter(function (v) { return groupField === 'channel' ? self.multiHas(v.channel, key) : v[groupField] === key; }).sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
+      const cost = visible.filter(function (t) { return groupField === 'channel' ? self.multiHas(t.channel, key) : t[groupField] === key; }).reduce(function (a, t) { return a + (t.cost || 0); }, 0);
       let chipStyle;
       if (groupField === 'status') chipStyle = self.chip(key);
       else {
@@ -8179,7 +8243,7 @@ class Component extends DCLogic {
     });
 
     const chanTotals = this.channels().slice(1).map(function (ch) {
-      return { label: ch, v: visible.filter(function (t) { return t.channel === ch; }).reduce(function (a, t) { return a + (t.cost || 0); }, 0) };
+      return { label: ch, v: visible.filter(function (t) { return self.multiHas(t.channel, ch); }).reduce(function (a, t) { return a + (t.cost || 0); }, 0) };
     });
     const maxChan = Math.max.apply(null, chanTotals.map(function (c) { return c.v; }).concat([1]));
     const channelBars = chanTotals.map(function (c) {
@@ -8214,6 +8278,7 @@ class Component extends DCLogic {
         code: sel.id, name: sel.name, status: sel.status, assignee: sel.assignee,
         priority: sel.priority, start: sel.start, due: sel.due,
         channel: sel.channel, platform: sel.platform,
+        channelLabel: self.multiLabel(sel.channel), platformLabel: self.multiLabel(sel.platform),
         cost: String(sel.cost), qty: String(sel.qty),
         tagText: (sel.tags || []).join(', '),
         nameRef: this.syncRef(sel.name),
@@ -8223,8 +8288,6 @@ class Component extends DCLogic {
         priorityRef: this.syncRef(sel.priority),
         startRef: this.syncRef(sel.start),
         dueRef: this.syncRef(sel.due),
-        channelRef: this.syncRef(sel.channel),
-        platformRef: this.syncRef(sel.platform),
         costRef: this.syncRef(sel.cost),
         qtyRef: this.syncRef(sel.qty),
         tagRef: this.syncRef((sel.tags || []).join(', ')),
@@ -8404,16 +8467,8 @@ class Component extends DCLogic {
         }),
         onStart: function (e) { self.patch(sel.id, 'start', e.target.value); },
         onDue: function (e) { self.patch(sel.id, 'due', e.target.value); },
-        onChannel: function (e) {
-          const v = e.target.value;
-          if (self.optionPick('channels', v, sel.channel, function (n) { self.patch(sel.id, 'channel', n); }, sel.id)) return;
-          self.patch(sel.id, 'channel', v);
-        },
-        onPlatform: function (e) {
-          const v = e.target.value;
-          if (self.optionPick('platforms', v, sel.platform, function (n) { self.patch(sel.id, 'platform', n); }, sel.id)) return;
-          self.patch(sel.id, 'platform', v);
-        },
+        onChannelOpen: function (e) { self.openMultiSelect(e, sel.id, '__channel', self.multiValues(sel.channel), null, 'channel'); },
+        onPlatformOpen: function (e) { self.openMultiSelect(e, sel.id, '__platform', self.multiValues(sel.platform), null, 'platform'); },
         onCost: function (e) { self.patch(sel.id, 'cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
         onQty: function (e) { self.patch(sel.id, 'qty', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
         onDesc: function (e) { self.patch(sel.id, 'desc', e.target.value); },
@@ -8595,12 +8650,17 @@ class Component extends DCLogic {
       multiSelect: (function () {
         const p = s.multiSelectPicker;
         if (!p) return { open: false };
-        const f = (s.fields || []).filter(function (x) { return x.id === p.fieldId; })[0];
+        const customField = (s.fields || []).filter(function (x) { return x.id === p.fieldId; })[0];
+        const isChannel = p.source === 'channel';
+        const isPlatform = p.source === 'platform';
+        const f = customField || (isChannel ? { label: 'Channel', options: self.channels() } : (isPlatform ? { label: 'Platform', options: self.platforms() } : null));
         if (!f) return { open: false };
+        const pickerOptions = (f.options || []).filter(function (o) { return o && o !== '—' && o !== OPT_MANAGE; });
+        const manageKind = isChannel ? 'channels' : (isPlatform ? 'platforms' : ('cf:' + f.id));
         return {
           open: true, title: f.label,
           style: 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(280px,calc(100vw - 24px));background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;box-shadow:0 18px 46px rgba(8,10,14,.36);z-index:87;overflow:hidden;',
-          options: (f.options || []).map(function (o, i) {
+          options: pickerOptions.map(function (o, i) {
             const on = p.values.indexOf(o) >= 0;
             const c = OPT_PALETTE[i % OPT_PALETTE.length];
             return {
@@ -8611,7 +8671,7 @@ class Component extends DCLogic {
             };
           }),
           onClear: function () { self.clearMultiSelect(); },
-          onManage: function () { self.closeMultiSelect(); self.openOptEditor('cf:' + f.id, p.taskId); },
+          onManage: function () { self.closeMultiSelect(); self.openOptEditor(manageKind, p.taskId); },
           onClose: function () { self.closeMultiSelect(); }
         };
       })(),
@@ -9162,7 +9222,7 @@ class Component extends DCLogic {
           empty: values.length === 0,
           rows: values.map(function (v) {
             const col = self.optColorOf(kind, v);
-            const on = cur === v;
+            const on = Array.isArray(cur) ? cur.indexOf(v) >= 0 : cur === v;
             const editing = s.optEditing === v && !s.optCreating;
             return {
               label: v,
