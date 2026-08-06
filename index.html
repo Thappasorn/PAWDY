@@ -3561,7 +3561,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </sc-for>
                   <button sc-camel-on-click="{{ onAddSubOfCurrent }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; padding: 5px 11px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ หน้าย่อย</button>
                 </div>
-                <textarea ref="{{ doc.bodyRef }}" data-sync="{{ doc.body }}" value="{{ doc.body }}" sc-camel-on-change="{{ doc.onBody }}" rows="22" placeholder="พิมพ์เนื้อหาเอกสารที่นี่ — ทุกคนในทีมเห็นและแก้ได้ บันทึกอัตโนมัติ" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.7; outline: 0; resize: vertical; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5;"></textarea>
                 <sc-if value="{{ doc.hasDetectedLink }}" hint-placeholder-val="{{ false }}">
                   <div data-panel style="display:flex;flex-direction:column;gap:9px;border:1px solid #4f46e5;border-radius:10px;padding:11px 12px;background:var(--pw-accent-soft);">
                     <div style="display:flex;align-items:center;gap:8px;min-width:0;">
@@ -3578,6 +3577,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     </div>
                   </div>
                 </sc-if>
+                <textarea ref="{{ doc.bodyRef }}" data-sync="{{ doc.body }}" value="{{ doc.body }}" sc-camel-on-change="{{ doc.onBody }}" rows="22" placeholder="พิมพ์เนื้อหาเอกสารที่นี่ — ทุกคนในทีมเห็นและแก้ได้ บันทึกอัตโนมัติ" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.7; outline: 0; resize: vertical; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5;"></textarea>
 
                 <sc-for list="{{ doc.links }}" as="dl" hint-placeholder-count="2">
                   <div style="display:flex;flex-direction:column;gap:7px;border:1px solid var(--pw-border);border-radius:10px;padding:9px 10px;background:var(--pw-surface2);">
