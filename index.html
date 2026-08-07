@@ -382,6 +382,11 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       sb.from('members').upsert({ email: m.email.toLowerCase(), name: m.n || m.name, color: m.c || '#4f46e5' }, { onConflict: 'email' }).then(log);
     },
 
+    removeMember: function (email) {
+      if (!sb || !email) return;
+      sb.from('members').delete().eq('email', String(email).toLowerCase()).then(log);
+    },
+
     clearNotifs: function () {
       if (!sb || !me) return;
       snap.notifs = [];
@@ -3741,12 +3746,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       </span>
                     </sc-if>
                     <sc-if value="{{ cell.isAssignee }}" hint-placeholder-val="{{ false }}">
-                      <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
-                        <span style="{{ cell.avatarStyle }}">{{ cell.initials }}</span>
-                        <sc-raw-select data-assignee ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" value="{{ cell.value }}" sc-camel-on-change="{{ cell.onChange }}" style="{{ cell.style }}">
-                          <sc-for list="{{ cell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-                        </sc-raw-select>
-                      </div>
+                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เลือกผู้รับผิดชอบ" style="{{ cell.btnStyle }}">
+                        <sc-for list="{{ cell.avatars }}" as="av" hint-placeholder-count="2"><span style="{{ av.style }}">{{ av.initials }}</span></sc-for>
+                        <span data-assignee style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ cell.label }}</span>
+                      </button>
                     </sc-if>
                     <sc-if value="{{ cell.isInput }}" hint-placeholder-val="{{ false }}">
                       <input ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" type="{{ cell.inputType }}" value="{{ cell.value }}" placeholder="{{ cell.placeholder }}" sc-camel-on-change="{{ cell.onChange }}" sc-camel-on-click="{{ cell.onPick }}" style="{{ cell.style }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px; color: var(--pw-text);">
@@ -3829,12 +3832,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                             <button sc-camel-on-click="{{ scell.onOpen }}" title="เลือกได้หลายค่า" style="{{ scell.style }}">{{ scell.label }}</button>
                           </sc-if>
                           <sc-if value="{{ scell.isAssignee }}" hint-placeholder-val="{{ false }}">
-                            <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-                              <span style="{{ scell.avatarStyle }}">{{ scell.initials }}</span>
-                              <sc-raw-select data-assignee ref="{{ scell.valueRef }}" data-sync="{{ scell.value }}" value="{{ scell.value }}" sc-camel-on-change="{{ scell.onChange }}" style="{{ scell.style }}">
-                                <sc-for list="{{ scell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-                              </sc-raw-select>
-                            </div>
+                            <button sc-camel-on-click="{{ scell.onOpen }}" title="เลือกผู้รับผิดชอบ" style="{{ scell.btnStyle }}">
+                              <sc-for list="{{ scell.avatars }}" as="av" hint-placeholder-count="2"><span style="{{ av.style }}">{{ av.initials }}</span></sc-for>
+                              <span data-assignee style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ scell.label }}</span>
+                            </button>
                           </sc-if>
                           <sc-if value="{{ scell.isInput }}" hint-placeholder-val="{{ false }}">
                             <input ref="{{ scell.valueRef }}" data-sync="{{ scell.value }}" type="{{ scell.inputType }}" value="{{ scell.value }}" placeholder="{{ scell.placeholder }}" sc-camel-on-change="{{ scell.onChange }}" sc-camel-on-click="{{ scell.onPick }}" style="{{ scell.style }}" style-focus="background:var(--pw-surface);box-shadow:0 0 0 1.5px #4f46e5;border-radius:4px;color:var(--pw-text);">
@@ -3866,12 +3867,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                             </span>
                           </sc-if>
                           <sc-if value="{{ dcell.isAssignee }}" hint-placeholder-val="{{ false }}">
-                            <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-                              <span style="{{ dcell.avatarStyle }}">{{ dcell.initials }}</span>
-                              <sc-raw-select data-assignee ref="{{ dcell.valueRef }}" data-sync="{{ dcell.value }}" value="{{ dcell.value }}" sc-camel-on-change="{{ dcell.onChange }}" style="{{ dcell.style }}">
-                                <sc-for list="{{ dcell.options }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-                              </sc-raw-select>
-                            </div>
+                            <button sc-camel-on-click="{{ dcell.onOpen }}" title="เลือกผู้รับผิดชอบ" style="{{ dcell.btnStyle }}">
+                              <sc-for list="{{ dcell.avatars }}" as="av" hint-placeholder-count="2"><span style="{{ av.style }}">{{ av.initials }}</span></sc-for>
+                              <span data-assignee style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ dcell.label }}</span>
+                            </button>
                           </sc-if>
                           <sc-if value="{{ dcell.isInput }}" hint-placeholder-val="{{ false }}">
                             <input ref="{{ dcell.valueRef }}" data-sync="{{ dcell.value }}" type="{{ dcell.inputType }}" value="{{ dcell.value }}" placeholder="{{ dcell.placeholder }}" sc-camel-on-change="{{ dcell.onChange }}" sc-camel-on-click="{{ dcell.onPick }}" style="{{ dcell.style }}" style-focus="background:var(--pw-surface2);box-shadow:0 0 0 1.5px #4f46e5;border-radius:4px;color:var(--pw-text);">
@@ -4385,9 +4384,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <sc-for list="{{ statusNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
           </sc-raw-select>
           <span style="color: var(--pw-label);">Assignee</span>
-          <sc-raw-select ref="{{ detail.assigneeRef }}" data-sync="{{ detail.assignee }}" value="{{ detail.assignee }}" sc-camel-on-change="{{ detail.onAssignee }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
-            <sc-for list="{{ memberNames }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-          </sc-raw-select>
+          <button sc-camel-on-click="{{ detail.onAssigneeOpen }}" title="เลือกผู้รับผิดชอบได้หลายคน" style="display:flex;align-items:center;gap:7px;border:1px solid var(--pw-border);border-radius:6px;padding:5px 8px;background:var(--pw-surface);color:var(--pw-text);font-size:12px;text-align:left;cursor:pointer;">
+            <sc-for list="{{ detail.assigneeAvatars }}" as="av" hint-placeholder-count="2"><span style="{{ av.style }}">{{ av.initials }}</span></sc-for>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ detail.assigneeLabel }}</span>
+          </button>
           <span style="color: var(--pw-label);">Priority</span>
           <sc-raw-select ref="{{ detail.priorityRef }}" data-sync="{{ detail.priority }}" value="{{ detail.priority }}" sc-camel-on-change="{{ detail.onPriority }}" style="{{ detail.prioritySelect }}">
             <sc-for list="{{ priorityNames }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
@@ -4795,6 +4795,35 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </div>
   </sc-if>
 
+  <sc-if value="{{ assigneePick.open }}" hint-placeholder-val="{{ false }}">
+    <div sc-camel-on-click="{{ assigneePick.onClose }}" style="position:fixed;inset:0;z-index:86;background:transparent;"></div>
+    <div data-assignee-pick data-panel style="{{ assigneePick.style }}">
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid var(--pw-line);"><b style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">ผู้รับผิดชอบ</b><span style="font-size:10px;color:var(--pw-muted2);">{{ assigneePick.hint }}</span><button sc-camel-on-click="{{ assigneePick.onClose }}" style="border:0;background:transparent;color:var(--pw-muted2);font-size:15px;cursor:pointer;">×</button></div>
+      <div style="display:flex;flex-direction:column;gap:3px;padding:7px;max-height:280px;overflow-y:auto;">
+        <sc-for list="{{ assigneePick.people }}" as="ap" hint-placeholder-count="5">
+          <div style="{{ ap.rowStyle }}">
+            <button sc-camel-on-click="{{ ap.onToggle }}" style="{{ ap.pickStyle }}"><span style="{{ ap.checkStyle }}">{{ ap.check }}</span><span style="{{ ap.avatarStyle }}">{{ ap.initials }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ap.label }}</span></button>
+            <sc-if value="{{ ap.canRemove }}" hint-placeholder-val="{{ false }}">
+              <button sc-camel-on-click="{{ ap.onRemove }}" title="เอาออกจากงานนี้" aria-label="เอาออกจากงานนี้" style="{{ ap.iconStyle }}" style-hover="color:#4f46e5;background:var(--pw-hover);">−</button>
+            </sc-if>
+            <sc-if value="{{ ap.canDelete }}" hint-placeholder-val="{{ false }}">
+              <button sc-camel-on-click="{{ ap.onDelete }}" title="ลบออกจากทีมถาวร (admin)" aria-label="ลบออกจากทีมถาวร" style="{{ ap.delStyle }}" style-hover="color:#dc2626;background:var(--pw-hover);">✕</button>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-top:1px solid var(--pw-line);">
+        <sc-if value="{{ assigneePick.isAdmin }}" hint-placeholder-val="{{ true }}">
+          <button sc-camel-on-click="{{ assigneePick.onAdd }}" style="border:0;background:transparent;color:#4f46e5;font-size:11px;cursor:pointer;">＋ เพิ่มสมาชิก</button>
+        </sc-if>
+        <sc-if value="{{ assigneePick.multi }}" hint-placeholder-val="{{ true }}">
+          <button sc-camel-on-click="{{ assigneePick.onClear }}" style="border:0;background:transparent;color:var(--pw-muted2);font-size:11px;cursor:pointer;">ล้างทั้งหมด</button>
+        </sc-if>
+        <button sc-camel-on-click="{{ assigneePick.onClose }}" style="margin-left:auto;height:30px;border:0;border-radius:7px;background:#4f46e5;color:#fff;padding:0 13px;font-size:11.5px;font-weight:600;cursor:pointer;">เสร็จ</button>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ timelinePicker.open }}" hint-placeholder-val="{{ false }}">
     <div sc-camel-on-click="{{ timelinePicker.onClose }}" style="position:fixed;inset:0;z-index:84;background:transparent;"></div>
     <div data-timeline-picker data-panel style="{{ timelinePicker.style }}">
@@ -5087,6 +5116,7 @@ class Component extends DCLogic {
       commentComposerPos: null,
       timelinePicker: null,     // date-range popover ของฟิลด์ Timeline ในตาราง
       multiSelectPicker: null,  // custom dropdown แบบเลือกหลายค่า
+      assigneePicker: null,     // popover เลือกผู้รับผิดชอบได้หลายคน
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -5285,21 +5315,40 @@ class Component extends DCLogic {
     }, 4200);
   }
 
+  // ส่งอีเมลหาผู้รับผิดชอบทุกคน (ตัดตัวเราเอง ตัดคนที่ไม่มีอีเมล ตัดซ้ำ)
+  sendEmailMany(names, subject, line, detail) {
+    const self = this;
+    const meMail = String(this.me().email || '').toLowerCase();
+    const list = (names || [])
+      .map(function (nm) { return self.emailFor(nm); })
+      .filter(function (r) { return r && r.email; })
+      .filter(function (r) { return String(r.email).toLowerCase() !== meMail; })
+      .filter(function (r, i, all) {
+        return all.map(function (x) { return String(x.email).toLowerCase(); }).indexOf(String(r.email).toLowerCase()) === i;
+      });
+    if (!list.length) {
+      this.flashToast((names && names.length)
+        ? 'ไม่ได้ส่งอีเมล — ผู้รับผิดชอบเป็นคุณเอง'
+        : 'ไม่ได้ส่งแจ้งเตือน — งานนี้ยังไม่มีผู้รับผิดชอบ');
+      return;
+    }
+    list.forEach(function (to) { self.sendEmail(to, subject, line, detail); });
+  }
+
   notifyChange(prev, field, value) {
     if (!prev) return;
     const watched = { status: 'Status', assignee: 'Assignee', due: 'Due date', priority: 'Priority', list: 'List' };
     if (!watched[field] || prev[field] === value) return;
     const subject = '[' + prev.list + '] ' + prev.name;
     const from = this.me().n;
-    let line, to;
+    const detail = 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list;
     if (field === 'assignee') {
-      to = this.emailFor(value);
-      line = 'Assigned to you by ' + from;
-    } else {
-      to = this.emailFor(prev.assignee);
-      line = watched[field] + ': ' + (prev[field] || '—') + ' → ' + (value || '—');
+      this.sendEmailMany([value], subject, 'Assigned to you by ' + from, detail);
+      return;
     }
-    this.sendEmail(to, subject, line, 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list);
+    // งานเดียวมีหลายคนรับผิดชอบ → แจ้งทุกคน
+    this.sendEmailMany(this.assigneesOf(prev), subject,
+      watched[field] + ': ' + (prev[field] || '—') + ' → ' + (value || '—'), detail);
   }
 
   patchTask(id, fn) {
@@ -5700,7 +5749,7 @@ class Component extends DCLogic {
     const rows = this.visibleTasks().map(function (t) {
       const done = (t.subtasks || []).filter(function (x) { return x.done; }).length;
       const base = [
-        t.id, spaceOf(t.list), t.list, t.name, t.status, t.assignee, t.priority,
+        t.id, spaceOf(t.list), t.list, t.name, t.status, self.assigneesOf(t).join(', ') || 'Unassigned', t.priority,
         t.start, t.due,
         (t.due < TODAY && !self.isDone(t.status)) ? 'ใช่' : '',
         (t.tags || []).join(', '), self.multiValues(t.channel).join(', '), self.multiValues(t.platform).join(', '),
@@ -6982,6 +7031,136 @@ class Component extends DCLogic {
     return list.filter(function (m) { return m.n === n; })[0] || list[0];
   }
 
+  // ---------- ผู้รับผิดชอบหลายคน ----------
+  // เก็บจริงที่ t.assignees = [ชื่อ] แล้ว mirror คนแรกไว้ที่ t.assignee เดิมเสมอ
+  // เพื่อให้ group by / Gantt / Calendar / ตัวกรองที่ยังอ่าน t.assignee ทำงานต่อได้
+  assigneesOf(t) {
+    if (!t) return [];
+    const raw = Array.isArray(t.assignees)
+      ? t.assignees
+      : ((t.assignee && t.assignee !== 'Unassigned') ? [t.assignee] : []);
+    return raw
+      .map(function (x) { return String(x || '').trim(); })
+      .filter(function (x, i, all) { return x && x !== 'Unassigned' && all.indexOf(x) === i; });
+  }
+  assigneeLabel(names) {
+    if (!names || !names.length) return 'Unassigned';
+    if (names.length === 1) return names[0];
+    return names[0] + ' +' + (names.length - 1);
+  }
+  assigneeAvatars(names, size) {
+    const self = this;
+    const show = (names && names.length) ? names.slice(0, 3) : ['Unassigned'];
+    return show.map(function (nm, i) {
+      return {
+        initials: self.initials(nm),
+        style: self.avatar(nm, size) + (i ? 'margin-left:-6px;' : '') + 'box-shadow:0 0 0 1.5px var(--pw-surface);'
+      };
+    });
+  }
+  setAssignees(id, names) {
+    const prev = this.state.tasks.filter(function (t) { return t.id === id; })[0];
+    const list = (names || [])
+      .map(function (x) { return String(x || '').trim(); })
+      .filter(function (x, i, all) { return x && x !== 'Unassigned' && all.indexOf(x) === i; });
+    this.mark('เปลี่ยนผู้รับผิดชอบ');
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.map(function (t) {
+          if (t.id !== id) return t;
+          return Object.assign({}, t, { assignees: list, assignee: list[0] || 'Unassigned' });
+        })
+      };
+    }, () => { this.persist(); this.notifyAssignees(prev, list); });
+  }
+  notifyAssignees(prev, list) {
+    if (!prev) return;
+    const before = this.assigneesOf(prev);
+    const added = list.filter(function (x) { return before.indexOf(x) < 0; });
+    if (!added.length) return;
+    const from = this.me().n;
+    this.sendEmailMany(added, '[' + prev.list + '] ' + prev.name,
+      'Assigned to you by ' + from, 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list);
+  }
+
+  openAssigneePicker(e, taskId, values, subIndex, single) {
+    const target = e && e.currentTarget;
+    const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
+    const vw = Math.max(320, window.innerWidth || 1024);
+    const vh = Math.max(320, window.innerHeight || 768);
+    const width = Math.min(280, vw - 24);
+    const count = Math.max(1, (this.state.members || []).length);
+    const height = Math.min(360, 96 + count * 38);
+    let left = rect ? rect.left : 12;
+    let top = rect ? rect.bottom + 6 : 72;
+    left = Math.max(12, Math.min(left, vw - width - 12));
+    if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 6);
+    this.setState({ assigneePicker: {
+      taskId: taskId, subIndex: (subIndex === undefined ? null : subIndex),
+      single: !!single, values: (values || []).slice(), left: left, top: top
+    } });
+  }
+  closeAssigneePicker() { this.setState({ assigneePicker: null }); }
+  toggleAssignee(name) {
+    const p = this.state.assigneePicker;
+    if (!p) return;
+    if (p.single) {
+      if (p.subIndex === -1) this.patchSubDraft('assignee', name);
+      else if (typeof p.subIndex === 'number' && p.subIndex >= 0) this.patchSub(p.taskId, p.subIndex, 'assignee', name);
+      else this.patch(p.taskId, 'assignee', name);
+      this.setState({ assigneePicker: null });
+      return;
+    }
+    const values = p.values.indexOf(name) >= 0
+      ? p.values.filter(function (x) { return x !== name; })
+      : p.values.concat([name]);
+    this.setAssignees(p.taskId, values);
+    this.setState({ assigneePicker: Object.assign({}, p, { values: values }) });
+  }
+  clearAssigneePick() {
+    const p = this.state.assigneePicker;
+    if (!p || p.single) return;
+    this.setAssignees(p.taskId, []);
+    this.setState({ assigneePicker: Object.assign({}, p, { values: [] }) });
+  }
+  // ＋ เพิ่มสมาชิกเข้าทีม (admin) — เพิ่มเสร็จติ๊กให้งานนี้เลย
+  pickerAddMember() {
+    if (!this.guardAdmin()) return;
+    const email = window.prompt('เพิ่มสมาชิกใหม่เข้าทีม — ใส่อีเมล');
+    if (!email) return;
+    const self = this;
+    this.addMemberByEmail(email, function (nm) {
+      const p = self.state.assigneePicker;
+      if (p && p.values.indexOf(nm) < 0) self.toggleAssignee(nm);
+    });
+  }
+  // ✕ ลบสมาชิกออกจากทีมถาวร (admin) — พร้อมถอดออกจากทุกงานที่ถูก assign ไว้
+  pickerDeleteMember(name) {
+    if (!this.guardAdmin()) return;
+    const m = this.memberMeta(name);
+    if (!m || !m.email) { window.alert('สมาชิกคนนี้ยังไม่มีอีเมลในระบบ ลบไม่ได้'); return; }
+    if (String(m.email).toLowerCase() === String(this.me().email || '').toLowerCase()) {
+      window.alert('ลบตัวเองออกจากทีมไม่ได้'); return;
+    }
+    if (!window.confirm('ลบ ' + name + ' ออกจากทีมถาวร?\n\nคนนี้จะเข้า workspace ไม่ได้อีก และจะถูกถอดออกจากทุกงานที่ถูก assign ไว้')) return;
+    window.PawdySync.removeMember(m.email);
+    this.mark('ลบสมาชิกออกจากทีม');
+    const self = this;
+    this.setState(function (st) {
+      const p = st.assigneePicker;
+      return {
+        members: (st.members || []).filter(function (x) { return x.n !== name; }),
+        tasks: (st.tasks || []).map(function (t) {
+          const cur = self.assigneesOf(t);
+          if (cur.indexOf(name) < 0) return t;
+          const next = cur.filter(function (x) { return x !== name; });
+          return Object.assign({}, t, { assignees: next, assignee: next[0] || 'Unassigned' });
+        }),
+        assigneePicker: p ? Object.assign({}, p, { values: p.values.filter(function (x) { return x !== name; }) }) : null
+      };
+    }, () => this.persist());
+  }
+
   // Turn "beam.s@pawdy.co.th" into a display name + a stable colour
   addMemberByEmail(email, then) {
     const clean = (email || '').trim();
@@ -7091,7 +7270,11 @@ class Component extends DCLogic {
   passFilter(t) {
     const f = this.filt();
     if (f.status.length && f.status.indexOf(t.status) < 0) return false;
-    if (f.assignee.length && f.assignee.indexOf(t.assignee) < 0) return false;
+    if (f.assignee.length) {
+      const who = this.assigneesOf(t);
+      const hit = f.assignee.some(function (nm) { return nm === 'Unassigned' ? who.length === 0 : who.indexOf(nm) >= 0; });
+      if (!hit) return false;
+    }
     if (f.priority.length && f.priority.indexOf(t.priority) < 0) return false;
     if (f.channel.length && !f.channel.some((v) => this.multiHas(t.channel, v))) return false;
     if (f.platform.length && !f.platform.some((v) => this.multiHas(t.platform, v))) return false;
@@ -7350,7 +7533,7 @@ class Component extends DCLogic {
       else if (s.list !== '__all' && t.list !== s.list) return false;
       if (hideDone && t.status === doneKey) return false;
       if (!q) return true;
-      return (t.name + ' ' + t.assignee + ' ' + (t.tags || []).join(' ') + ' ' + t.channel + ' ' + t.platform).toLowerCase().indexOf(q) >= 0;
+      return (t.name + ' ' + self.assigneesOf(t).join(' ') + ' ' + (t.tags || []).join(' ') + ' ' + t.channel + ' ' + t.platform).toLowerCase().indexOf(q) >= 0;
     });
   }
 
@@ -7449,9 +7632,11 @@ class Component extends DCLogic {
         options: O.status.filter(function (v) { return v !== OPT_ARCHIVE && v !== OPT_MANAGE; }), value: status, valueRef: self.syncRef(status),
         onChange: function (e) { const v = e.target.value; if (self.optionPick('statuses', v, status, function (n) { set('status', n); }, t.id)) return; set('status', v); },
         style: 'font-size:10.5px;font-weight:600;padding:3px 7px;border-radius:5px;background:' + self.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;' }; },
-      assignee: function () { return { key: 'assignee', isAssignee: true, options: O.members, value: assignee,
-        valueRef: self.syncRef(assignee), initials: self.initials(assignee), avatarStyle: self.avatar(assignee, 18),
-        onChange: function (e) { const v = e.target.value; if (v === ADD_MEMBER) { self.promptMember(function (n) { set('assignee', n); }); return; } set('assignee', v); }, style: sel }; },
+      assignee: function () {
+        const who = (assignee && assignee !== 'Unassigned') ? [assignee] : [];
+        return { key: 'assignee', isAssignee: true, avatars: self.assigneeAvatars(who, 18), label: self.assigneeLabel(who),
+          onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openAssigneePicker(e, t.id, who, isDraft ? -1 : idx, true); },
+          btnStyle: sel + 'display:flex;align-items:center;gap:5px;background:transparent;border:0;padding:0;text-align:left;' }; },
       due: function () { return { key: 'due', isInput: true, inputType: 'date', value: due, valueRef: self.syncRef(due), placeholder: '',
         onChange: function (e) { set('due', e.target.value); }, onPick: function (e) { self.openPicker(e); },
         style: 'background:transparent;border:0;outline:0;font-size:10.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm.color + ';width:100%;min-width:0;cursor:pointer;' }; },
@@ -7698,14 +7883,10 @@ class Component extends DCLogic {
               style: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + self.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;min-width:0;' };
           },
           assignee: function () {
-            return { key: 'assignee', isAssignee: true, options: O.members, value: t.assignee,
-              valueRef: self.syncRef(t.assignee), initials: self.initials(t.assignee), avatarStyle: self.avatar(t.assignee, 20),
-              onChange: function (e) {
-                const v = e.target.value;
-                if (v === ADD_MEMBER) { self.promptMember(function (n) { self.patch(t.id, 'assignee', n); }); return; }
-                self.patch(t.id, 'assignee', v);
-              },
-              style: sel };
+            const who = self.assigneesOf(t);
+            return { key: 'assignee', isAssignee: true, avatars: self.assigneeAvatars(who, 20), label: self.assigneeLabel(who),
+              onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openAssigneePicker(e, t.id, who, null, false); },
+              btnStyle: sel + 'display:flex;align-items:center;gap:6px;background:transparent;border:0;padding:0;text-align:left;' };
           },
           due: function () {
             return { key: 'due', isInput: true, inputType: 'date', value: t.due, valueRef: self.syncRef(t.due),
@@ -8232,7 +8413,7 @@ class Component extends DCLogic {
     const donutStyle = 'position:relative;width:126px;height:126px;flex:0 0 126px;border-radius:50%;background:conic-gradient(' + (stops.length ? stops.join(',') : 'var(--pw-border) 0% 100%') + ');';
 
     const counts = s.members.slice(1).map(function (m) {
-      return { name: m.n, c: m.c, count: visible.filter(function (t) { return t.assignee === m.n && t.status !== dKey; }).length };
+      return { name: m.n, c: m.c, count: visible.filter(function (t) { return self.assigneesOf(t).indexOf(m.n) >= 0 && t.status !== dKey; }).length };
     });
     const maxLoad = Math.max.apply(null, counts.map(function (c) { return c.count; }).concat([1]));
     const workload = counts.map(function (c) {
@@ -8284,6 +8465,10 @@ class Component extends DCLogic {
         nameRef: this.syncRef(sel.name),
         listRef: this.syncRef(sel.list),
         statusRef: this.syncRef(sel.status),
+        assigneeNames: this.assigneesOf(sel),
+        assigneeLabel: this.assigneeLabel(this.assigneesOf(sel)),
+        assigneeAvatars: this.assigneeAvatars(this.assigneesOf(sel), 20),
+        onAssigneeOpen: function (e) { self.openAssigneePicker(e, sel.id, self.assigneesOf(sel), null, false); },
         assigneeRef: this.syncRef(sel.assignee),
         priorityRef: this.syncRef(sel.priority),
         startRef: this.syncRef(sel.start),
@@ -8673,6 +8858,38 @@ class Component extends DCLogic {
           onClear: function () { self.clearMultiSelect(); },
           onManage: function () { self.closeMultiSelect(); self.openOptEditor(manageKind, p.taskId); },
           onClose: function () { self.closeMultiSelect(); }
+        };
+      })(),
+      assigneePick: (function () {
+        const p = s.assigneePicker;
+        if (!p) return { open: false };
+        const admin = self.isAdmin();
+        const people = (s.members || []).filter(function (m) { return m.n !== 'Unassigned'; }).map(function (m) {
+          const on = p.values.indexOf(m.n) >= 0;
+          return {
+            label: m.n,
+            initials: self.initials(m.n),
+            avatarStyle: self.avatar(m.n, 22),
+            check: on ? '✓' : '',
+            checkStyle: 'width:18px;height:18px;flex:0 0 18px;border-radius:5px;border:1px solid ' + (on ? m.c : 'var(--pw-border)') + ';background:' + (on ? m.c : 'transparent') + ';color:#fff;display:grid;place-items:center;font-size:10px;',
+            rowStyle: 'display:flex;align-items:center;gap:1px;border-radius:7px;background:' + (on ? 'var(--pw-accent-soft)' : 'transparent') + ';',
+            pickStyle: 'display:flex;align-items:center;gap:9px;flex:1;min-width:0;height:36px;border:0;background:transparent;color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';font-size:12px;font-weight:' + (on ? '600' : '400') + ';text-align:left;padding:0 8px;cursor:pointer;',
+            canRemove: on && !p.single,
+            canDelete: admin && !!m.email,
+            iconStyle: 'flex:0 0 26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted2);font-size:15px;line-height:1;cursor:pointer;',
+            delStyle: 'flex:0 0 26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--pw-faint);font-size:11px;line-height:1;cursor:pointer;',
+            onToggle: function () { self.toggleAssignee(m.n); },
+            onRemove: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.toggleAssignee(m.n); },
+            onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.pickerDeleteMember(m.n); }
+          };
+        });
+        return {
+          open: true, isAdmin: admin, people: people, multi: !p.single,
+          hint: p.single ? 'งานย่อยเลือกได้คนเดียว' : 'เลือกได้หลายคน',
+          style: 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(280px,calc(100vw - 24px));background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;box-shadow:0 18px 46px rgba(8,10,14,.36);z-index:87;overflow:hidden;',
+          onAdd: function () { self.pickerAddMember(); },
+          onClear: function () { self.clearAssigneePick(); },
+          onClose: function () { self.closeAssigneePicker(); }
         };
       })(),
       timelinePicker: (function () {
@@ -9317,13 +9534,19 @@ class Component extends DCLogic {
           onDuePick: function (e) { self.openPicker(e); },
           onDueDone: function () { self.closeCtx(); },
           members: (s.members || []).map(function (mm) {
-            const on = t.assignee === mm.n;
+            const cur = self.assigneesOf(t);
+            const none = mm.n === 'Unassigned';
+            const on = none ? cur.length === 0 : cur.indexOf(mm.n) >= 0;
             return {
-              label: mm.n,
+              label: (on && !none ? '✓ ' : '') + mm.n,
               initials: self.initials(mm.n),
               avatarStyle: self.avatar(mm.n, 20),
               style: itemStyle + (on ? 'background:var(--pw-accent-soft);color:#4f46e5;font-weight:600;' : ''),
-              onPick: function () { self.patch(t.id, 'assignee', mm.n); self.closeCtx(); }
+              // ติ๊กได้หลายคน เมนูไม่ปิดจนกว่าจะเลือก Unassigned หรือกดออกเอง
+              onPick: function () {
+                if (none) { self.setAssignees(t.id, []); self.closeCtx(); return; }
+                self.setAssignees(t.id, on ? cur.filter(function (x) { return x !== mm.n; }) : cur.concat([mm.n]));
+              }
             };
           }),
           lists: allLists.map(function (ln) {
