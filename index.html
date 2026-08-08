@@ -3691,8 +3691,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
             <button sc-camel-on-click="{{ plannerCal.onPrev }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">‹</button>
             <button sc-camel-on-click="{{ plannerCal.onNext }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">›</button>
-            <span style="font-size:14px;font-weight:600;">{{ plannerCal.monthLabel }}</span>
-            <button sc-camel-on-click="{{ plannerCal.onToday }}" style="{{ plannerCal.todayStyle }}">เดือนนี้</button>
+            <sc-if value="{{ plannerCal.isMonthView }}" hint-placeholder-val="{{ true }}">
+              <span style="font-size:14px;font-weight:600;">{{ plannerCal.monthLabel }}</span>
+            </sc-if>
+            <sc-if value="{{ plannerCal.isYearView }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:14px;font-weight:600;">{{ plannerCal.yearLabel }}</span>
+            </sc-if>
+            <button sc-camel-on-click="{{ plannerCal.onToday }}" style="{{ plannerCal.todayStyle }}">{{ plannerCal.todayLabel }}</button>
+            <div style="display:flex;margin-left:6px;">
+              <button sc-camel-on-click="{{ plannerCal.onMonthView }}" style="{{ plannerCal.monthTabStyle }}">เดือน</button>
+              <button sc-camel-on-click="{{ plannerCal.onYearView }}" style="{{ plannerCal.yearTabStyle }}">ปี</button>
+            </div>
             <span style="margin-left:auto;font-size:11px;color:var(--pw-muted2);">{{ plannerCal.count }} โน้ต</span>
           </div>
 
@@ -3705,6 +3714,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             </sc-for>
           </div>
 
+          <sc-if value="{{ plannerCal.isMonthView }}" hint-placeholder-val="{{ true }}">
           <div style="display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:5px;">
             <sc-for list="{{ plannerCal.weekdays }}" as="w" hint-placeholder-count="7">
               <div style="font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pw-label);font-weight:600;text-align:center;padding-bottom:2px;">{{ w }}</div>
@@ -3713,24 +3723,55 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
           <div data-plannercal style="display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:5px;">
             <sc-for list="{{ plannerCal.days }}" as="d" hint-placeholder-count="42">
-              <div style="{{ d.style }}">
+              <div sc-camel-on-click="{{ d.onCellClick }}" style="{{ d.style }}">
                 <div style="display:flex;align-items:center;gap:4px;">
                   <span style="{{ d.numStyle }}">{{ d.num }}</span>
-                  <button sc-camel-on-click="{{ d.onAddOpen }}" title="เพิ่มโน้ต" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);font-size:13px;line-height:1;cursor:pointer;padding:0 2px;" style-hover="color:#4f46e5;">+</button>
+                  <button sc-camel-on-click="{{ d.onAddOpen }}" title="เพิ่มโน้ต" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);font-size:14px;line-height:1;cursor:pointer;padding:0 3px;" style-hover="color:#4f46e5;">+</button>
                 </div>
                 <sc-for list="{{ d.notes }}" as="nt" hint-placeholder-count="2">
                   <button sc-camel-on-click="{{ nt.onOpen }}" style="{{ nt.style }}">{{ nt.text }}</button>
                 </sc-for>
                 <sc-if value="{{ d.addOpen }}" hint-placeholder-val="{{ false }}">
-                  <input ref="{{ d.addRef }}" value="{{ d.addText }}" sc-camel-on-change="{{ d.onAddText }}" sc-camel-on-key-down="{{ d.onAddKey }}" placeholder="พิมพ์แล้ว Enter" style="width:100%;border:1px solid #4f46e5;border-radius:4px;background:var(--pw-surface);color:var(--pw-text);font-size:10.5px;padding:3px 5px;outline:0;">
+                  <input ref="{{ d.addRef }}" placeholder="เช่น เปิดตัว Pawdy Senior" style="width:100%;border:1px solid #4f46e5;border-radius:4px;background:var(--pw-surface);color:var(--pw-text);font-size:10.5px;padding:5px 6px;outline:0;">
+                  <div style="display:flex;gap:4px;margin-top:3px;">
+                    <button sc-camel-on-click="{{ d.onAddSubmit }}" style="flex:1;height:23px;border:0;border-radius:4px;background:#4f46e5;color:#fff;font-size:10px;font-weight:600;cursor:pointer;">เพิ่ม</button>
+                    <button sc-camel-on-click="{{ d.onAddCancel }}" style="height:23px;border:1px solid var(--pw-border);border-radius:4px;background:transparent;color:var(--pw-muted2);font-size:10px;cursor:pointer;padding:0 7px;">ปิด</button>
+                  </div>
                 </sc-if>
               </div>
             </sc-for>
           </div>
+          </sc-if>
+
+          <sc-if value="{{ plannerCal.isYearView }}" hint-placeholder-val="{{ false }}">
+            <div data-planneryear style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:9px;">
+              <sc-for list="{{ plannerCal.months }}" as="mo" hint-placeholder-count="12">
+                <div style="{{ mo.style }}">
+                  <button sc-camel-on-click="{{ mo.onOpen }}" title="เปิดมุมมองเดือนนี้" style="{{ mo.headStyle }}">
+                    <span style="font-size:12px;font-weight:700;flex:1;">{{ mo.label }}</span>
+                    <span style="font-size:10px;opacity:0.7;font-family:'IBM Plex Mono', monospace;">{{ mo.count }}</span>
+                  </button>
+                  <sc-for list="{{ mo.items }}" as="mi" hint-placeholder-count="3">
+                    <button sc-camel-on-click="{{ mi.onOpen }}" style="display:flex;align-items:center;gap:5px;width:100%;text-align:left;border:0;background:transparent;padding:2px 0;cursor:pointer;min-width:0;">
+                      <span style="{{ mi.dayStyle }}">{{ mi.day }}</span>
+                      <span style="{{ mi.dotStyle }}"></span>
+                      <span style="{{ mi.textStyle }}">{{ mi.text }}</span>
+                    </button>
+                  </sc-for>
+                  <sc-if value="{{ mo.hasMore }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:9.5px;color:var(--pw-faint);padding-top:3px;">{{ mo.more }}</span>
+                  </sc-if>
+                  <sc-if value="{{ mo.empty }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:10px;color:var(--pw-faint);">ว่าง</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
 
           <p style="margin:0;font-size:10.5px;color:var(--pw-muted2);line-height:1.7;">
-            กด + ที่วันไหนก็ได้เพื่อจดโน้ต · พิมพ์ <b>#ถ่ายทำ ข้อความ</b> เพื่อเลือกหมวดตั้งแต่ตอนพิมพ์ · คลิกโน้ตเพื่อแก้หรือลบ<br>
-            หน้านี้แยกจากตารางงานโดยสิ้นเชิง ไม่มีอะไรซิงค์กับ task
+            คลิกที่ช่องว่างของวันไหนก็ได้แล้วพิมพ์เลย · Enter บันทึกแล้วจดต่อได้ทันที · Esc ปิด · พิมพ์ <b>#ถ่ายทำ ข้อความ</b> เพื่อเลือกหมวด · คลิกโน้ตเพื่อแก้หรือลบ<br>
+            หน้านี้แยกจากตารางงานโดยสิ้นเชิง ไม่มีอะไรซิงค์กับ task · มุมมองปีกดชื่อเดือนเพื่อเจาะเข้าไปดูรายวัน
           </p>
         </div>
 
@@ -7831,19 +7872,24 @@ class Component extends DCLogic {
     this.setState({ plannerAdd: date, plannerAddText: '', plannerEdit: null });
   }
   closePlannerAdd() { this.setState({ plannerAdd: null, plannerAddText: '' }); }
-  submitPlannerAdd(date) {
-    const txt = this.state.plannerAddText;
-    if (!String(txt || '').trim()) { this.closePlannerAdd(); return; }
+  // อ่านค่าจาก DOM ตรงๆ ไม่พึ่ง onChange ของเฟรมเวิร์ก — ช่องพิมพ์เป็น uncontrolled input
+  submitPlannerAdd(date, el) {
+    const node = el || this._plannerInput;
+    const raw = node ? String(node.value || '') : '';
+    if (!raw.trim()) { this.closePlannerAdd(); return; }
     // พิมพ์ "#ถ่ายทำ ข้อความ" เพื่อเลือกหมวดได้เลย
-    let cat = 'plan', body = String(txt).trim();
+    let cat = 'plan', body = raw.trim();
     const m = body.match(/^#(\S+)\s+([\s\S]+)$/);
     if (m) {
       const hit = this.plannerCats().filter(function (c) { return c.label === m[1] || c.k === m[1]; })[0];
       if (hit) { cat = hit.k; body = m[2].trim(); }
     }
     this.addPlannerNote(date, body, cat);
-    this._focusPlannerAdd = true;
-    this.setState({ plannerAddText: '' });
+    // เคลียร์ช่องแล้วคาไว้ที่เดิม จดต่อได้รัวๆ ไม่ต้องกดเปิดใหม่
+    if (node) {
+      node.value = '';
+      try { node.focus(); } catch (e) { /* โฟกัสไม่ได้ก็ไม่เป็นไร */ }
+    }
   }
   docList() { return (this.state.docs || []).slice(); }
   // เรียงเป็นชั้น: หน้าหลัก แล้วตามด้วยหน้าย่อยของมันทันที
@@ -10202,27 +10248,32 @@ class Component extends DCLogic {
           days.push({
             num: String(dt.getDate()), iso: iso, notes: notes,
             addOpen: addOpen, addClosed: !addOpen,
-            addText: addOpen ? s.plannerAddText : '',
             addRef: function (el) {
-              if (!el) return;
-              const v = addOpen ? s.plannerAddText : '';
-              if (el.value !== v) el.value = v;
-              if (addOpen && self._focusPlannerAdd) { el.focus(); self._focusPlannerAdd = false; }
+              if (!el || !addOpen) return;
+              self._plannerInput = el;
+              // ผูก keydown กับ DOM เอง ไม่พึ่ง sc-camel-on-key-down
+              if (!el.__pwBound) {
+                el.__pwBound = true;
+                el.addEventListener('keydown', function (ev) {
+                  if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); self.submitPlannerAdd(iso, el); }
+                  else if (ev.key === 'Escape') { ev.preventDefault(); self.closePlannerAdd(); }
+                });
+                el.addEventListener('click', function (ev) { ev.stopPropagation(); });
+              }
+              if (self._focusPlannerAdd) {
+                self._focusPlannerAdd = false;
+                setTimeout(function () { try { el.focus(); } catch (e) { /* ไม่เป็นไร */ } }, 0);
+              }
             },
             onAddOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openPlannerAdd(iso); },
             onCellClick: function () { if (!addOpen) self.openPlannerAdd(iso); },
-            onAddText: function (e) { self.setState({ plannerAddText: e.target.value }); },
-            onAddKey: function (e) {
-              if (e.key === 'Enter') { e.preventDefault(); self.submitPlannerAdd(iso); }
-              if (e.key === 'Escape') self.closePlannerAdd();
-            },
-            onAddSubmit: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.submitPlannerAdd(iso); },
+            onAddSubmit: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.submitPlannerAdd(iso, self._plannerInput); },
             onAddCancel: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.closePlannerAdd(); },
             numStyle: 'font-size:11px;font-weight:' + (isToday ? '700' : '500') + ';color:' +
               (isToday ? '#fff' : (inMonth ? 'var(--pw-text2)' : 'var(--pw-faint)')) + ';' +
               (isToday ? 'background:#4f46e5;border-radius:50%;width:19px;height:19px;display:inline-grid;place-items:center;' : ''),
-            style: 'min-height:96px;border:1px solid var(--pw-border);border-radius:8px;padding:6px 6px 4px;' +
-              'display:flex;flex-direction:column;gap:3px;background:' +
+            style: 'min-height:96px;border:1px solid ' + (addOpen ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:8px;padding:6px 6px 4px;' +
+              'display:flex;flex-direction:column;gap:3px;cursor:' + (addOpen ? 'default' : 'text') + ';background:' +
               (inMonth ? 'var(--pw-surface)' : 'transparent') + ';opacity:' + (inMonth ? '1' : '0.5') + ';'
           });
         }
