@@ -5,6 +5,12 @@
 <title>Pawdy Workspace</title>
 <meta name="description" content="Pawdy Workspace — shared tasks, board, calendar, timeline and dashboard.">
 <meta name="theme-color" content="#14161c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Pawdy">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%234f46e5%22/%3E%3Ctext x=%2232%22 y=%2241%22 font-family=%22Helvetica,Arial%22 font-size=%2226%22 font-weight=%22700%22 fill=%22%23fff%22 text-anchor=%22middle%22%3EPW%3C/text%3E%3C/svg%3E">
 <script>
 /* ==================================================================
@@ -19,6 +25,9 @@ window.PAWDY_CONFIG = {
   /* ชื่อ Edge Function ที่ใช้ส่งอีเมล — ต้องตรงกับชื่อบน Supabase เป๊ะๆ
      ตอนนี้บน Supabase ชื่อ clever-function ถ้าวันหลัง deploy ใหม่ชื่อ notify ก็แก้บรรทัดนี้ */
   notifyFunction: 'clever-function',
+  /* กุญแจสาธารณะสำหรับ Web Push — ต้องคู่กับ VAPID_PRIVATE_KEY ที่ตั้งใน Edge Function
+     ปลอดภัยที่จะฝังไว้ในหน้าเว็บ (เป็น public key) */
+  vapidPublicKey: 'BEtaRYMMAIbyo7pDpY6ez0FAAL4hYfS3G_KxHEEt6RgMhzxX4s4GXsBGC0Nsly4ftHTmxTtR-1m0lp4MettcRCI',
   /* ป้ายเวอร์ชันไฟล์ — โชว์ในแถบ ⚙ ใช้เช็คว่าเว็บที่เปิดอยู่เป็นไฟล์ตัวไหน */
   build: 'B11 · 2026-08-05'
 };
@@ -312,6 +321,24 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       }).catch(function (e) {
         return { ok: false, detail: (e && e.message) ? e.message : String(e) };
       });
+    },
+    // ---- Web Push: เก็บ/ลบ subscription ของเครื่องนี้ ----
+    savePushSub: function (sub) {
+      if (!sb || !me || !sub) return Promise.resolve({ ok: false, detail: 'ยังไม่ได้ล็อกอิน' });
+      var j = sub.toJSON ? sub.toJSON() : sub;
+      var k = j.keys || {};
+      if (!j.endpoint || !k.p256dh || !k.auth) return Promise.resolve({ ok: false, detail: 'subscription ไม่ครบ' });
+      return sb.from('push_subs').upsert({
+        endpoint: j.endpoint, email: me.email, p256dh: k.p256dh, auth: k.auth,
+        ua: String(navigator.userAgent || '').slice(0, 300)
+      }, { onConflict: 'endpoint' }).then(function (r) {
+        if (r && r.error) return { ok: false, detail: r.error.message || String(r.error) };
+        return { ok: true };
+      }).catch(function (e) { return { ok: false, detail: (e && e.message) || String(e) }; });
+    },
+    dropPushSub: function (endpoint) {
+      if (!sb || !endpoint) return Promise.resolve();
+      return sb.from('push_subs').delete().eq('endpoint', endpoint).then(log);
     },
     onlineNow: function () { return online; },
     onNotif: function (f) { notifCbs.push(f); },
@@ -3212,6 +3239,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* Dashboard = การ์ดเรียงเดี่ยว */
   [data-root~="mobile"] [data-dashgrid] { grid-template-columns: 1fr !important; }
+  /* Planner: จอเล็กเรียง 7 วันลงมาเป็นแถวเดียว */
+  [data-root~="mobile"] [data-plannerweek] { grid-template-columns: 1fr !important; }
 
   /* panel รายละเอียดเต็มจอ ต้องเลื่อนได้และมีที่ว่างล่างสุดพ้นแถบเบราว์เซอร์ */
   [data-root~="mobile"] [data-detail],
@@ -3758,7 +3787,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       <button sc-camel-on-click="{{ cell.onOpen }}" title="เปิดกล่อง Comment" aria-label="เปิดกล่อง Comment" style="{{ cell.style }}">💬 {{ cell.commentCount }}</button>
                     </sc-if>
                     <sc-if value="{{ cell.isMultiSelect }}" hint-placeholder-val="{{ false }}">
-                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เลือกได้หลายค่า" style="{{ cell.style }}">{{ cell.label }}</button>
+                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เลือกได้หลายค่า" style="{{ cell.style }}">
+                        <sc-for list="{{ cell.chips }}" as="ch" hint-placeholder-count="2"><span style="{{ ch.style }}">{{ ch.label }}</span></sc-for>
+                      </button>
                     </sc-if>
                     <sc-if value="{{ cell.isRange }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; gap: 3px; min-width: 0;">
@@ -4277,6 +4308,120 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
               </sc-if>
             </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlanner }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+            <button sc-camel-on-click="{{ planner.onPrev }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">‹</button>
+            <button sc-camel-on-click="{{ planner.onNext }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">›</button>
+            <div style="display:flex;flex-direction:column;">
+              <span style="font-size:13.5px;font-weight:600;">{{ planner.range }}</span>
+              <span style="font-size:10px;color:var(--pw-muted2);">{{ planner.weekLabel }}</span>
+            </div>
+            <button sc-camel-on-click="{{ planner.onToday }}" style="{{ planner.todayStyle }}">สัปดาห์นี้</button>
+          </div>
+
+          <div data-dashgrid style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;">
+            <sc-for list="{{ planner.kpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;">
+                <span style="font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--pw-label);font-weight:600;">{{ k.label }}</span>
+                <span style="{{ k.valueStyle }}">{{ k.value }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div data-plannerweek style="display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:9px;align-items:start;">
+            <sc-for list="{{ planner.days }}" as="d" hint-placeholder-count="7">
+              <div style="{{ d.style }}">
+                <div style="{{ d.headStyle }}">
+                  <span style="{{ d.dowStyle }}">{{ d.dow }}</span>
+                  <span style="{{ d.dateStyle }}">{{ d.date }}</span>
+                  <span style="{{ d.countStyle }}">{{ d.count }}</span>
+                </div>
+                <sc-for list="{{ d.items }}" as="it" hint-placeholder-count="2">
+                  <button sc-camel-on-click="{{ it.onOpen }}" style="{{ it.style }}">
+                    <span style="{{ it.nameStyle }}">{{ it.name }}</span>
+                    <span style="display:flex;gap:3px;flex-wrap:wrap;">
+                      <sc-for list="{{ it.chips }}" as="ch" hint-placeholder-count="1"><span style="{{ ch.style }}">{{ ch.label }}</span></sc-for>
+                    </span>
+                    <span style="{{ it.metaStyle }}">{{ it.meta }}</span>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ d.empty }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:10px;color:var(--pw-faint);padding:2px 0;">ว่าง</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:12px;">
+
+            <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:14px;">
+              <h3 style="margin:0 0 3px;font-size:12.5px;font-weight:600;">แต่ละช่องทางสมดุลไหม</h3>
+              <p style="margin:0 0 12px;font-size:10.5px;color:var(--pw-muted2);">นับตามแพลตฟอร์มที่จะลงสัปดาห์นี้</p>
+              <sc-for list="{{ planner.platforms }}" as="p" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;gap:5px;padding:5px 0;">
+                  <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;">
+                    <span style="{{ p.dotStyle }}"></span>
+                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.label }}</span>
+                    <span style="color:var(--pw-muted2);font-size:10.5px;">{{ p.n }} · {{ p.pct }}</span>
+                  </div>
+                  <div style="{{ p.barStyle }}"></div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ planner.noItems }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:11px;color:var(--pw-faint);">ยังไม่มีคอนเทนต์ในสัปดาห์นี้</span>
+              </sc-if>
+            </div>
+
+            <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:14px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                <h3 style="margin:0;font-size:12.5px;font-weight:600;flex:1;">สัดส่วนประเภทเนื้อหา</h3>
+                <sc-raw-select ref="{{ planner.mixRef }}" data-sync="{{ planner.mixLabel }}" value="{{ planner.mixLabel }}" sc-camel-on-change="{{ planner.onMix }}" style="border:1px solid var(--pw-border);border-radius:6px;padding:3px 6px;background:var(--pw-surface);color:var(--pw-text2);font-size:10.5px;cursor:pointer;">
+                  <sc-for list="{{ planner.mixOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
+                </sc-raw-select>
+              </div>
+              <p style="margin:0 0 12px;font-size:10.5px;color:var(--pw-muted2);">ตัวไหนเกิน 40% จะขึ้นเตือน</p>
+              <sc-for list="{{ planner.mix }}" as="m" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;gap:5px;padding:5px 0;">
+                  <div style="display:flex;align-items:center;gap:7px;">
+                    <span style="{{ m.labelStyle }}">{{ m.flag }} {{ m.label }}</span>
+                    <span style="flex:1;"></span>
+                    <span style="color:var(--pw-muted2);font-size:10.5px;">{{ m.n }} · {{ m.pct }}</span>
+                  </div>
+                  <div style="{{ m.barStyle }}"></div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ planner.hasMixWarn }}" hint-placeholder-val="{{ false }}">
+                <p style="margin:10px 0 0;font-size:10.5px;line-height:1.6;color:#d97706;">{{ planner.mixWarn }}</p>
+              </sc-if>
+            </div>
+
+            <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:14px;">
+              <h3 style="margin:0 0 3px;font-size:12.5px;font-weight:600;">ยังไม่พร้อมลง</h3>
+              <p style="margin:0 0 8px;font-size:10.5px;color:var(--pw-muted2);">วันที่แดงคือเลยกำหนดแล้ว</p>
+              <sc-for list="{{ planner.notReady }}" as="r" hint-placeholder-count="4">
+                <button sc-camel-on-click="{{ r.onOpen }}" style="{{ r.style }}">
+                  <span style="{{ r.whenStyle }}">{{ r.when }}</span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.name }}</span>
+                    <span style="font-size:9.5px;color:var(--pw-muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.who }}</span>
+                  </span>
+                  <span style="{{ r.chipStyle }}">{{ r.status }}</span>
+                </button>
+              </sc-for>
+              <sc-if value="{{ planner.allReady }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:11px;color:#16a34a;">ทุกชิ้นพร้อมลงหมดแล้ว</span>
+              </sc-if>
+              <sc-if value="{{ planner.noItems }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size:11px;color:var(--pw-faint);">ยังไม่มีคอนเทนต์ในสัปดาห์นี้</span>
+              </sc-if>
+            </div>
+
           </div>
         </div>
       </sc-if>
@@ -5117,6 +5262,8 @@ class Component extends DCLogic {
       timelinePicker: null,     // date-range popover ของฟิลด์ Timeline ในตาราง
       multiSelectPicker: null,  // custom dropdown แบบเลือกหลายค่า
       assigneePicker: null,     // popover เลือกผู้รับผิดชอบได้หลายคน
+      plannerWeek: 0,           // Content Planner: เลื่อนสัปดาห์ (0 = สัปดาห์นี้)
+      plannerMix: '',           // Content Planner: ดูสัดส่วนเนื้อหาตามฟิลด์ไหน
       pulse: null,           // { id, n } — ป้ายสถานะเต้นตอนค่าเปลี่ยน
       land: null,            // { id, n } — การ์ดตกลงตำแหน่งใหม่
       countUp: 1,            // 0→1 ตัวเลข Dashboard ไล่ขึ้น
@@ -5250,11 +5397,17 @@ class Component extends DCLogic {
       start: 'เปลี่ยนวันเริ่ม', priority: 'เปลี่ยนความสำคัญ', list: 'ย้าย list', name: 'แก้ชื่องาน',
       tags: 'แก้ tags', cost: 'แก้งบ', qty: 'แก้จำนวน', channel: 'เปลี่ยน channel', platform: 'เปลี่ยน platform' })[field] || 'แก้ไขงาน');
     if (field === 'status' || field === 'priority') this.firePulse(id);
+    const doneKey = this.doneKey();
     this.setState(function (s) {
       const tasks = s.tasks.map(function (t) {
         if (t.id !== id) return t;
         const n = Object.assign({}, t);
         n[field] = value;
+        // จดเวลาที่งานเปลี่ยนเป็น Done ไว้ ใช้ทำ weekly report ให้แม่น
+        if (field === 'status') {
+          if (value === doneKey && t.status !== doneKey) n.doneAt = new Date().toISOString();
+          else if (value !== doneKey) n.doneAt = '';
+        }
         return n;
       });
       return { tasks: tasks };
@@ -7205,6 +7358,12 @@ class Component extends DCLogic {
   isDark() { return this.state.themeResolved === 'dark'; }
   // ธีมมืด: พื้นป้ายพาสเทลจะสว่างจ้าเกินไป ใช้สีเดียวกับตัวหนังสือแบบโปร่งแทน
   chipBg(m) { return this.isDark() ? (m.c + '2e') : m.bg; }
+  // พื้นหลังจางๆ ที่คุมโทนกับสีของตัวเลือกนั้นๆ (hex 8 หลัก = ใส่ alpha)
+  optTint(c) {
+    const hex = String(c || '');
+    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return 'var(--pw-accent-soft)';
+    return hex + (this.isDark() ? '2e' : '1c');
+  }
   chip(k) {
     const m = this.statusMeta(k);
     return 'font-size:10.5px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:' + this.chipBg(m) + ';color:' + m.c + ';white-space:nowrap;';
@@ -7919,14 +8078,16 @@ class Component extends DCLogic {
           channel: function () {
             const values = self.multiValues(t.channel);
             return { key: 'channel', isMultiSelect: true, label: self.multiLabel(values),
+              chips: values.length ? values.map(function (v) { const c = self.optColorOf('channels', v); return { label: v, style: 'display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 7px;border-radius:5px;background:' + self.optTint(c) + ';color:' + c + ';font-size:10.5px;font-weight:600;line-height:1.55;' }; }) : [{ label: '+ เลือก', style: 'color:var(--pw-muted2);font-size:10.5px;padding:0 4px;' }],
               onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, '__channel', values, null, 'channel'); },
-              style: 'width:100%;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' + (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10.5px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 7px;' };
+              style: 'display:flex;align-items:center;gap:4px;width:100%;height:28px;overflow:hidden;text-align:left;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--pw-muted2);font-size:10.5px;cursor:pointer;padding:0 3px;' };
           },
           platform: function () {
             const values = self.multiValues(t.platform);
             return { key: 'platform', isMultiSelect: true, label: self.multiLabel(values),
+              chips: values.length ? values.map(function (v) { const c = self.optColorOf('platforms', v); return { label: v, style: 'display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 7px;border-radius:5px;background:' + self.optTint(c) + ';color:' + c + ';font-size:10.5px;font-weight:600;line-height:1.55;' }; }) : [{ label: '+ เลือก', style: 'color:var(--pw-muted2);font-size:10.5px;padding:0 4px;' }],
               onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, '__platform', values, null, 'platform'); },
-              style: 'width:100%;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' + (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10.5px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 7px;' };
+              style: 'display:flex;align-items:center;gap:4px;width:100%;height:28px;overflow:hidden;text-align:left;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--pw-muted2);font-size:10.5px;cursor:pointer;padding:0 3px;' };
           },
           cost: function () {
             return { key: 'cost', isInput: true, inputType: 'text', value: String(t.cost), valueRef: self.syncRef(t.cost),
@@ -7989,9 +8150,9 @@ class Component extends DCLogic {
             return {
               key: k, isMultiSelect: true,
               label: values.length ? values.join(' · ') : '+ เลือก',
+              chips: values.length ? values.map(function (v) { const c = self.optColorOf('cf:' + f.id, v); return { label: v, style: 'display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 7px;border-radius:5px;background:' + self.optTint(c) + ';color:' + c + ';font-size:10.5px;font-weight:600;line-height:1.55;' }; }) : [{ label: '+ เลือก', style: 'color:var(--pw-muted2);font-size:10.5px;padding:0 4px;' }],
               onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openMultiSelect(e, t.id, f.id, values, null); },
-              style: 'width:100%;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid transparent;border-radius:5px;background:' +
-                (values.length ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (values.length ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:10.5px;font-weight:' + (values.length ? '600' : '400') + ';cursor:pointer;padding:0 7px;'
+              style: 'display:flex;align-items:center;gap:4px;width:100%;height:28px;overflow:hidden;text-align:left;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--pw-muted2);font-size:10.5px;cursor:pointer;padding:0 3px;'
             };
           }
           return {
@@ -8120,6 +8281,7 @@ class Component extends DCLogic {
       { k: 'table', label: 'Table', icon: '▦' },
       { k: 'board', label: 'Board', icon: '▥' },
       { k: 'calendar', label: 'Calendar', icon: '▤' },
+      { k: 'planner', label: 'Planner', icon: '◐' },
       { k: 'timeline', label: 'Timeline', icon: '▬' },
       { k: 'gantt', label: 'Gantt', icon: '⊟' },
       { k: 'dashboard', label: 'Dashboard', icon: '◕' }
@@ -8751,6 +8913,7 @@ class Component extends DCLogic {
           { k: 'table', label: 'Table', hint: 'ตารางแก้ไขได้', icon: '▦' },
           { k: 'board', label: 'Board', hint: 'คัมบัง ลากการ์ด', icon: '▥' },
           { k: 'calendar', label: 'Calendar', hint: 'ปฏิทินรายเดือน', icon: '▤' },
+          { k: 'planner', label: 'Planner', hint: 'แผนลงคอนเทนต์รายสัปดาห์', icon: '◐' },
           { k: 'timeline', label: 'Timeline', hint: 'ไทม์ไลน์ 9 สัปดาห์', icon: '▬' },
           { k: 'gantt', label: 'Gantt', hint: 'ผังเวลา ซูมได้', icon: '⊟' },
           { k: 'dashboard', label: 'Dashboard', hint: 'สรุปตัวเลข', icon: '◕' }
@@ -8845,13 +9008,15 @@ class Component extends DCLogic {
         return {
           open: true, title: f.label,
           style: 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(280px,calc(100vw - 24px));background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;box-shadow:0 18px 46px rgba(8,10,14,.36);z-index:87;overflow:hidden;',
-          options: pickerOptions.map(function (o, i) {
+          options: pickerOptions.map(function (o) {
             const on = p.values.indexOf(o) >= 0;
-            const c = OPT_PALETTE[i % OPT_PALETTE.length];
+            // สีที่ admin ตั้งไว้จริงใน optColors ไม่ใช่สีตามลำดับในลิสต์
+            const c = self.optColorOf(manageKind, o);
             return {
               label: o, check: on ? '✓' : '',
-              checkStyle: 'width:18px;height:18px;flex:0 0 18px;border-radius:5px;border:1px solid ' + (on ? c : 'var(--pw-border)') + ';background:' + (on ? c : 'transparent') + ';color:#fff;display:grid;place-items:center;font-size:10px;',
-              style: 'display:flex;align-items:center;gap:9px;width:100%;height:36px;border:0;border-radius:7px;background:' + (on ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';font-size:12px;text-align:left;padding:0 8px;cursor:pointer;',
+              // ยังไม่ติ๊กก็เห็นสีประจำตัวเลือกจางๆ ที่ขอบกล่อง
+              checkStyle: 'width:18px;height:18px;flex:0 0 18px;border-radius:5px;border:1px solid ' + (on ? c : c + '66') + ';background:' + (on ? c : 'transparent') + ';color:#fff;display:grid;place-items:center;font-size:10px;',
+              style: 'display:flex;align-items:center;gap:9px;width:100%;height:36px;border:0;border-radius:7px;background:' + (on ? self.optTint(c) : 'transparent') + ';color:' + (on ? c : 'var(--pw-text2)') + ';font-size:12px;font-weight:' + (on ? '600' : '400') + ';text-align:left;padding:0 8px;cursor:pointer;',
               onToggle: function () { self.toggleMultiSelect(o); }
             };
           }),
@@ -9117,6 +9282,171 @@ class Component extends DCLogic {
       isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
       isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs(),
       isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      isPlanner: s.view === 'planner' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      planner: (function () {
+        if (s.view !== 'planner') return { days: [], platforms: [], mix: [], notReady: [], kpis: [] };
+        const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+        const DOW = ['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'];
+        const localIso = function (d) {
+          return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        };
+        const thShort = function (iso) {
+          const p = String(iso).split('-');
+          return p.length === 3 ? (Number(p[2]) + ' ' + (TH_MON[Number(p[1]) - 1] || '')) : iso;
+        };
+        // สัปดาห์เริ่มวันจันทร์เสมอ
+        const base = new Date(TODAY + 'T00:00:00');
+        base.setDate(base.getDate() + (s.plannerWeek || 0) * 7);
+        const mon = new Date(base);
+        mon.setDate(mon.getDate() - ((base.getDay() + 6) % 7));
+        const isos = [];
+        for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); isos.push(localIso(d)); }
+        const from = isos[0], to = isos[6];
+
+        const doneKey = self.doneKey();
+        const dueOf = function (t) { return String(t.due || '').slice(0, 10); };
+        const week = visible.filter(function (t) { const d = dueOf(t); return d >= from && d <= to; });
+        const isDone = function (t) { return t.status === doneKey; };
+
+        // ---- 7 ช่องวัน ----
+        const days = isos.map(function (iso, i) {
+          const items = week.filter(function (t) { return dueOf(t) === iso; }).map(function (t) {
+            const sm = self.statusMeta(t.status);
+            const plats = self.multiValues(t.platform);
+            return {
+              name: t.name,
+              onOpen: function () { self.setState({ selected: t.id }); },
+              style: 'display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;border:0;border-left:2px solid ' + sm.c +
+                ';border-radius:5px;padding:6px 7px;background:' + self.chipBg(sm) + ';color:var(--pw-text);cursor:pointer;',
+              nameStyle: 'font-size:11px;line-height:1.45;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+              chips: plats.map(function (p) {
+                const c = self.optColorOf('platforms', p);
+                return { label: p, style: 'display:inline-block;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:600;background:' + self.optTint(c) + ';color:' + c + ';' };
+              }),
+              metaStyle: 'font-size:9.5px;color:' + (isDone(t) ? '#16a34a' : sm.c) + ';',
+              meta: isDone(t) ? '● พร้อมลง' : '○ ' + t.status
+            };
+          });
+          const isToday = iso === TODAY;
+          const wk = i >= 5;
+          return {
+            dow: DOW[i], date: thShort(iso), count: items.length, items: items,
+            empty: items.length === 0,
+            headStyle: 'display:flex;align-items:baseline;gap:5px;padding:0 0 7px;border-bottom:1px solid var(--pw-line);margin-bottom:8px;',
+            dowStyle: 'font-size:10.5px;font-weight:700;color:' + (isToday ? '#4f46e5' : (wk ? 'var(--pw-muted2)' : 'var(--pw-text2)')) + ';',
+            dateStyle: 'font-size:9.5px;color:var(--pw-muted2);flex:1;',
+            countStyle: 'font-size:9.5px;font-weight:600;color:' + (items.length ? 'var(--pw-text2)' : 'var(--pw-faint)') + ';',
+            style: 'min-width:0;background:' + (isToday ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') +
+              ';border:1px solid ' + (isToday ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:10px;padding:11px 10px;display:flex;flex-direction:column;gap:6px;'
+          };
+        });
+
+        // ---- สมดุลช่องทาง ----
+        const pCount = {};
+        week.forEach(function (t) {
+          const ps = self.multiValues(t.platform);
+          (ps.length ? ps : ['ไม่ระบุ']).forEach(function (p) { pCount[p] = (pCount[p] || 0) + 1; });
+        });
+        const pTotal = Object.keys(pCount).reduce(function (a, k) { return a + pCount[k]; }, 0) || 1;
+        const pMax = Math.max(1, ...Object.keys(pCount).map(function (k) { return pCount[k]; }));
+        const platforms = Object.keys(pCount).sort(function (a, b) { return pCount[b] - pCount[a]; }).map(function (p, i) {
+          const c = p === 'ไม่ระบุ' ? '#9ca3af' : self.optColorOf('platforms', p);
+          return {
+            label: p, n: pCount[p], pct: Math.round(pCount[p] / pTotal * 100) + '%',
+            barStyle: 'height:6px;border-radius:3px;background:' + c + ';width:' + Math.max(3, Math.round(pCount[p] / pMax * 100)) + '%;',
+            dotStyle: 'display:inline-block;width:7px;height:7px;border-radius:50%;background:' + c + ';flex:0 0 7px;'
+          };
+        });
+
+        // ---- สัดส่วนเนื้อหา (เลือกได้ว่าดูตามฟิลด์ไหน) ----
+        const mixOpts = [{ k: 'channels', label: 'Channel' }, { k: 'platforms', label: 'Platform' }, { k: '__list', label: 'List' }]
+          .concat((s.fields || []).filter(function (f) { return f.type === 'select'; })
+            .map(function (f) { return { k: 'cf:' + f.id, label: f.label }; }));
+        const mixKey = (s.plannerMix && mixOpts.some(function (o) { return o.k === s.plannerMix; }))
+          ? s.plannerMix
+          : (mixOpts.length > 3 ? mixOpts[3].k : 'channels');
+        const valuesFor = function (t) {
+          if (mixKey === 'channels') return self.multiValues(t.channel);
+          if (mixKey === 'platforms') return self.multiValues(t.platform);
+          if (mixKey === '__list') return [t.list];
+          const fid = mixKey.slice(3);
+          const raw = (t.custom && t.custom[fid] !== undefined && t.custom[fid] !== null) ? t.custom[fid] : '';
+          return Array.isArray(raw) ? raw.filter(Boolean) : (raw ? [String(raw)] : []);
+        };
+        const mCount = {};
+        week.forEach(function (t) {
+          const vs = valuesFor(t);
+          (vs.length ? vs : ['ไม่ระบุ']).forEach(function (v) { mCount[v] = (mCount[v] || 0) + 1; });
+        });
+        const mTotal = Object.keys(mCount).reduce(function (a, k) { return a + mCount[k]; }, 0) || 1;
+        const mixSorted = Object.keys(mCount).sort(function (a, b) { return mCount[b] - mCount[a]; });
+        const mix = mixSorted.map(function (v, i) {
+          const share = mCount[v] / mTotal;
+          const c = v === 'ไม่ระบุ' ? '#9ca3af'
+            : (mixKey === '__list' ? OPT_PALETTE[i % OPT_PALETTE.length] : self.optColorOf(mixKey, v));
+          const heavy = share >= 0.4 && mixSorted.length > 1;
+          return {
+            label: v, n: mCount[v], pct: Math.round(share * 100) + '%',
+            flag: heavy ? '⚠︎' : '',
+            labelStyle: 'font-size:11.5px;color:' + (heavy ? '#d97706' : 'var(--pw-text2)') + ';font-weight:' + (heavy ? '600' : '400') + ';',
+            barStyle: 'height:6px;border-radius:3px;background:' + c + ';width:' + Math.max(3, Math.round(share * 100)) + '%;'
+          };
+        });
+        const topShare = mixSorted.length ? mCount[mixSorted[0]] / mTotal : 0;
+        const mixWarn = (mixSorted.length > 1 && topShare >= 0.4)
+          ? mixSorted[0] + ' กินไป ' + Math.round(topShare * 100) + '% ของสัปดาห์นี้ — ลองเกลี่ยให้สมดุลขึ้น'
+          : '';
+
+        // ---- ยังไม่พร้อมลง ----
+        const notReady = week.filter(function (t) { return !isDone(t); })
+          .sort(function (a, b) { return dueOf(a).localeCompare(dueOf(b)); })
+          .map(function (t) {
+            const late = dueOf(t) < TODAY;
+            const sm = self.statusMeta(t.status);
+            return {
+              name: t.name, when: thShort(dueOf(t)), status: t.status,
+              who: self.assigneesOf(t).join(', ') || 'ยังไม่มีคนรับ',
+              onOpen: function () { self.setState({ selected: t.id }); },
+              whenStyle: 'font-size:10.5px;font-weight:600;white-space:nowrap;color:' + (late ? '#dc2626' : 'var(--pw-muted2)') + ';flex:0 0 44px;',
+              chipStyle: 'font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap;background:' + self.chipBg(sm) + ';color:' + sm.c + ';',
+              style: 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;padding:7px 2px;border-bottom:1px solid var(--pw-line);cursor:pointer;color:var(--pw-text);'
+            };
+          });
+
+        const doneN = week.filter(isDone).length;
+        const lateN = week.filter(function (t) { return !isDone(t) && dueOf(t) < TODAY; }).length;
+        const kpis = [
+          { label: 'ชิ้นสัปดาห์นี้', value: String(week.length), color: 'var(--pw-text)' },
+          { label: 'พร้อมลงแล้ว', value: String(doneN), color: '#16a34a' },
+          { label: 'ยังไม่พร้อม', value: String(week.length - doneN), color: '#d97706' },
+          { label: 'เลยกำหนด', value: String(lateN), color: lateN ? '#dc2626' : 'var(--pw-muted2)' }
+        ].map(function (k) {
+          return { label: k.label, value: k.value,
+            valueStyle: 'font-size:22px;font-weight:600;letter-spacing:-0.5px;font-family:\'IBM Plex Mono\', monospace;color:' + k.color + ';' };
+        });
+
+        const isThis = (s.plannerWeek || 0) === 0;
+        return {
+          days: days, platforms: platforms, mix: mix, notReady: notReady, kpis: kpis,
+          mixWarn: mixWarn, hasMixWarn: !!mixWarn,
+          noItems: week.length === 0, hasItems: week.length > 0,
+          allReady: week.length > 0 && notReady.length === 0,
+          range: thShort(from) + ' – ' + thShort(to),
+          weekLabel: isThis ? 'สัปดาห์นี้' : ((s.plannerWeek > 0 ? '+' : '') + s.plannerWeek + ' สัปดาห์'),
+          mixOptions: mixOpts.map(function (o) { return o.label; }),
+          mixLabel: (mixOpts.filter(function (o) { return o.k === mixKey; })[0] || {}).label || 'Channel',
+          mixRef: self.syncRef((mixOpts.filter(function (o) { return o.k === mixKey; })[0] || {}).label || 'Channel'),
+          onMix: function (e) {
+            const hit = mixOpts.filter(function (o) { return o.label === e.target.value; })[0];
+            self.setState({ plannerMix: hit ? hit.k : '' });
+          },
+          onPrev: function () { self.setState(function (st) { return { plannerWeek: (st.plannerWeek || 0) - 1 }; }); },
+          onNext: function () { self.setState(function (st) { return { plannerWeek: (st.plannerWeek || 0) + 1 }; }); },
+          onToday: function () { self.setState({ plannerWeek: 0 }); },
+          todayStyle: 'height:28px;border:1px solid var(--pw-border);border-radius:7px;background:' + (isThis ? 'var(--pw-accent-soft)' : 'transparent') +
+            ';color:' + (isThis ? '#4f46e5' : 'var(--pw-muted)') + ';font-size:11px;font-weight:600;padding:0 11px;cursor:pointer;'
+        };
+      })(),
       isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
       groups: groups,
       columns: columns,
@@ -9806,4 +10136,174 @@ class Component extends DCLogic {
 </script>
 
 
+
+<script>
+/* ============================================================
+   PWA: ติดตั้งเป็นแอปบนมือถือ/เดสก์ท็อป + แจ้งเตือนระดับเครื่อง
+   ============================================================ */
+(function () {
+  var standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                   window.navigator.standalone === true;
+
+  // ---------- 1. service worker ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').then(function (reg) {
+        // มีเวอร์ชันใหม่รออยู่ → สลับให้เลยแล้วรีโหลดครั้งเดียว
+        reg.addEventListener('updatefound', function () {
+          var sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', function () {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              sw.postMessage('skip-waiting');
+            }
+          });
+        });
+      }).catch(function () {});
+      var reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
+    });
+  }
+
+  // ---------- 2. แจ้งเตือนระดับเครื่องตอนมี notif เข้า ----------
+  function initNotify() {
+    if (!('Notification' in window) || !window.PawdySync) return;
+    window.PawdySync.onNotif(function (n) {
+      if (Notification.permission !== 'granted') return;
+      if (!document.hidden) return;            // เปิดหน้าอยู่แล้ว เห็นกระดิ่งเองได้
+      try {
+        var body = [n.line, n.detail].filter(Boolean).join(' · ');
+        var note = new Notification(n.subject || 'Pawdy Workspace', {
+          body: body, icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+          tag: 'pawdy-' + (n.id || Date.now()), renotify: false
+        });
+        note.onclick = function () { window.focus(); note.close(); };
+      } catch (e) {}
+    });
+  }
+  if (window.PawdySync) initNotify();
+  else window.addEventListener('load', initNotify);
+
+  // ---------- 3. ป้ายชวนติดตั้ง ----------
+  var DISMISS = 'pawdy.install.dismissed';
+  function dismissed() { try { return localStorage.getItem(DISMISS) === '1'; } catch (e) { return false; } }
+  function banner(text, actionLabel, onAction) {
+    if (standalone || dismissed()) return;
+    var bar = document.createElement('div');
+    bar.setAttribute('style',
+      'position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:9999;' +
+      'display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;' +
+      'background:#1b1e27;color:#fff;box-shadow:0 12px 34px rgba(0,0,0,.42);' +
+      "font-family:'Sarabun',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12.5px;max-width:460px;margin:0 auto;");
+    var span = document.createElement('span');
+    span.setAttribute('style', 'flex:1;line-height:1.5;');
+    span.textContent = text;
+    bar.appendChild(span);
+    if (onAction) {
+      var go = document.createElement('button');
+      go.setAttribute('style', 'border:0;border-radius:8px;background:#4f46e5;color:#fff;font-size:12px;font-weight:600;padding:8px 14px;cursor:pointer;white-space:nowrap;');
+      go.textContent = actionLabel;
+      go.onclick = function () { bar.remove(); onAction(); };
+      bar.appendChild(go);
+    }
+    var x = document.createElement('button');
+    x.setAttribute('style', 'border:0;background:transparent;color:#9aa0b0;font-size:17px;line-height:1;cursor:pointer;padding:0 2px;');
+    x.textContent = '×';
+    x.onclick = function () { try { localStorage.setItem(DISMISS, '1'); } catch (e) {} bar.remove(); };
+    bar.appendChild(x);
+    document.body.appendChild(bar);
+  }
+
+  // Android / Chrome / Edge — ติดตั้งได้ในคลิกเดียว
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    banner('ติดตั้ง Pawdy Workspace เป็นแอปไว้บนเครื่อง', 'ติดตั้ง', function () {
+      e.prompt();
+    });
+  });
+
+  // iOS Safari ไม่มี beforeinstallprompt ต้องบอกวิธีเอง
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isSafari = /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent);
+  if (isIOS && isSafari && !standalone) {
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        banner('เพิ่มลงหน้าโฮมได้: กดปุ่มแชร์ ⤴ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม"', null, null);
+      }, 2500);
+    });
+  }
+
+  // ---------- 4. Web Push: แจ้งเตือนถึงแม้ปิดแอปอยู่ ----------
+  // iPhone รองรับตั้งแต่ iOS 16.4 แต่ "ต้องเพิ่มลงหน้าจอโฮมก่อนเท่านั้น"
+  // เปิดจาก Safari ธรรมดาจะขอสิทธิ์ไม่ได้เลย นี่เป็นข้อจำกัดของ Apple
+  function urlB64ToUint8(b64) {
+    var pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  function subscribePush() {
+    var key = (window.PAWDY_CONFIG || {}).vapidPublicKey;
+    if (!key || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return Promise.resolve({ ok: false, detail: 'เบราว์เซอร์นี้ไม่รองรับ Web Push' });
+    }
+    return navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (existing) {
+        if (existing) return existing;
+        return reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToUint8(key)
+        });
+      });
+    }).then(function (sub) {
+      return window.PawdySync.savePushSub(sub);
+    }).catch(function (e) {
+      return { ok: false, detail: (e && e.message) ? e.message : String(e) };
+    });
+  }
+  window.pawdyEnablePush = function () {
+    if (!('Notification' in window)) return Promise.resolve({ ok: false, detail: 'ไม่รองรับ' });
+    return Notification.requestPermission().then(function (p) {
+      if (p !== 'granted') return { ok: false, detail: 'ไม่ได้อนุญาต' };
+      return subscribePush();
+    });
+  };
+
+  // ถ้าเคยอนุญาตไว้แล้ว ต่อ subscription ให้เงียบๆ ทุกครั้งที่เปิดแอป
+  // (subscription หมดอายุ/ถูกเปลี่ยนได้ ต้อง upsert ซ้ำเรื่อยๆ)
+  function resubscribeQuietly() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!window.PawdySync) return;
+    subscribePush();
+  }
+  if (window.PawdySync) setTimeout(resubscribeQuietly, 4000);
+  else window.addEventListener('load', function () { setTimeout(resubscribeQuietly, 4000); });
+
+  if ('Notification' in window && Notification.permission === 'default') {
+    var canAsk = standalone || !isIOSDevice();
+    if (canAsk) {
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          banner('เปิดการแจ้งเตือนเวลามีคนมอบหมายงานให้', 'เปิด', function () {
+            window.pawdyEnablePush().then(function (r) {
+              if (!r || r.ok) return;
+              banner('เปิดแจ้งเตือนไม่สำเร็จ: ' + (r.detail || '—'), null, null);
+            });
+          });
+        }, 3000);
+      });
+    }
+  }
+
+  function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+})();
+</script>
 </body></html>
