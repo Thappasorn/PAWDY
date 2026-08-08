@@ -262,10 +262,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   var sb = null, me = null, ready = false;
   var dataCbs = [], notifCbs = [], listCbs = [];
-  var snap = { tasks: [], spaces: null, fields: null, config: null, docs: null, planner: null, members: [], notifs: [], ui: {} };
-  var known = { tasks: {}, spaces: null, fields: null, config: null, docs: null, planner: null };
+  var snap = { tasks: [], spaces: null, fields: null, config: null, docs: null, planner: null, links: null, members: [], notifs: [], ui: {} };
+  var known = { tasks: {}, spaces: null, fields: null, config: null, docs: null, planner: null, links: null };
   var touched = {};            // task id -> ts of our own last write
-  var touchedMeta = { spaces: 0, fields: 0, config: 0, docs: 0, planner: 0 };
+  var touchedMeta = { spaces: 0, fields: 0, config: 0, docs: 0, planner: 0, links: 0 };
   var GUARD = 5000;            // local edits win over echoes for this long
   var saveTimer = null, pending = null, refetchTimer = null;
   var statusCbs = [], syncStatus = 'saved';
@@ -380,6 +380,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
         if (JSON.stringify(state.planner) !== known.planner) touchedMeta.planner = now;
         snap.planner = state.planner;
       }
+      if (state.links) {
+        if (JSON.stringify(state.links) !== known.links) touchedMeta.links = now;
+        snap.links = state.links;
+      }
       pending = state;
       setStatus('saving');
       clearTimeout(saveTimer);
@@ -390,7 +394,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     notify: function (n) {
       if (!sb || !me || !n || !n.to) return;
       sb.from('notifs').insert({
-        to_email: n.to, to_name: n.toName || '', from_email: me.email,
+        to_email: n.to, to_name: n.toName || '', from_email: me.email, task_id: n.taskId || null,
         subject: n.subject || '', line: n.line || '', detail: n.detail || ''
       }).then(log);
 
@@ -497,6 +501,15 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       }));
     }
 
+    var lk = JSON.stringify(st.links || null);
+    if (st.links && lk !== known.links) {
+      var prevLk = known.links;
+      known.links = lk;
+      ops.push(sb.from('meta').upsert({ key: 'links', doc: st.links, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
+        if (r.error) { known.links = prevLk; throw r.error; }
+      }));
+    }
+
     var pl = JSON.stringify(st.planner || null);
     if (st.planner && pl !== known.planner) {
       var prevPl = known.planner;
@@ -513,7 +526,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }).catch(function (e) {
       console.error('[sync] save failed:', e && e.message ? e.message : e);
       setStatus(navigator.onLine === false ? 'offline' : 'error');
-      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields, config: snap.config, docs: snap.docs, planner: snap.planner };
+      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields, config: snap.config, docs: snap.docs, planner: snap.planner, links: snap.links };
       clearTimeout(saveTimer);
       saveTimer = setTimeout(flush, 3000);   // retry until it lands
     });
@@ -523,7 +536,9 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
   function rowToNotif(r) {
     return {
       id: r.id, to: r.to_email, toName: r.to_name || r.to_email, subject: r.subject,
-      line: r.line, detail: r.detail, at: new Date(r.created_at).getTime(), read: !!r.read
+      line: r.line, detail: r.detail, at: new Date(r.created_at).getTime(), read: !!r.read,
+      // แถวเก่าที่ยังไม่มีคอลัมน์ task_id — งัดรหัสงานออกจาก detail ให้ (เช่น "... · T34629 · ...")
+      taskId: r.task_id || (String(r.detail || '').match(/\bT\d{3,6}\b/) || [null])[0]
     };
   }
 
@@ -571,6 +586,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     known.config = JSON.stringify(meta.config || null);
     known.docs = JSON.stringify(meta.docs || null);
     known.planner = JSON.stringify(meta.planner || null);
+    known.links = JSON.stringify(meta.links || null);
 
     var members = [{ n: 'Unassigned', c: '#9ca3af' }].concat(
       (r[2].data || []).map(function (m) { return { n: m.name || m.email, c: m.color || '#4f46e5', email: m.email }; })
@@ -583,8 +599,9 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     var config = (keepLocal && now - touchedMeta.config < GUARD && snap.config) ? snap.config : (meta.config || snap.config);
     var docs = (keepLocal && now - touchedMeta.docs < GUARD && snap.docs) ? snap.docs : (meta.docs || snap.docs);
     var planner = (keepLocal && now - touchedMeta.planner < GUARD && snap.planner) ? snap.planner : (meta.planner || snap.planner);
+    var links = (keepLocal && now - touchedMeta.links < GUARD && snap.links) ? snap.links : (meta.links || snap.links);
 
-    snap = { tasks: tasks, spaces: spaces, fields: fields, config: config, docs: docs, planner: planner, members: members, notifs: notifs, ui: snap.ui || {} };
+    snap = { tasks: tasks, spaces: spaces, fields: fields, config: config, docs: docs, planner: planner, links: links, members: members, notifs: notifs, ui: snap.ui || {} };
     emit();
     listCbs.forEach(function (f) { try { f(notifs); } catch (e) {} });
   }
@@ -3326,6 +3343,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ docsCount }}</span>
       </button>
 
+      <button sc-camel-on-click="{{ onOpenLinks }}" title="Content Link Hub — รวมลิงก์ Script / Artwork / Meeting / ขอ Content ค้นหาได้" style="{{ linksBtnStyle }}" style-hover="background: #1d202a;">
+        <span style="width: 16px; text-align: center; opacity: 0.7;">⛓</span>Links
+        <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ linksCount }}</span>
+      </button>
+
       <button sc-camel-on-click="{{ onOpenPlanner }}" title="ปฏิทินโน้ต — จดว่าเดือนนี้/เดือนหน้ามีอะไร ไม่ผูกกับงานในตาราง" style="{{ plannerBtnStyle }}" style-hover="background: #1d202a;">
         <span style="width: 16px; text-align: center; opacity: 0.7;">◐</span>Planner
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ plannerCount }}</span>
@@ -3490,7 +3512,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <div style="padding: 22px 14px; text-align: center; font-size: 12px; color: var(--pw-muted2);">No emails yet. Change a status, assignee, due date or priority and the update is mailed to the assignee.</div>
                   </sc-if>
                   <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="3">
-                    <div style="{{ n.rowStyle }}">
+                    <button sc-camel-on-click="{{ n.onOpen }}" title="เปิดงานนี้" style="{{ n.rowStyle }}" style-hover="background: var(--pw-hover);">
                       <span style="{{ n.avatarStyle }}">{{ n.initials }}</span>
                       <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
                         <div style="display: flex; align-items: baseline; gap: 8px;">
@@ -3500,8 +3522,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                         <span style="font-size: 12px; color: var(--pw-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.subject }}</span>
                         <span style="font-size: 11.5px; color: #4f46e5; font-weight: 500;">{{ n.line }}</span>
                         <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.4;">{{ n.detail }}</span>
+                        <sc-if value="{{ n.hasTask }}" hint-placeholder-val="{{ true }}">
+                          <span style="align-self: flex-start; margin-top: 2px; font-size: 9.5px; font-weight: 600; color: #4f46e5; background: var(--pw-accent-soft); border-radius: 4px; padding: 1px 6px; font-family: 'IBM Plex Mono', monospace;">{{ n.taskTag }} →</span>
+                        </sc-if>
                       </div>
-                    </div>
+                    </button>
                   </sc-for>
                 </div>
               </div>
@@ -3570,6 +3595,93 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </header>
 
     <section style="flex: 1; min-height: 0; overflow: auto; padding: 0;">
+
+      <sc-if value="{{ isLinksPage }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;max-width:920px;">
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input ref="{{ linkHub.queryRef }}" value="{{ linkHub.query }}" sc-camel-on-change="{{ linkHub.onQuery }}" placeholder="ค้นหา เช่น Pawdy Senior, สคริปต์, ประชุม…" style="flex:1;min-width:200px;height:34px;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-surface);color:var(--pw-text);font-size:12.5px;padding:0 11px;outline:0;">
+            <button sc-camel-on-click="{{ linkHub.onAdd }}" style="height:34px;border:0;border-radius:8px;background:#4f46e5;color:#fff;font-size:12px;font-weight:600;padding:0 15px;cursor:pointer;white-space:nowrap;">＋ เพิ่มลิงก์</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <sc-for list="{{ linkHub.cats }}" as="lc" hint-placeholder-count="5">
+              <button sc-camel-on-click="{{ lc.onPick }}" style="{{ lc.style }}">
+                <span style="{{ lc.dotStyle }}"></span>{{ lc.label }}
+                <span style="opacity:0.65;">{{ lc.count }}</span>
+              </button>
+            </sc-for>
+            <span style="margin-left:auto;font-size:11px;color:var(--pw-muted2);">{{ linkHub.countLabel }}</span>
+            <sc-if value="{{ linkHub.searching }}" hint-placeholder-val="{{ false }}">
+              <button sc-camel-on-click="{{ linkHub.onClear }}" style="border:0;background:transparent;color:#4f46e5;font-size:11px;cursor:pointer;">ล้างตัวกรอง</button>
+            </sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            <sc-for list="{{ linkHub.items }}" as="li" hint-placeholder-count="4">
+              <div style="{{ li.rowStyle }}">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span style="{{ li.catStyle }}">{{ li.cat }}</span>
+                    <span style="{{ li.kindStyle }}">{{ li.kind }}</span>
+                    <span style="font-size:10px;color:var(--pw-faint);">{{ li.when }}</span>
+                  </div>
+                  <a href="{{ li.url }}" target="_blank" rel="noopener noreferrer" style="font-size:13px;font-weight:600;color:var(--pw-text);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" style-hover="color:#4f46e5;text-decoration:underline;">{{ li.title }}</a>
+                  <sc-if value="{{ li.hasNote }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:11px;color:var(--pw-muted2);line-height:1.5;">{{ li.note }}</span>
+                  </sc-if>
+                  <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                    <sc-for list="{{ li.tags }}" as="tg" hint-placeholder-count="2"><span style="{{ tg.style }}">{{ tg.label }}</span></sc-for>
+                    <span style="font-size:9.5px;color:var(--pw-faint);">{{ li.by }}</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:2px;flex:0 0 auto;">
+                  <button sc-camel-on-click="{{ li.onCopy }}" title="คัดลอกลิงก์" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted2);font-size:12px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#4f46e5;">⧉</button>
+                  <button sc-camel-on-click="{{ li.onEdit }}" title="แก้" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted2);font-size:12px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#4f46e5;">✎</button>
+                  <button sc-camel-on-click="{{ li.onDelete }}" title="ลบ" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-faint);font-size:11px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#dc2626;">✕</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ linkHub.empty }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:34px 16px;text-align:center;border:1px dashed var(--pw-border);border-radius:11px;">
+              <div style="font-size:12.5px;color:var(--pw-muted2);line-height:1.7;">ไม่เจอลิงก์ที่ตรงกับที่ค้นหา<br>ลองพิมพ์คำน้อยลง หรือกดล้างตัวกรอง</div>
+            </div>
+          </sc-if>
+
+          <p style="margin:0;font-size:10.5px;color:var(--pw-muted2);line-height:1.7;">
+            ค้นหาได้ทั้งชื่อ ลิงก์ โน้ต แท็ก และหมวด · พิมพ์หลายคำได้ ต้องเจอครบทุกคำ เช่น <b>Pawdy Senior</b><br>
+            ไม่ต้องพิมพ์ https:// ระบบเติมให้เอง · ทุกคนในทีมเห็นและแก้ได้ ซิงค์ทันที
+          </p>
+        </div>
+
+        <sc-if value="{{ linkHub.editOpen }}" hint-placeholder-val="{{ false }}">
+          <div sc-camel-on-click="{{ linkHub.edit.onClose }}" style="position:fixed;inset:0;z-index:88;background:rgba(8,10,14,.5);"></div>
+          <div data-panel style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,calc(100vw - 32px));z-index:89;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:13px;box-shadow:0 20px 50px rgba(8,10,14,.42);padding:17px;display:flex;flex-direction:column;gap:11px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <b style="font-size:13px;flex:1;">{{ linkHub.edit.heading }}</b>
+              <button sc-camel-on-click="{{ linkHub.edit.onClose }}" style="border:0;background:transparent;color:var(--pw-muted2);font-size:16px;cursor:pointer;">×</button>
+            </div>
+            <input ref="{{ linkHub.edit.urlRef }}" value="{{ linkHub.edit.url }}" sc-camel-on-change="{{ linkHub.edit.onUrl }}" sc-camel-on-key-down="{{ linkHub.edit.onKey }}" placeholder="วางลิงก์ที่นี่ (จำเป็น)" style="width:100%;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-bg);color:var(--pw-text);font-size:12.5px;padding:9px 11px;outline:0;">
+            <input ref="{{ linkHub.edit.titleRef }}" value="{{ linkHub.edit.title }}" sc-camel-on-change="{{ linkHub.edit.onTitle }}" sc-camel-on-key-down="{{ linkHub.edit.onKey }}" placeholder="ชื่อที่จะให้แสดง เช่น Script Pawdy Senior EP.1" style="width:100%;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-bg);color:var(--pw-text);font-size:12.5px;padding:9px 11px;outline:0;">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <sc-for list="{{ linkHub.edit.cats }}" as="ec" hint-placeholder-count="5">
+                <button sc-camel-on-click="{{ ec.onPick }}" style="{{ ec.style }}">{{ ec.label }}</button>
+              </sc-for>
+            </div>
+            <input ref="{{ linkHub.edit.tagsRef }}" value="{{ linkHub.edit.tags }}" sc-camel-on-change="{{ linkHub.edit.onTags }}" sc-camel-on-key-down="{{ linkHub.edit.onKey }}" placeholder="แท็ก คั่นด้วย , เช่น Pawdy Senior, สิงหาคม" style="width:100%;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-bg);color:var(--pw-text);font-size:12px;padding:8px 11px;outline:0;">
+            <input ref="{{ linkHub.edit.noteRef }}" value="{{ linkHub.edit.note }}" sc-camel-on-change="{{ linkHub.edit.onNote }}" sc-camel-on-key-down="{{ linkHub.edit.onKey }}" placeholder="โน้ตสั้นๆ (ไม่ใส่ก็ได้)" style="width:100%;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-bg);color:var(--pw-text);font-size:12px;padding:8px 11px;outline:0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <sc-if value="{{ linkHub.edit.notNew }}" hint-placeholder-val="{{ false }}">
+                <button sc-camel-on-click="{{ linkHub.edit.onDelete }}" style="border:0;background:transparent;color:#dc2626;font-size:11.5px;cursor:pointer;">ลบลิงก์นี้</button>
+              </sc-if>
+              <span style="margin-left:auto;font-size:10px;color:var(--pw-faint);">⌘/Ctrl + Enter</span>
+              <button sc-camel-on-click="{{ linkHub.edit.onSave }}" style="height:32px;border:0;border-radius:8px;background:#4f46e5;color:#fff;padding:0 16px;font-size:12px;font-weight:600;cursor:pointer;">บันทึก</button>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
 
       <sc-if value="{{ isPlannerPage }}" hint-placeholder-val="{{ false }}">
         <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
@@ -5186,6 +5298,11 @@ class Component extends DCLogic {
       fields: snap.fields || [],
       config: snap.config || null,
       docs: snap.docs || [],
+      links: snap.links || [],       // Content Link Hub
+      linkQuery: '',
+      linkCat: null,                 // ตัวกรองหมวด (null = ทุกหมวด)
+      linkEdit: null,                // id ที่กำลังแก้ หรือ '__new'
+      linkDraft: null,
       planner: snap.planner || [],   // โน้ตในปฏิทิน Planner (ไม่ผูกกับ task)
       plannerMonth: 0,               // เลื่อนเดือน (0 = เดือนนี้)
       plannerAdd: null,              // วันที่กำลังเปิดช่องพิมพ์
@@ -5283,7 +5400,7 @@ class Component extends DCLogic {
     }
     this._prevSnap = this.snapOf(st);
     this._undoLabel = null;
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, planner: st.planner, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, planner: st.planner, links: st.links, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
         collapsedGroups: st.collapsedGroups } });
   }
 
@@ -5296,7 +5413,8 @@ class Component extends DCLogic {
       fields: st.fields ? JSON.parse(JSON.stringify(st.fields)) : st.fields,
       config: st.config ? JSON.parse(JSON.stringify(st.config)) : st.config,
       docs: st.docs ? JSON.parse(JSON.stringify(st.docs)) : st.docs,
-      planner: st.planner ? JSON.parse(JSON.stringify(st.planner)) : st.planner
+      planner: st.planner ? JSON.parse(JSON.stringify(st.planner)) : st.planner,
+      links: st.links ? JSON.parse(JSON.stringify(st.links)) : st.links
     };
   }
   // เทียบสองสถานะ เก็บไว้ว่าการกระทำนี้แตะงานชิ้นไหนและแตะอะไรอีก
@@ -5315,8 +5433,9 @@ class Component extends DCLogic {
     const config = JSON.stringify(before.config || null) !== JSON.stringify(after.config || null);
     const docs = JSON.stringify(before.docs || null) !== JSON.stringify(after.docs || null);
     const planner = JSON.stringify(before.planner || null) !== JSON.stringify(after.planner || null);
-    return { ids: ids, spaces: spaces, fields: fields, config: config, docs: docs, planner: planner,
-             any: n > 0 || spaces || fields || config || docs || planner };
+    const links = JSON.stringify(before.links || null) !== JSON.stringify(after.links || null);
+    return { ids: ids, spaces: spaces, fields: fields, config: config, docs: docs, planner: planner, links: links,
+             any: n > 0 || spaces || fields || config || docs || planner || links };
   }
 
   // ย้อนแค่งานที่การกระทำนั้นแตะ — งานชิ้นอื่นที่เพื่อนเพิ่งแก้จะไม่ถูกทับ
@@ -5426,7 +5545,7 @@ class Component extends DCLogic {
     return { name: (m && m.n) || name || '', email: '' };   // ไม่มีอีเมล = ไม่มีผู้รับ (ไม่ตกไปเป็นตัวเราเอง)
   }
 
-  sendEmail(to, subject, line, detail) {
+  sendEmail(to, subject, line, detail, taskId) {
     if (this.props.emailNotifications === false) return;
 
     // ไม่มีผู้รับจริง (เช่นงานยังเป็น Unassigned) → บอกตรงๆ ไม่ต้องหลอกว่าส่งแล้ว
@@ -5443,7 +5562,7 @@ class Component extends DCLogic {
     const n = {
       id: 'N' + Date.now() + Math.floor(Math.random() * 900),
       to: to.email, toName: to.name, subject: subject, line: line, detail: detail || '',
-      at: Date.now(), read: false
+      taskId: taskId || null, at: Date.now(), read: false
     };
     window.PawdySync.notify(n);
     this.setState({ toast: n });
@@ -5454,7 +5573,7 @@ class Component extends DCLogic {
   }
 
   // ส่งอีเมลหาผู้รับผิดชอบทุกคน (ตัดตัวเราเอง ตัดคนที่ไม่มีอีเมล ตัดซ้ำ)
-  sendEmailMany(names, subject, line, detail) {
+  sendEmailMany(names, subject, line, detail, taskId) {
     const self = this;
     const meMail = String(this.me().email || '').toLowerCase();
     const list = (names || [])
@@ -5470,7 +5589,7 @@ class Component extends DCLogic {
         : 'ไม่ได้ส่งแจ้งเตือน — งานนี้ยังไม่มีผู้รับผิดชอบ');
       return;
     }
-    list.forEach(function (to) { self.sendEmail(to, subject, line, detail); });
+    list.forEach(function (to) { self.sendEmail(to, subject, line, detail, taskId); });
   }
 
   notifyChange(prev, field, value) {
@@ -5481,12 +5600,12 @@ class Component extends DCLogic {
     const from = this.me().n;
     const detail = 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list;
     if (field === 'assignee') {
-      this.sendEmailMany([value], subject, 'Assigned to you by ' + from, detail);
+      this.sendEmailMany([value], subject, 'Assigned to you by ' + from, detail, prev.id);
       return;
     }
     // งานเดียวมีหลายคนรับผิดชอบ → แจ้งทุกคน
     this.sendEmailMany(this.assigneesOf(prev), subject,
-      watched[field] + ': ' + (prev[field] || '—') + ' → ' + (value || '—'), detail);
+      watched[field] + ': ' + (prev[field] || '—') + ' → ' + (value || '—'), detail, prev.id);
   }
 
   patchTask(id, fn) {
@@ -5689,6 +5808,7 @@ class Component extends DCLogic {
           config: snap.config || st.config || null,
           docs: snap.docs || st.docs || [],
           planner: snap.planner || st.planner || [],
+          links: snap.links || st.links || [],
           members: (snap.members && snap.members.length > 1) ? snap.members : st.members,
           flash: Object.keys(changed).length ? changed : st.flash
         };
@@ -6231,14 +6351,14 @@ class Component extends DCLogic {
     const owner = this.emailFor(task.assignee);
     if (owner && owner.email && String(owner.email).toLowerCase() !== mine) {
       sentTo[String(owner.email).toLowerCase()] = 1;
-      this.sendEmail(owner, subject, 'New comment from ' + this.me().n, '“' + v + '”');
+      this.sendEmail(owner, subject, 'New comment from ' + this.me().n, '“' + v + '”', task.id);
     }
     const self = this;
     this.mentionsIn(v).forEach(function (m) {
       const key = String(m.email || '').toLowerCase();
       if (!key || key === mine || sentTo[key]) return;
       sentTo[key] = 1;
-      self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”');
+      self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', task.id);
     });
     this._focusRowComment = true;
     const pos = this.state.commentComposerPos;
@@ -7219,7 +7339,7 @@ class Component extends DCLogic {
     if (!added.length) return;
     const from = this.me().n;
     this.sendEmailMany(added, '[' + prev.list + '] ' + prev.name,
-      'Assigned to you by ' + from, 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list);
+      'Assigned to you by ' + from, 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list, prev.id);
   }
 
   openAssigneePicker(e, taskId, values, subIndex, single) {
@@ -7523,6 +7643,140 @@ class Component extends DCLogic {
   // ---- Docs: เก็บเอกสารของทีม (Brand CI, ฟอนต์, safezone ฯลฯ) ----
   isDocs() { return this.state.list === '__docs'; }
   isPlanner() { return this.state.list === '__planner'; }
+  isLinks() { return this.state.list === '__links'; }
+
+  // ---------- Content Link Hub ----------
+  // เก็บที่ meta key 'links' = [{ id, title, url, cat, tags, note, by, at }]
+  linkCats() {
+    return [
+      { k: 'script',  label: 'Script',      c: '#4f46e5' },
+      { k: 'artwork', label: 'Artwork',     c: '#db2777' },
+      { k: 'meeting', label: 'Meeting',     c: '#0891b2' },
+      { k: 'request', label: 'ขอ Content',  c: '#d97706' },
+      { k: 'other',   label: 'อื่นๆ',        c: '#6b7280' }
+    ];
+  }
+  linkCatMeta(k) {
+    const all = this.linkCats();
+    return all.filter(function (c) { return c.k === k; })[0] || all[all.length - 1];
+  }
+  allLinks() { return (this.state.links || []).filter(function (x) { return x && x.url; }); }
+  // เดาว่าลิงก์นี้เป็นไฟล์อะไร ใช้โชว์ป้ายเล็กๆ
+  linkKind(url) {
+    const u = String(url || '').toLowerCase();
+    if (u.indexOf('docs.google.com/spreadsheets') >= 0) return 'Sheets';
+    if (u.indexOf('docs.google.com/presentation') >= 0) return 'Slides';
+    if (u.indexOf('docs.google.com/document') >= 0) return 'Docs';
+    if (u.indexOf('docs.google.com/forms') >= 0) return 'Forms';
+    if (u.indexOf('drive.google.com') >= 0) return 'Drive';
+    if (u.indexOf('figma.com') >= 0) return 'Figma';
+    if (u.indexOf('canva.com') >= 0) return 'Canva';
+    if (u.indexOf('notion.') >= 0) return 'Notion';
+    if (u.indexOf('youtube.com') >= 0 || u.indexOf('youtu.be') >= 0) return 'YouTube';
+    if (u.indexOf('meet.google.com') >= 0) return 'Meet';
+    if (u.indexOf('zoom.us') >= 0) return 'Zoom';
+    if (u.indexOf('dropbox.com') >= 0) return 'Dropbox';
+    try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return 'ลิงก์'; }
+  }
+  // ค้นหาแบบทีละคำ ต้องเจอครบทุกคำ (พิมพ์ "Pawdy Senior" = เจอทั้งสองคำ)
+  matchLink(l, q) {
+    if (!q) return true;
+    const hay = [l.title, l.url, l.note, (l.tags || []).join(' '), this.linkCatMeta(l.cat).label, l.by]
+      .join(' ').toLowerCase();
+    return q.toLowerCase().split(/\s+/).filter(Boolean).every(function (w) { return hay.indexOf(w) >= 0; });
+  }
+  visibleLinks() {
+    const self = this;
+    const q = String(this.state.linkQuery || '').trim();
+    const cat = this.state.linkCat;
+    return this.allLinks()
+      .filter(function (l) { return !cat || l.cat === cat; })
+      .filter(function (l) { return self.matchLink(l, q); })
+      .sort(function (a, b) { return (b.at || 0) - (a.at || 0); });
+  }
+  normalizeUrl(u) {
+    const v = String(u || '').trim();
+    if (!v) return '';
+    return /^https?:\/\//i.test(v) ? v : 'https://' + v;
+  }
+  openLinkEditor(id) {
+    const l = id === '__new' ? null : this.allLinks().filter(function (x) { return x.id === id; })[0];
+    this.setState({
+      linkEdit: id,
+      linkDraft: l
+        ? { title: l.title || '', url: l.url || '', cat: l.cat || 'other', note: l.note || '', tags: (l.tags || []).join(', ') }
+        : { title: '', url: '', cat: this.state.linkCat || 'script', note: '', tags: '' }
+    });
+  }
+  closeLinkEditor() { this.setState({ linkEdit: null, linkDraft: null }); }
+  patchLinkDraft(field, value) {
+    this.setState(function (st) {
+      return { linkDraft: Object.assign({}, st.linkDraft || {}, { [field]: value }) };
+    });
+  }
+  saveLinkDraft() {
+    const d = this.state.linkDraft || {};
+    const url = this.normalizeUrl(d.url);
+    const title = String(d.title || '').trim();
+    if (!url) { this.flashToast('ยังไม่ได้ใส่ลิงก์'); return; }
+    const tags = String(d.tags || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    const id = this.state.linkEdit;
+    this.mark(id === '__new' ? 'เพิ่มลิงก์' : 'แก้ลิงก์');
+    const me = this.me().n;
+    if (id === '__new') {
+      const item = { id: 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                     title: title || url, url: url, cat: d.cat || 'other',
+                     note: String(d.note || '').trim(), tags: tags, by: me, at: Date.now() };
+      this.setState(function (st) { return { links: (st.links || []).concat([item]), linkEdit: null, linkDraft: null }; },
+        () => this.persist());
+      return;
+    }
+    this.setState(function (st) {
+      return {
+        links: (st.links || []).map(function (x) {
+          return x.id === id
+            ? Object.assign({}, x, { title: title || url, url: url, cat: d.cat || 'other',
+                                     note: String(d.note || '').trim(), tags: tags, at: x.at || Date.now() })
+            : x;
+        }),
+        linkEdit: null, linkDraft: null
+      };
+    }, () => this.persist());
+  }
+  removeLink(id) {
+    const l = this.allLinks().filter(function (x) { return x.id === id; })[0];
+    if (!l) return;
+    if (!window.confirm('ลบลิงก์ "' + (l.title || l.url) + '" ?')) return;
+    this.mark('ลบลิงก์');
+    this.setState(function (st) {
+      return { links: (st.links || []).filter(function (x) { return x.id !== id; }), linkEdit: null, linkDraft: null };
+    }, () => this.persist());
+  }
+  copyLink(url) {
+    const self = this;
+    try {
+      navigator.clipboard.writeText(url).then(function () { self.flashToast('คัดลอกลิงก์แล้ว'); },
+        function () { self.flashToast('คัดลอกไม่ได้ — กดลิงก์เปิดตรงๆ ได้เลย'); });
+    } catch (e) { this.flashToast('คัดลอกไม่ได้'); }
+  }
+
+  // เปิดงานจากรายการแจ้งเตือน — ต้องพาออกจากหน้า Planner/เอกสารด้วย
+  // และถ้างานถูกเก็บเข้า Archive หรือถังขยะ ก็ต้องสลับไปหน้านั้นให้ ไม่งั้นจะเปิดไม่เจอ
+  openTaskFromNotif(taskId) {
+    if (!taskId) { this.flashToast('แจ้งเตือนนี้ไม่ได้ผูกกับงาน'); return; }
+    const t = (this.state.tasks || []).filter(function (x) { return x.id === taskId; })[0];
+    if (!t) { this.flashToast('ไม่พบงาน ' + taskId + ' — อาจถูกลบถาวรไปแล้ว'); return; }
+    const scope = t.deleted ? '__trash' : (t.archived ? '__archive' : '__all');
+    this.setState({
+      list: scope,
+      view: this.state.view === 'dashboard' ? 'table' : this.state.view,
+      selected: t.id,
+      notifOpen: false,
+      plannerAdd: null,
+      plannerEdit: null,
+      docSel: null
+    }, () => this.persist());
+  }
 
   // ---------- Planner: ปฏิทินโน้ต ไม่ผูกกับ task ใดๆ ----------
   // เก็บที่ meta key 'planner' เป็น [{ id, date, text, cat }]
@@ -8892,7 +9146,7 @@ class Component extends DCLogic {
       const owner = self.emailFor(sel.assignee);
       if (owner && owner.email && String(owner.email).toLowerCase() !== mine) {
         sentTo[String(owner.email).toLowerCase()] = 1;
-        self.sendEmail(owner, subject, 'New comment from ' + self.me().n, '“' + v + '”');
+        self.sendEmail(owner, subject, 'New comment from ' + self.me().n, '“' + v + '”', sel.id);
       }
 
       // แล้วค่อยคนที่ถูก @ แท็ก — ไม่ส่งซ้ำถ้าได้ไปแล้ว
@@ -8900,7 +9154,7 @@ class Component extends DCLogic {
         const key = String(m.email || '').toLowerCase();
         if (!key || key === mine || sentTo[key]) return;
         sentTo[key] = 1;
-        self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”');
+        self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', sel.id);
       });
 
       self.setState({ newComment: '' });
@@ -8947,7 +9201,7 @@ class Component extends DCLogic {
           };
         }, () => self.persist());
       },
-      canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
+      canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       viewTabs: tabs,
       savedTabs: savedTabs,
       onGoHome: function () { self.goHome(); },
@@ -9172,9 +9426,9 @@ class Component extends DCLogic {
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
       breadcrumb: self.isDocs() ? 'Workspace' : self.isTrash() ? 'Workspace' : (s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : ''))),
       allLists: allLists,
-      listTitle: self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
-      listTitleRef: self.syncRef(self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
-      isEverything: self.isPlanner() || self.isArchive() || self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
+      listTitle: self.isLinks() ? 'Links' : self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
+      listTitleRef: self.syncRef(self.isLinks() ? 'Links' : self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
+      isEverything: self.isLinks() || self.isPlanner() || self.isArchive() || self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
       memberOverflow: (function () {
         const n = Math.max(0, (s.members || []).length - 1 - 6);
@@ -9203,12 +9457,19 @@ class Component extends DCLogic {
       notifEmpty: s.notifs.length === 0,
       notifs: s.notifs.map(function (n) {
         const mins = Math.floor((Date.now() - n.at) / 60000);
+        const tid = n.taskId || '';
+        const live = tid ? (s.tasks || []).some(function (x) { return x.id === tid; }) : false;
         return {
           to: n.to, subject: n.subject, line: n.line, detail: n.detail,
           when: mins < 1 ? 'just now' : (mins < 60 ? mins + 'm ago' : Math.floor(mins / 60) + 'h ago'),
           initials: self.initials(n.toName),
           avatarStyle: self.avatar(n.toName, 26),
-          rowStyle: 'display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--pw-line);background:' + (n.read ? 'var(--pw-surface)' : 'var(--pw-hover)') + ';'
+          taskTag: live ? tid : '',
+          hasTask: live,
+          onOpen: function () { self.openTaskFromNotif(tid); },
+          rowStyle: 'display:flex;gap:10px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--pw-line);padding:9px 12px;' +
+            'color:var(--pw-text);cursor:' + (live ? 'pointer' : 'default') + ';background:' +
+            (n.read ? 'var(--pw-surface)' : 'var(--pw-hover)') + ';'
         };
       }),
       onToggleNotif: function () {
@@ -9226,12 +9487,12 @@ class Component extends DCLogic {
       } : {},
       onDismissToast: function () { self.setState({ toast: null }); },
       isArchive: self.isArchive(),
-      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && !self.isMobile(),
-      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && self.isMobile(),
-      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && !self.isMobile(),
-      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && self.isMobile(),
-      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && self.isMobile() && s.calMobileMode !== 'month',
-      isCalMonth: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && self.isMobile() && s.calMobileMode === 'month',
+      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive() && !self.isMobile(),
+      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive() && self.isMobile(),
+      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive() && !self.isMobile(),
+      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive() && self.isMobile(),
+      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && self.isMobile() && s.calMobileMode !== 'month',
+      isCalMonth: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && self.isMobile() && s.calMobileMode === 'month',
       calModes: [['agenda', 'รายการ'], ['month', 'เดือน']].map(function (mo) {
         const on = (s.calMobileMode === 'month' ? 'month' : 'agenda') === mo[0];
         return {
@@ -9323,11 +9584,11 @@ class Component extends DCLogic {
       })(),
       agendaEmpty: (function () { return s.view === 'calendar' && self.isMobile() && vms.length === 0; })(),
       onAddToday: function () { self.openCalAdd(TODAY); },
-      isTable: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner(),
-      isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
-      isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner(),
-      isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
-      isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
+      isTable: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
+      isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
+      isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
+      isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
+      isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       groups: groups,
       columns: columns,
       statusNames: self._opt.status,
@@ -9434,7 +9695,7 @@ class Component extends DCLogic {
           onToggle: function () { self.toggleFilter('due', o[0]); }
         };
       }),
-      isGantt: s.view === 'gantt' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
+      isGantt: s.view === 'gantt' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       gantt: (function () {
         if (s.view !== 'gantt') return { rows: [], cols: [], zooms: [], gridStyle: '', todayStyle: 'display:none;', rangeLabel: '', onPrev: function () {}, onNext: function () {}, onToday: function () {} };
         const spec = self.ganttSpec();
@@ -9796,6 +10057,100 @@ class Component extends DCLogic {
           onTrash: function () { self.removeTask(t.id); }
         };
       }),
+      isLinksPage: self.isLinks(),
+      linkHub: (function () {
+        if (!self.isLinks()) return { items: [], cats: [], editOpen: false };
+        const cats = self.linkCats();
+        const all = self.allLinks();
+        const shown = self.visibleLinks();
+        const q = String(s.linkQuery || '').trim();
+
+        const items = shown.map(function (l) {
+          const cm = self.linkCatMeta(l.cat);
+          const when = l.at ? new Date(l.at) : null;
+          return {
+            title: l.title || l.url,
+            url: l.url,
+            note: l.note || '',
+            hasNote: !!l.note,
+            kind: self.linkKind(l.url),
+            cat: cm.label,
+            by: l.by ? ('เพิ่มโดย ' + l.by) : '',
+            when: when ? (when.getDate() + '/' + (when.getMonth() + 1) + '/' + String(when.getFullYear()).slice(2)) : '',
+            tags: (l.tags || []).map(function (t) {
+              return { label: '#' + t, style: 'font-size:9.5px;color:var(--pw-muted2);background:var(--pw-hover);border-radius:4px;padding:1px 6px;' };
+            }),
+            catStyle: 'font-size:9.5px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:4px;white-space:nowrap;background:' +
+              self.optTint(cm.c) + ';color:' + cm.c + ';',
+            kindStyle: 'font-size:9.5px;color:var(--pw-muted2);background:var(--pw-hover);border-radius:4px;padding:2px 6px;white-space:nowrap;',
+            rowStyle: 'display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid var(--pw-border);' +
+              'border-left:3px solid ' + cm.c + ';border-radius:9px;background:var(--pw-surface);',
+            onCopy: function () { self.copyLink(l.url); },
+            onEdit: function () { self.openLinkEditor(l.id); },
+            onDelete: function () { self.removeLink(l.id); }
+          };
+        });
+
+        const catChips = cats.map(function (c) {
+          const on = s.linkCat === c.k;
+          const cnt = all.filter(function (l) { return l.cat === c.k; }).length;
+          return {
+            label: c.label, count: String(cnt),
+            style: 'display:flex;align-items:center;gap:6px;border:1px solid ' + (on ? c.c : 'var(--pw-border)') +
+              ';border-radius:999px;padding:5px 12px;background:' + (on ? self.optTint(c.c) : 'transparent') +
+              ';color:' + (on ? c.c : 'var(--pw-muted2)') + ';font-size:11.5px;font-weight:' + (on ? '600' : '400') + ';cursor:pointer;',
+            dotStyle: 'display:inline-block;width:7px;height:7px;border-radius:50%;background:' + c.c + ';',
+            onPick: function () { self.setState({ linkCat: on ? null : c.k }); }
+          };
+        });
+
+        const d = s.linkDraft || {};
+        const edit = s.linkEdit ? {
+          heading: s.linkEdit === '__new' ? 'เพิ่มลิงก์ใหม่' : 'แก้ลิงก์',
+          isNew: s.linkEdit === '__new',
+          notNew: s.linkEdit !== '__new',
+          title: d.title || '', titleRef: self.syncRef(d.title || ''),
+          url: d.url || '', urlRef: self.syncRef(d.url || ''),
+          note: d.note || '', noteRef: self.syncRef(d.note || ''),
+          tags: d.tags || '', tagsRef: self.syncRef(d.tags || ''),
+          onTitle: function (e) { self.patchLinkDraft('title', e.target.value); },
+          onUrl: function (e) { self.patchLinkDraft('url', e.target.value); },
+          onNote: function (e) { self.patchLinkDraft('note', e.target.value); },
+          onTags: function (e) { self.patchLinkDraft('tags', e.target.value); },
+          onKey: function (e) {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); self.saveLinkDraft(); }
+            if (e.key === 'Escape') self.closeLinkEditor();
+          },
+          onSave: function () { self.saveLinkDraft(); },
+          onClose: function () { self.closeLinkEditor(); },
+          onDelete: function () { self.removeLink(s.linkEdit); },
+          cats: cats.map(function (c) {
+            const on = (d.cat || 'other') === c.k;
+            return {
+              label: c.label,
+              style: 'border:1px solid ' + (on ? c.c : 'var(--pw-border)') + ';border-radius:999px;padding:5px 12px;background:' +
+                (on ? self.optTint(c.c) : 'transparent') + ';color:' + (on ? c.c : 'var(--pw-muted2)') +
+                ';font-size:11.5px;font-weight:' + (on ? '600' : '400') + ';cursor:pointer;',
+              onPick: function () { self.patchLinkDraft('cat', c.k); }
+            };
+          })
+        } : null;
+
+        return {
+          items: items, cats: catChips,
+          empty: items.length === 0,
+          hasItems: items.length > 0,
+          noneAtAll: all.length === 0,
+          searching: !!q || !!s.linkCat,
+          query: s.linkQuery || '',
+          queryRef: self.syncRef(s.linkQuery || ''),
+          countLabel: items.length + ' จาก ' + all.length + ' ลิงก์',
+          onQuery: function (e) { self.setState({ linkQuery: e.target.value }); },
+          onClear: function () { self.setState({ linkQuery: '', linkCat: null }); },
+          onAdd: function () { self.openLinkEditor('__new'); },
+          editOpen: !!edit, edit: edit || {}
+        };
+      })(),
       isPlannerPage: self.isPlanner(),
       plannerCal: (function () {
         if (!self.isPlanner()) return { days: [], legend: [], editOpen: false };
@@ -9920,6 +10275,9 @@ class Component extends DCLogic {
       docsBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isDocs() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isDocs() ? '#fff' : '#cbd2de') + ';',
       onOpenDocs: function () { self.setState({ list: '__docs', selected: null }, function () { self.persist(); }); },
       onOpenPlanner: function () { self.setState({ list: '__planner', selected: null, plannerAdd: null, plannerEdit: null }, function () { self.persist(); }); },
+      onOpenLinks: function () { self.setState({ list: '__links', selected: null, linkEdit: null, linkDraft: null }, function () { self.persist(); }); },
+      linksCount: String(self.allLinks().length),
+      linksBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isLinks() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isLinks() ? '#fff' : '#cbd2de') + ';',
       plannerCount: String(self.plannerNotes().length),
       plannerBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isPlanner() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isPlanner() ? '#fff' : '#cbd2de') + ';',
       onAddDoc: function () { self.addDoc(); },
@@ -10001,7 +10359,7 @@ class Component extends DCLogic {
         };
       })(),
       isTrash: self.isTrash(),
-      notTrash: !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
+      notTrash: !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       trashCount: self.trashTasks().length,
       trashBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isTrash() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isTrash() ? '#fff' : '#cbd2de') + ';',
       onOpenTrash: function () { self.setState({ list: '__trash', selected: null }, function () { self.persist(); }); },
