@@ -5164,7 +5164,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
 </x-dc>
 <script type="text/x-dc" data-dc-script="" data-props="{&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Dense&quot;,&quot;Comfortable&quot;],&quot;default&quot;:&quot;Comfortable&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Table&quot;},&quot;groupBy&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Status&quot;,&quot;Assignee&quot;,&quot;Priority&quot;,&quot;Channel&quot;],&quot;default&quot;:&quot;Status&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Table&quot;},&quot;hideDone&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Filters&quot;},&quot;emailNotifications&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Notifications&quot;}}">
-const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+// toISOString() คืนเวลา UTC — ถ้าเอาไปใช้กับ Date ที่เป็นเที่ยงคืนเวลาไทย (UTC+7)
+// วันที่จะถอยไป 1 วันทุกครั้ง ต้องชดเชย timezone offset ก่อนเสมอ
+function isoLocal(d) {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+const TODAY = isoLocal(new Date());
 const STATUSES = [
   { k: 'Backlog', c: '#94a3b8', bg: '#f1f5f9' },
   { k: 'In Progress', c: '#4f46e5', bg: 'var(--pw-accent-soft)' },
@@ -5220,7 +5225,7 @@ const SPACES = [
 function d(offset) {
   const t = new Date(TODAY + 'T00:00:00');
   t.setDate(t.getDate() + offset);
-  return t.toISOString().slice(0, 10);
+  return isoLocal(t);
 }
 
 function seed() {
@@ -6061,7 +6066,7 @@ class Component extends DCLogic {
     const shift = function (base, days) {
       const dt = new Date(base + 'T00:00:00');
       dt.setDate(dt.getDate() + days);
-      return dt.toISOString().slice(0, 10);
+      return isoLocal(dt);
     };
 
     const onMove = function (ev) {
@@ -7605,12 +7610,12 @@ class Component extends DCLogic {
     const start = new Date(base);
     start.setDate(start.getDate() - Math.round(days / 6) + shift * Math.round(days / 3));
     if (fmt !== 'day') start.setDate(start.getDate() - ((start.getDay() + 6) % 7));   // เริ่มวันจันทร์
-    const startISO = start.toISOString().slice(0, 10);
+    const startISO = isoLocal(start);
     const cols = [];
     for (let i = 0; i < days; i += stepDays) {
       const c = new Date(start); c.setDate(c.getDate() + i);
       cols.push({
-        iso: c.toISOString().slice(0, 10),
+        iso: isoLocal(c),
         label: fmt === 'day' ? String(c.getDate())
           : (fmt === 'month' ? MONTHS_TH[c.getMonth()] + ' ' + String(c.getFullYear()).slice(2)
             : c.getDate() + ' ' + MONTHS_TH[c.getMonth()]),
@@ -8726,7 +8731,7 @@ class Component extends DCLogic {
     for (let i = 0; i < 42; i++) {
       const dt = new Date(first);
       dt.setDate(dt.getDate() + i);
-      const iso = dt.toISOString().slice(0, 10);
+      const iso = isoLocal(dt);
       const inMonth = dt.getMonth() === base.getMonth();
       const isToday = iso === TODAY;
       const dayTasks = vms.filter(function (v) { return v.due === iso; }).map(function (v) {
@@ -10156,9 +10161,7 @@ class Component extends DCLogic {
         if (!self.isPlanner()) return { days: [], legend: [], editOpen: false };
         const TH_MON = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                         'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-        const localIso = function (d) {
-          return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-        };
+        const localIso = isoLocal;
         const base = new Date(TODAY + 'T00:00:00');
         base.setDate(1);
         base.setMonth(base.getMonth() + (s.plannerMonth || 0));
