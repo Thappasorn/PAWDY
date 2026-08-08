@@ -3272,7 +3272,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   /* Dashboard = การ์ดเรียงเดี่ยว */
   [data-root~="mobile"] [data-dashgrid] { grid-template-columns: 1fr !important; }
   /* Planner: จอเล็กเรียง 7 วันลงมาเป็นแถวเดียว */
-  [data-root~="mobile"] [data-plannerweek] { grid-template-columns: 1fr !important; }
+  /* Planner: จอเล็ก — ปฏิทินเดือนเรียงลงมาแถวเดียว มุมมองปีเหลือ 2 คอลัมน์ */
+  [data-root~="mobile"] [data-plannercal] { grid-template-columns: 1fr !important; }
+  [data-root~="mobile"] [data-planneryear] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 
   /* panel รายละเอียดเต็มจอ ต้องเลื่อนได้และมีที่ว่างล่างสุดพ้นแถบเบราว์เซอร์ */
   [data-root~="mobile"] [data-detail],
@@ -5310,6 +5312,7 @@ class Component extends DCLogic {
       linkDraft: null,
       planner: snap.planner || [],   // โน้ตในปฏิทิน Planner (ไม่ผูกกับ task)
       plannerMonth: 0,               // เลื่อนเดือน (0 = เดือนนี้)
+      plannerView: 'month',          // 'month' | 'year'
       plannerAdd: null,              // วันที่กำลังเปิดช่องพิมพ์
       plannerAddText: '',
       plannerEdit: null,             // id โน้ตที่กำลังแก้
@@ -10161,6 +10164,8 @@ class Component extends DCLogic {
         if (!self.isPlanner()) return { days: [], legend: [], editOpen: false };
         const TH_MON = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
                         'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+        // การ์ดในมุมมองปีแคบ ใช้ชื่อย่อจะไม่ล้น
+        const TH_MON_S = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
         const localIso = isoLocal;
         const base = new Date(TODAY + 'T00:00:00');
         base.setDate(1);
@@ -10205,12 +10210,14 @@ class Component extends DCLogic {
               if (addOpen && self._focusPlannerAdd) { el.focus(); self._focusPlannerAdd = false; }
             },
             onAddOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openPlannerAdd(iso); },
+            onCellClick: function () { if (!addOpen) self.openPlannerAdd(iso); },
             onAddText: function (e) { self.setState({ plannerAddText: e.target.value }); },
             onAddKey: function (e) {
               if (e.key === 'Enter') { e.preventDefault(); self.submitPlannerAdd(iso); }
               if (e.key === 'Escape') self.closePlannerAdd();
             },
-            onAddBlur: function () { self.closePlannerAdd(); },
+            onAddSubmit: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.submitPlannerAdd(iso); },
+            onAddCancel: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.closePlannerAdd(); },
             numStyle: 'font-size:11px;font-weight:' + (isToday ? '700' : '500') + ';color:' +
               (isToday ? '#fff' : (inMonth ? 'var(--pw-text2)' : 'var(--pw-faint)')) + ';' +
               (isToday ? 'background:#4f46e5;border-radius:50%;width:19px;height:19px;display:inline-grid;place-items:center;' : ''),
@@ -10259,16 +10266,55 @@ class Component extends DCLogic {
           })
         } : null;
 
+        // ---- มุมมองรายปี: 12 เดือนในหน้าเดียว ----
+        const yearNum = base.getFullYear();
+        const months = [];
+        for (let m = 0; m < 12; m++) {
+          const mOff = (s.plannerMonth || 0) + (m - base.getMonth());
+          const mStart = yearNum + '-' + String(m + 1).padStart(2, '0');
+          const mine = shown.filter(function (x) { return String(x.date).slice(0, 7) === mStart; })
+            .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+          const isNow = mStart === TODAY.slice(0, 7);
+          months.push({
+            label: TH_MON_S[m], count: String(mine.length),
+            empty: mine.length === 0,
+            items: mine.slice(0, 7).map(function (x) {
+              const cm = self.plannerCatMeta(x.cat);
+              return {
+                day: String(Number(String(x.date).slice(8, 10))),
+                text: x.text,
+                dotStyle: 'display:inline-block;width:6px;height:6px;border-radius:50%;flex:0 0 6px;background:' + cm.c + ';',
+                dayStyle: 'font-size:9.5px;color:var(--pw-muted2);flex:0 0 15px;text-align:right;font-family:\'IBM Plex Mono\', monospace;',
+                textStyle: 'font-size:10.5px;color:' + cm.c + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+                onOpen: function () { self.setState({ plannerEdit: x.id }); }
+              };
+            }),
+            more: mine.length > 7 ? ('+ อีก ' + (mine.length - 7)) : '',
+            hasMore: mine.length > 7,
+            headStyle: 'display:flex;align-items:baseline;gap:6px;width:100%;text-align:left;border:0;background:transparent;cursor:pointer;padding:0 0 7px;border-bottom:1px solid var(--pw-line);margin-bottom:7px;color:' + (isNow ? '#4f46e5' : 'var(--pw-text2)') + ';',
+            style: 'min-height:132px;border:1px solid ' + (isNow ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:10px;padding:11px 11px 9px;background:' + (isNow ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';display:flex;flex-direction:column;',
+            onOpen: function () { self.setState({ plannerView: 'month', plannerMonth: mOff, plannerAdd: null }); }
+          });
+        }
+
+        const isYear = s.plannerView === 'year';
         const isThis = (s.plannerMonth || 0) === 0;
         return {
-          days: days, legend: legend,
+          days: days, legend: legend, months: months,
+          isMonthView: !isYear, isYearView: isYear,
+          yearLabel: String(yearNum),
+          onMonthView: function () { self.setState({ plannerView: 'month' }); },
+          onYearView: function () { self.setState({ plannerView: 'year', plannerAdd: null }); },
+          monthTabStyle: 'height:28px;border:1px solid ' + (isYear ? 'var(--pw-border)' : '#4f46e5') + ';border-radius:7px 0 0 7px;background:' + (isYear ? 'transparent' : 'var(--pw-accent-soft)') + ';color:' + (isYear ? 'var(--pw-muted2)' : '#4f46e5') + ';font-size:11px;font-weight:600;padding:0 12px;cursor:pointer;',
+          yearTabStyle: 'height:28px;border:1px solid ' + (isYear ? '#4f46e5' : 'var(--pw-border)') + ';border-left:0;border-radius:0 7px 7px 0;background:' + (isYear ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (isYear ? '#4f46e5' : 'var(--pw-muted2)') + ';font-size:11px;font-weight:600;padding:0 12px;cursor:pointer;',
           weekdays: ['จ','อ','พ','พฤ','ศ','ส','อา'],
           monthLabel: TH_MON[base.getMonth()] + ' ' + base.getFullYear(),
           count: String(shown.length),
           editOpen: !!edit, edit: edit || {},
-          onPrev: function () { self.setState(function (st) { return { plannerMonth: (st.plannerMonth || 0) - 1, plannerAdd: null }; }); },
-          onNext: function () { self.setState(function (st) { return { plannerMonth: (st.plannerMonth || 0) + 1, plannerAdd: null }; }); },
+          onPrev: function () { self.setState(function (st) { const k = st.plannerView === 'year' ? 12 : 1; return { plannerMonth: (st.plannerMonth || 0) - k, plannerAdd: null }; }); },
+          onNext: function () { self.setState(function (st) { const k = st.plannerView === 'year' ? 12 : 1; return { plannerMonth: (st.plannerMonth || 0) + k, plannerAdd: null }; }); },
           onToday: function () { self.setState({ plannerMonth: 0, plannerAdd: null }); },
+          todayLabel: isYear ? 'ปีนี้' : 'เดือนนี้',
           todayStyle: 'height:28px;border:1px solid var(--pw-border);border-radius:7px;background:' + (isThis ? 'var(--pw-accent-soft)' : 'transparent') +
             ';color:' + (isThis ? '#4f46e5' : 'var(--pw-muted)') + ';font-size:11px;font-weight:600;padding:0 11px;cursor:pointer;'
         };
