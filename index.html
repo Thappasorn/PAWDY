@@ -262,10 +262,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   var sb = null, me = null, ready = false;
   var dataCbs = [], notifCbs = [], listCbs = [];
-  var snap = { tasks: [], spaces: null, fields: null, config: null, docs: null, members: [], notifs: [], ui: {} };
-  var known = { tasks: {}, spaces: null, fields: null, config: null, docs: null };
+  var snap = { tasks: [], spaces: null, fields: null, config: null, docs: null, planner: null, members: [], notifs: [], ui: {} };
+  var known = { tasks: {}, spaces: null, fields: null, config: null, docs: null, planner: null };
   var touched = {};            // task id -> ts of our own last write
-  var touchedMeta = { spaces: 0, fields: 0, config: 0, docs: 0 };
+  var touchedMeta = { spaces: 0, fields: 0, config: 0, docs: 0, planner: 0 };
   var GUARD = 5000;            // local edits win over echoes for this long
   var saveTimer = null, pending = null, refetchTimer = null;
   var statusCbs = [], syncStatus = 'saved';
@@ -375,6 +375,10 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       if (state.docs) {
         if (JSON.stringify(state.docs) !== known.docs) touchedMeta.docs = now;
         snap.docs = state.docs;
+      }
+      if (state.planner) {
+        if (JSON.stringify(state.planner) !== known.planner) touchedMeta.planner = now;
+        snap.planner = state.planner;
       }
       pending = state;
       setStatus('saving');
@@ -493,6 +497,15 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       }));
     }
 
+    var pl = JSON.stringify(st.planner || null);
+    if (st.planner && pl !== known.planner) {
+      var prevPl = known.planner;
+      known.planner = pl;
+      ops.push(sb.from('meta').upsert({ key: 'planner', doc: st.planner, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
+        if (r.error) { known.planner = prevPl; throw r.error; }
+      }));
+    }
+
     if (!ops.length) { setStatus('saved'); return; }
     setStatus('saving');
     Promise.all(ops).then(function () {
@@ -500,7 +513,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }).catch(function (e) {
       console.error('[sync] save failed:', e && e.message ? e.message : e);
       setStatus(navigator.onLine === false ? 'offline' : 'error');
-      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields, config: snap.config, docs: snap.docs };
+      if (!pending) pending = { tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields, config: snap.config, docs: snap.docs, planner: snap.planner };
       clearTimeout(saveTimer);
       saveTimer = setTimeout(flush, 3000);   // retry until it lands
     });
@@ -557,6 +570,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     known.fields = JSON.stringify(meta.fields || null);
     known.config = JSON.stringify(meta.config || null);
     known.docs = JSON.stringify(meta.docs || null);
+    known.planner = JSON.stringify(meta.planner || null);
 
     var members = [{ n: 'Unassigned', c: '#9ca3af' }].concat(
       (r[2].data || []).map(function (m) { return { n: m.name || m.email, c: m.color || '#4f46e5', email: m.email }; })
@@ -568,8 +582,9 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     var fields = (keepLocal && now - touchedMeta.fields < GUARD && snap.fields) ? snap.fields : (meta.fields || snap.fields);
     var config = (keepLocal && now - touchedMeta.config < GUARD && snap.config) ? snap.config : (meta.config || snap.config);
     var docs = (keepLocal && now - touchedMeta.docs < GUARD && snap.docs) ? snap.docs : (meta.docs || snap.docs);
+    var planner = (keepLocal && now - touchedMeta.planner < GUARD && snap.planner) ? snap.planner : (meta.planner || snap.planner);
 
-    snap = { tasks: tasks, spaces: spaces, fields: fields, config: config, docs: docs, members: members, notifs: notifs, ui: snap.ui || {} };
+    snap = { tasks: tasks, spaces: spaces, fields: fields, config: config, docs: docs, planner: planner, members: members, notifs: notifs, ui: snap.ui || {} };
     emit();
     listCbs.forEach(function (f) { try { f(notifs); } catch (e) {} });
   }
@@ -3311,6 +3326,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ docsCount }}</span>
       </button>
 
+      <button sc-camel-on-click="{{ onOpenPlanner }}" title="ปฏิทินโน้ต — จดว่าเดือนนี้/เดือนหน้ามีอะไร ไม่ผูกกับงานในตาราง" style="{{ plannerBtnStyle }}" style-hover="background: #1d202a;">
+        <span style="width: 16px; text-align: center; opacity: 0.7;">◐</span>Planner
+        <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ plannerCount }}</span>
+      </button>
+
       <button sc-camel-on-click="{{ onOpenArchive }}" title="งานที่เก็บเข้าคลัง — ไม่โชว์ในหน้าทำงาน แต่ไม่ได้ลบ" style="{{ archiveBtnStyle }}" style-hover="background: #1d202a;">
         <span style="width: 16px; text-align: center; opacity: 0.7;">📦</span>Archive
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ archiveCount }}</span>
@@ -3550,6 +3570,77 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </header>
 
     <section style="flex: 1; min-height: 0; overflow: auto; padding: 0;">
+
+      <sc-if value="{{ isPlannerPage }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+            <button sc-camel-on-click="{{ plannerCal.onPrev }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">‹</button>
+            <button sc-camel-on-click="{{ plannerCal.onNext }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">›</button>
+            <span style="font-size:14px;font-weight:600;">{{ plannerCal.monthLabel }}</span>
+            <button sc-camel-on-click="{{ plannerCal.onToday }}" style="{{ plannerCal.todayStyle }}">เดือนนี้</button>
+            <span style="margin-left:auto;font-size:11px;color:var(--pw-muted2);">{{ plannerCal.count }} โน้ต</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <sc-for list="{{ plannerCal.legend }}" as="lg" hint-placeholder-count="6">
+              <button sc-camel-on-click="{{ lg.onPick }}" style="{{ lg.style }}">
+                <span style="{{ lg.dotStyle }}"></span>{{ lg.label }}
+                <span style="opacity:0.65;">{{ lg.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:5px;">
+            <sc-for list="{{ plannerCal.weekdays }}" as="w" hint-placeholder-count="7">
+              <div style="font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pw-label);font-weight:600;text-align:center;padding-bottom:2px;">{{ w }}</div>
+            </sc-for>
+          </div>
+
+          <div data-plannercal style="display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:5px;">
+            <sc-for list="{{ plannerCal.days }}" as="d" hint-placeholder-count="42">
+              <div style="{{ d.style }}">
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <span style="{{ d.numStyle }}">{{ d.num }}</span>
+                  <button sc-camel-on-click="{{ d.onAddOpen }}" title="เพิ่มโน้ต" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);font-size:13px;line-height:1;cursor:pointer;padding:0 2px;" style-hover="color:#4f46e5;">+</button>
+                </div>
+                <sc-for list="{{ d.notes }}" as="nt" hint-placeholder-count="2">
+                  <button sc-camel-on-click="{{ nt.onOpen }}" style="{{ nt.style }}">{{ nt.text }}</button>
+                </sc-for>
+                <sc-if value="{{ d.addOpen }}" hint-placeholder-val="{{ false }}">
+                  <input ref="{{ d.addRef }}" value="{{ d.addText }}" sc-camel-on-change="{{ d.onAddText }}" sc-camel-on-key-down="{{ d.onAddKey }}" placeholder="พิมพ์แล้ว Enter" style="width:100%;border:1px solid #4f46e5;border-radius:4px;background:var(--pw-surface);color:var(--pw-text);font-size:10.5px;padding:3px 5px;outline:0;">
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <p style="margin:0;font-size:10.5px;color:var(--pw-muted2);line-height:1.7;">
+            กด + ที่วันไหนก็ได้เพื่อจดโน้ต · พิมพ์ <b>#ถ่ายทำ ข้อความ</b> เพื่อเลือกหมวดตั้งแต่ตอนพิมพ์ · คลิกโน้ตเพื่อแก้หรือลบ<br>
+            หน้านี้แยกจากตารางงานโดยสิ้นเชิง ไม่มีอะไรซิงค์กับ task
+          </p>
+        </div>
+
+        <sc-if value="{{ plannerCal.editOpen }}" hint-placeholder-val="{{ false }}">
+          <div sc-camel-on-click="{{ plannerCal.edit.onClose }}" style="position:fixed;inset:0;z-index:88;background:rgba(8,10,14,.5);"></div>
+          <div data-panel style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(360px,calc(100vw - 32px));z-index:89;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:13px;box-shadow:0 20px 50px rgba(8,10,14,.42);padding:16px;display:flex;flex-direction:column;gap:11px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <b style="font-size:12.5px;flex:1;">แก้โน้ต</b>
+              <button sc-camel-on-click="{{ plannerCal.edit.onClose }}" style="border:0;background:transparent;color:var(--pw-muted2);font-size:16px;cursor:pointer;">×</button>
+            </div>
+            <input ref="{{ plannerCal.edit.textRef }}" value="{{ plannerCal.edit.text }}" sc-camel-on-change="{{ plannerCal.edit.onText }}" style="width:100%;border:1px solid var(--pw-border);border-radius:7px;background:var(--pw-bg);color:var(--pw-text);font-size:13px;padding:8px 10px;outline:0;">
+            <input type="date" value="{{ plannerCal.edit.date }}" sc-camel-on-change="{{ plannerCal.edit.onDate }}" style="width:100%;border:1px solid var(--pw-border);border-radius:7px;background:var(--pw-bg);color:var(--pw-text);font-size:12px;padding:7px 10px;outline:0;">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <sc-for list="{{ plannerCal.edit.cats }}" as="ec" hint-placeholder-count="6">
+                <button sc-camel-on-click="{{ ec.onPick }}" style="{{ ec.style }}">{{ ec.label }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button sc-camel-on-click="{{ plannerCal.edit.onDelete }}" style="border:0;background:transparent;color:#dc2626;font-size:11.5px;cursor:pointer;">ลบโน้ตนี้</button>
+              <button sc-camel-on-click="{{ plannerCal.edit.onClose }}" style="margin-left:auto;height:31px;border:0;border-radius:7px;background:#4f46e5;color:#fff;padding:0 15px;font-size:12px;font-weight:600;cursor:pointer;">เสร็จ</button>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
 
       <sc-if value="{{ isDocs }}" hint-placeholder-val="{{ false }}">
         <div data-docs style="display: grid; grid-template-columns: 244px 1fr; height: 100%; min-height: 0;">
@@ -4308,120 +4399,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </div>
               </sc-if>
             </sc-for>
-          </div>
-        </div>
-      </sc-if>
-
-      <sc-if value="{{ isPlanner }}" hint-placeholder-val="{{ false }}">
-        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
-
-          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
-            <button sc-camel-on-click="{{ planner.onPrev }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">‹</button>
-            <button sc-camel-on-click="{{ planner.onNext }}" style="width:28px;height:28px;border:1px solid var(--pw-border);border-radius:7px;background:transparent;color:var(--pw-muted);cursor:pointer;">›</button>
-            <div style="display:flex;flex-direction:column;">
-              <span style="font-size:13.5px;font-weight:600;">{{ planner.range }}</span>
-              <span style="font-size:10px;color:var(--pw-muted2);">{{ planner.weekLabel }}</span>
-            </div>
-            <button sc-camel-on-click="{{ planner.onToday }}" style="{{ planner.todayStyle }}">สัปดาห์นี้</button>
-          </div>
-
-          <div data-dashgrid style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;">
-            <sc-for list="{{ planner.kpis }}" as="k" hint-placeholder-count="4">
-              <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;">
-                <span style="font-size:10px;letter-spacing:0.05em;text-transform:uppercase;color:var(--pw-label);font-weight:600;">{{ k.label }}</span>
-                <span style="{{ k.valueStyle }}">{{ k.value }}</span>
-              </div>
-            </sc-for>
-          </div>
-
-          <div data-plannerweek style="display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:9px;align-items:start;">
-            <sc-for list="{{ planner.days }}" as="d" hint-placeholder-count="7">
-              <div style="{{ d.style }}">
-                <div style="{{ d.headStyle }}">
-                  <span style="{{ d.dowStyle }}">{{ d.dow }}</span>
-                  <span style="{{ d.dateStyle }}">{{ d.date }}</span>
-                  <span style="{{ d.countStyle }}">{{ d.count }}</span>
-                </div>
-                <sc-for list="{{ d.items }}" as="it" hint-placeholder-count="2">
-                  <button sc-camel-on-click="{{ it.onOpen }}" style="{{ it.style }}">
-                    <span style="{{ it.nameStyle }}">{{ it.name }}</span>
-                    <span style="display:flex;gap:3px;flex-wrap:wrap;">
-                      <sc-for list="{{ it.chips }}" as="ch" hint-placeholder-count="1"><span style="{{ ch.style }}">{{ ch.label }}</span></sc-for>
-                    </span>
-                    <span style="{{ it.metaStyle }}">{{ it.meta }}</span>
-                  </button>
-                </sc-for>
-                <sc-if value="{{ d.empty }}" hint-placeholder-val="{{ false }}">
-                  <span style="font-size:10px;color:var(--pw-faint);padding:2px 0;">ว่าง</span>
-                </sc-if>
-              </div>
-            </sc-for>
-          </div>
-
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:12px;">
-
-            <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:14px;">
-              <h3 style="margin:0 0 3px;font-size:12.5px;font-weight:600;">แต่ละช่องทางสมดุลไหม</h3>
-              <p style="margin:0 0 12px;font-size:10.5px;color:var(--pw-muted2);">นับตามแพลตฟอร์มที่จะลงสัปดาห์นี้</p>
-              <sc-for list="{{ planner.platforms }}" as="p" hint-placeholder-count="4">
-                <div style="display:flex;flex-direction:column;gap:5px;padding:5px 0;">
-                  <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;">
-                    <span style="{{ p.dotStyle }}"></span>
-                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.label }}</span>
-                    <span style="color:var(--pw-muted2);font-size:10.5px;">{{ p.n }} · {{ p.pct }}</span>
-                  </div>
-                  <div style="{{ p.barStyle }}"></div>
-                </div>
-              </sc-for>
-              <sc-if value="{{ planner.noItems }}" hint-placeholder-val="{{ false }}">
-                <span style="font-size:11px;color:var(--pw-faint);">ยังไม่มีคอนเทนต์ในสัปดาห์นี้</span>
-              </sc-if>
-            </div>
-
-            <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:14px;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
-                <h3 style="margin:0;font-size:12.5px;font-weight:600;flex:1;">สัดส่วนประเภทเนื้อหา</h3>
-                <sc-raw-select ref="{{ planner.mixRef }}" data-sync="{{ planner.mixLabel }}" value="{{ planner.mixLabel }}" sc-camel-on-change="{{ planner.onMix }}" style="border:1px solid var(--pw-border);border-radius:6px;padding:3px 6px;background:var(--pw-surface);color:var(--pw-text2);font-size:10.5px;cursor:pointer;">
-                  <sc-for list="{{ planner.mixOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
-                </sc-raw-select>
-              </div>
-              <p style="margin:0 0 12px;font-size:10.5px;color:var(--pw-muted2);">ตัวไหนเกิน 40% จะขึ้นเตือน</p>
-              <sc-for list="{{ planner.mix }}" as="m" hint-placeholder-count="3">
-                <div style="display:flex;flex-direction:column;gap:5px;padding:5px 0;">
-                  <div style="display:flex;align-items:center;gap:7px;">
-                    <span style="{{ m.labelStyle }}">{{ m.flag }} {{ m.label }}</span>
-                    <span style="flex:1;"></span>
-                    <span style="color:var(--pw-muted2);font-size:10.5px;">{{ m.n }} · {{ m.pct }}</span>
-                  </div>
-                  <div style="{{ m.barStyle }}"></div>
-                </div>
-              </sc-for>
-              <sc-if value="{{ planner.hasMixWarn }}" hint-placeholder-val="{{ false }}">
-                <p style="margin:10px 0 0;font-size:10.5px;line-height:1.6;color:#d97706;">{{ planner.mixWarn }}</p>
-              </sc-if>
-            </div>
-
-            <div style="background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:10px;padding:14px;">
-              <h3 style="margin:0 0 3px;font-size:12.5px;font-weight:600;">ยังไม่พร้อมลง</h3>
-              <p style="margin:0 0 8px;font-size:10.5px;color:var(--pw-muted2);">วันที่แดงคือเลยกำหนดแล้ว</p>
-              <sc-for list="{{ planner.notReady }}" as="r" hint-placeholder-count="4">
-                <button sc-camel-on-click="{{ r.onOpen }}" style="{{ r.style }}">
-                  <span style="{{ r.whenStyle }}">{{ r.when }}</span>
-                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
-                    <span style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.name }}</span>
-                    <span style="font-size:9.5px;color:var(--pw-muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.who }}</span>
-                  </span>
-                  <span style="{{ r.chipStyle }}">{{ r.status }}</span>
-                </button>
-              </sc-for>
-              <sc-if value="{{ planner.allReady }}" hint-placeholder-val="{{ false }}">
-                <span style="font-size:11px;color:#16a34a;">ทุกชิ้นพร้อมลงหมดแล้ว</span>
-              </sc-if>
-              <sc-if value="{{ planner.noItems }}" hint-placeholder-val="{{ false }}">
-                <span style="font-size:11px;color:var(--pw-faint);">ยังไม่มีคอนเทนต์ในสัปดาห์นี้</span>
-              </sc-if>
-            </div>
-
           </div>
         </div>
       </sc-if>
@@ -5209,6 +5186,12 @@ class Component extends DCLogic {
       fields: snap.fields || [],
       config: snap.config || null,
       docs: snap.docs || [],
+      planner: snap.planner || [],   // โน้ตในปฏิทิน Planner (ไม่ผูกกับ task)
+      plannerMonth: 0,               // เลื่อนเดือน (0 = เดือนนี้)
+      plannerAdd: null,              // วันที่กำลังเปิดช่องพิมพ์
+      plannerAddText: '',
+      plannerEdit: null,             // id โน้ตที่กำลังแก้
+      plannerCats: null,             // ตัวกรองหมวด (null = ดูทุกหมวด)
       docSel: null,
       settingsOpen: false,
       colDrag: null,
@@ -5300,7 +5283,7 @@ class Component extends DCLogic {
     }
     this._prevSnap = this.snapOf(st);
     this._undoLabel = null;
-    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
+    window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, planner: st.planner, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
         collapsedGroups: st.collapsedGroups } });
   }
 
@@ -5312,7 +5295,8 @@ class Component extends DCLogic {
       spaces: st.spaces ? JSON.parse(JSON.stringify(st.spaces)) : st.spaces,
       fields: st.fields ? JSON.parse(JSON.stringify(st.fields)) : st.fields,
       config: st.config ? JSON.parse(JSON.stringify(st.config)) : st.config,
-      docs: st.docs ? JSON.parse(JSON.stringify(st.docs)) : st.docs
+      docs: st.docs ? JSON.parse(JSON.stringify(st.docs)) : st.docs,
+      planner: st.planner ? JSON.parse(JSON.stringify(st.planner)) : st.planner
     };
   }
   // เทียบสองสถานะ เก็บไว้ว่าการกระทำนี้แตะงานชิ้นไหนและแตะอะไรอีก
@@ -5330,8 +5314,9 @@ class Component extends DCLogic {
     const fields = JSON.stringify(before.fields || null) !== JSON.stringify(after.fields || null);
     const config = JSON.stringify(before.config || null) !== JSON.stringify(after.config || null);
     const docs = JSON.stringify(before.docs || null) !== JSON.stringify(after.docs || null);
-    return { ids: ids, spaces: spaces, fields: fields, config: config, docs: docs,
-             any: n > 0 || spaces || fields || config || docs };
+    const planner = JSON.stringify(before.planner || null) !== JSON.stringify(after.planner || null);
+    return { ids: ids, spaces: spaces, fields: fields, config: config, docs: docs, planner: planner,
+             any: n > 0 || spaces || fields || config || docs || planner };
   }
 
   // ย้อนแค่งานที่การกระทำนั้นแตะ — งานชิ้นอื่นที่เพื่อนเพิ่งแก้จะไม่ถูกทับ
@@ -5703,6 +5688,7 @@ class Component extends DCLogic {
           fields: snap.fields || st.fields || [],
           config: snap.config || st.config || null,
           docs: snap.docs || st.docs || [],
+          planner: snap.planner || st.planner || [],
           members: (snap.members && snap.members.length > 1) ? snap.members : st.members,
           flash: Object.keys(changed).length ? changed : st.flash
         };
@@ -7536,6 +7522,67 @@ class Component extends DCLogic {
 
   // ---- Docs: เก็บเอกสารของทีม (Brand CI, ฟอนต์, safezone ฯลฯ) ----
   isDocs() { return this.state.list === '__docs'; }
+  isPlanner() { return this.state.list === '__planner'; }
+
+  // ---------- Planner: ปฏิทินโน้ต ไม่ผูกกับ task ใดๆ ----------
+  // เก็บที่ meta key 'planner' เป็น [{ id, date, text, cat }]
+  plannerCats() {
+    return [
+      { k: 'plan',    label: 'แผนงาน',    c: '#4f46e5' },
+      { k: 'shoot',   label: 'ถ่ายทำ',     c: '#0891b2' },
+      { k: 'launch',  label: 'ลงคอนเทนต์', c: '#16a34a' },
+      { k: 'campaign',label: 'แคมเปญ',    c: '#d97706' },
+      { k: 'event',   label: 'อีเวนต์',    c: '#db2777' },
+      { k: 'note',    label: 'โน้ต',       c: '#6b7280' }
+    ];
+  }
+  plannerCatMeta(k) {
+    const all = this.plannerCats();
+    return all.filter(function (c) { return c.k === k; })[0] || all[0];
+  }
+  plannerNotes() { return (this.state.planner || []).filter(function (x) { return x && x.date; }); }
+  addPlannerNote(date, text, cat) {
+    const t = String(text || '').trim();
+    if (!t) return;
+    const note = { id: 'PN' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                   date: date, text: t, cat: cat || 'plan' };
+    this.mark('เพิ่มโน้ตในปฏิทิน');
+    this.setState(function (st) { return { planner: (st.planner || []).concat([note]) }; },
+      () => this.persist());
+  }
+  patchPlannerNote(id, patch) {
+    this.mark('แก้โน้ตในปฏิทิน');
+    this.setState(function (st) {
+      return { planner: (st.planner || []).map(function (x) {
+        return x.id === id ? Object.assign({}, x, patch) : x;
+      }) };
+    }, () => this.persist());
+  }
+  removePlannerNote(id) {
+    this.mark('ลบโน้ตในปฏิทิน');
+    this.setState(function (st) {
+      return { planner: (st.planner || []).filter(function (x) { return x.id !== id; }), plannerEdit: null };
+    }, () => this.persist());
+  }
+  openPlannerAdd(date) {
+    this._focusPlannerAdd = true;
+    this.setState({ plannerAdd: date, plannerAddText: '', plannerEdit: null });
+  }
+  closePlannerAdd() { this.setState({ plannerAdd: null, plannerAddText: '' }); }
+  submitPlannerAdd(date) {
+    const txt = this.state.plannerAddText;
+    if (!String(txt || '').trim()) { this.closePlannerAdd(); return; }
+    // พิมพ์ "#ถ่ายทำ ข้อความ" เพื่อเลือกหมวดได้เลย
+    let cat = 'plan', body = String(txt).trim();
+    const m = body.match(/^#(\S+)\s+([\s\S]+)$/);
+    if (m) {
+      const hit = this.plannerCats().filter(function (c) { return c.label === m[1] || c.k === m[1]; })[0];
+      if (hit) { cat = hit.k; body = m[2].trim(); }
+    }
+    this.addPlannerNote(date, body, cat);
+    this._focusPlannerAdd = true;
+    this.setState({ plannerAddText: '' });
+  }
   docList() { return (this.state.docs || []).slice(); }
   // เรียงเป็นชั้น: หน้าหลัก แล้วตามด้วยหน้าย่อยของมันทันที
   docTree() {
@@ -8281,7 +8328,6 @@ class Component extends DCLogic {
       { k: 'table', label: 'Table', icon: '▦' },
       { k: 'board', label: 'Board', icon: '▥' },
       { k: 'calendar', label: 'Calendar', icon: '▤' },
-      { k: 'planner', label: 'Planner', icon: '◐' },
       { k: 'timeline', label: 'Timeline', icon: '▬' },
       { k: 'gantt', label: 'Gantt', icon: '⊟' },
       { k: 'dashboard', label: 'Dashboard', icon: '◕' }
@@ -8901,7 +8947,7 @@ class Component extends DCLogic {
           };
         }, () => self.persist());
       },
-      canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      canRename: s.list !== '__all' && !spaceName && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
       viewTabs: tabs,
       savedTabs: savedTabs,
       onGoHome: function () { self.goHome(); },
@@ -8913,7 +8959,6 @@ class Component extends DCLogic {
           { k: 'table', label: 'Table', hint: 'ตารางแก้ไขได้', icon: '▦' },
           { k: 'board', label: 'Board', hint: 'คัมบัง ลากการ์ด', icon: '▥' },
           { k: 'calendar', label: 'Calendar', hint: 'ปฏิทินรายเดือน', icon: '▤' },
-          { k: 'planner', label: 'Planner', hint: 'แผนลงคอนเทนต์รายสัปดาห์', icon: '◐' },
           { k: 'timeline', label: 'Timeline', hint: 'ไทม์ไลน์ 9 สัปดาห์', icon: '▬' },
           { k: 'gantt', label: 'Gantt', hint: 'ผังเวลา ซูมได้', icon: '⊟' },
           { k: 'dashboard', label: 'Dashboard', hint: 'สรุปตัวเลข', icon: '◕' }
@@ -9127,9 +9172,9 @@ class Component extends DCLogic {
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
       breadcrumb: self.isDocs() ? 'Workspace' : self.isTrash() ? 'Workspace' : (s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : ''))),
       allLists: allLists,
-      listTitle: self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
-      listTitleRef: self.syncRef(self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
-      isEverything: self.isArchive() || self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
+      listTitle: self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
+      listTitleRef: self.syncRef(self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list))),
+      isEverything: self.isPlanner() || self.isArchive() || self.isDocs() || self.isTrash() || s.list === '__all' || !!spaceName,
       filteredCount: visible.length,
       memberOverflow: (function () {
         const n = Math.max(0, (s.members || []).length - 1 - 6);
@@ -9181,12 +9226,12 @@ class Component extends DCLogic {
       } : {},
       onDismissToast: function () { self.setState({ toast: null }); },
       isArchive: self.isArchive(),
-      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isArchive() && !self.isMobile(),
-      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isArchive() && self.isMobile(),
-      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isArchive() && !self.isMobile(),
-      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isArchive() && self.isMobile(),
-      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile() && s.calMobileMode !== 'month',
-      isCalMonth: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && self.isMobile() && s.calMobileMode === 'month',
+      isTableGrid: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && !self.isMobile(),
+      isTableCards: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && self.isMobile(),
+      isCalGrid: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && !self.isMobile(),
+      isCalMobile: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive() && self.isMobile(),
+      isAgenda: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && self.isMobile() && s.calMobileMode !== 'month',
+      isCalMonth: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && self.isMobile() && s.calMobileMode === 'month',
       calModes: [['agenda', 'รายการ'], ['month', 'เดือน']].map(function (mo) {
         const on = (s.calMobileMode === 'month' ? 'month' : 'agenda') === mo[0];
         return {
@@ -9278,176 +9323,11 @@ class Component extends DCLogic {
       })(),
       agendaEmpty: (function () { return s.view === 'calendar' && self.isMobile() && vms.length === 0; })(),
       onAddToday: function () { self.openCalAdd(TODAY); },
-      isTable: s.view === 'table' && !self.isTrash() && !self.isDocs(),
-      isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
-      isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs(),
-      isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
-      isPlanner: s.view === 'planner' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
-      planner: (function () {
-        if (s.view !== 'planner') return { days: [], platforms: [], mix: [], notReady: [], kpis: [] };
-        const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-        const DOW = ['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'];
-        const localIso = function (d) {
-          return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-        };
-        const thShort = function (iso) {
-          const p = String(iso).split('-');
-          return p.length === 3 ? (Number(p[2]) + ' ' + (TH_MON[Number(p[1]) - 1] || '')) : iso;
-        };
-        // สัปดาห์เริ่มวันจันทร์เสมอ
-        const base = new Date(TODAY + 'T00:00:00');
-        base.setDate(base.getDate() + (s.plannerWeek || 0) * 7);
-        const mon = new Date(base);
-        mon.setDate(mon.getDate() - ((base.getDay() + 6) % 7));
-        const isos = [];
-        for (let i = 0; i < 7; i++) { const d = new Date(mon); d.setDate(d.getDate() + i); isos.push(localIso(d)); }
-        const from = isos[0], to = isos[6];
-
-        const doneKey = self.doneKey();
-        const dueOf = function (t) { return String(t.due || '').slice(0, 10); };
-        const week = visible.filter(function (t) { const d = dueOf(t); return d >= from && d <= to; });
-        const isDone = function (t) { return t.status === doneKey; };
-
-        // ---- 7 ช่องวัน ----
-        const days = isos.map(function (iso, i) {
-          const items = week.filter(function (t) { return dueOf(t) === iso; }).map(function (t) {
-            const sm = self.statusMeta(t.status);
-            const plats = self.multiValues(t.platform);
-            return {
-              name: t.name,
-              onOpen: function () { self.setState({ selected: t.id }); },
-              style: 'display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;border:0;border-left:2px solid ' + sm.c +
-                ';border-radius:5px;padding:6px 7px;background:' + self.chipBg(sm) + ';color:var(--pw-text);cursor:pointer;',
-              nameStyle: 'font-size:11px;line-height:1.45;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
-              chips: plats.map(function (p) {
-                const c = self.optColorOf('platforms', p);
-                return { label: p, style: 'display:inline-block;padding:1px 5px;border-radius:4px;font-size:9px;font-weight:600;background:' + self.optTint(c) + ';color:' + c + ';' };
-              }),
-              metaStyle: 'font-size:9.5px;color:' + (isDone(t) ? '#16a34a' : sm.c) + ';',
-              meta: isDone(t) ? '● พร้อมลง' : '○ ' + t.status
-            };
-          });
-          const isToday = iso === TODAY;
-          const wk = i >= 5;
-          return {
-            dow: DOW[i], date: thShort(iso), count: items.length, items: items,
-            empty: items.length === 0,
-            headStyle: 'display:flex;align-items:baseline;gap:5px;padding:0 0 7px;border-bottom:1px solid var(--pw-line);margin-bottom:8px;',
-            dowStyle: 'font-size:10.5px;font-weight:700;color:' + (isToday ? '#4f46e5' : (wk ? 'var(--pw-muted2)' : 'var(--pw-text2)')) + ';',
-            dateStyle: 'font-size:9.5px;color:var(--pw-muted2);flex:1;',
-            countStyle: 'font-size:9.5px;font-weight:600;color:' + (items.length ? 'var(--pw-text2)' : 'var(--pw-faint)') + ';',
-            style: 'min-width:0;background:' + (isToday ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') +
-              ';border:1px solid ' + (isToday ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:10px;padding:11px 10px;display:flex;flex-direction:column;gap:6px;'
-          };
-        });
-
-        // ---- สมดุลช่องทาง ----
-        const pCount = {};
-        week.forEach(function (t) {
-          const ps = self.multiValues(t.platform);
-          (ps.length ? ps : ['ไม่ระบุ']).forEach(function (p) { pCount[p] = (pCount[p] || 0) + 1; });
-        });
-        const pTotal = Object.keys(pCount).reduce(function (a, k) { return a + pCount[k]; }, 0) || 1;
-        const pMax = Math.max(1, ...Object.keys(pCount).map(function (k) { return pCount[k]; }));
-        const platforms = Object.keys(pCount).sort(function (a, b) { return pCount[b] - pCount[a]; }).map(function (p, i) {
-          const c = p === 'ไม่ระบุ' ? '#9ca3af' : self.optColorOf('platforms', p);
-          return {
-            label: p, n: pCount[p], pct: Math.round(pCount[p] / pTotal * 100) + '%',
-            barStyle: 'height:6px;border-radius:3px;background:' + c + ';width:' + Math.max(3, Math.round(pCount[p] / pMax * 100)) + '%;',
-            dotStyle: 'display:inline-block;width:7px;height:7px;border-radius:50%;background:' + c + ';flex:0 0 7px;'
-          };
-        });
-
-        // ---- สัดส่วนเนื้อหา (เลือกได้ว่าดูตามฟิลด์ไหน) ----
-        const mixOpts = [{ k: 'channels', label: 'Channel' }, { k: 'platforms', label: 'Platform' }, { k: '__list', label: 'List' }]
-          .concat((s.fields || []).filter(function (f) { return f.type === 'select'; })
-            .map(function (f) { return { k: 'cf:' + f.id, label: f.label }; }));
-        const mixKey = (s.plannerMix && mixOpts.some(function (o) { return o.k === s.plannerMix; }))
-          ? s.plannerMix
-          : (mixOpts.length > 3 ? mixOpts[3].k : 'channels');
-        const valuesFor = function (t) {
-          if (mixKey === 'channels') return self.multiValues(t.channel);
-          if (mixKey === 'platforms') return self.multiValues(t.platform);
-          if (mixKey === '__list') return [t.list];
-          const fid = mixKey.slice(3);
-          const raw = (t.custom && t.custom[fid] !== undefined && t.custom[fid] !== null) ? t.custom[fid] : '';
-          return Array.isArray(raw) ? raw.filter(Boolean) : (raw ? [String(raw)] : []);
-        };
-        const mCount = {};
-        week.forEach(function (t) {
-          const vs = valuesFor(t);
-          (vs.length ? vs : ['ไม่ระบุ']).forEach(function (v) { mCount[v] = (mCount[v] || 0) + 1; });
-        });
-        const mTotal = Object.keys(mCount).reduce(function (a, k) { return a + mCount[k]; }, 0) || 1;
-        const mixSorted = Object.keys(mCount).sort(function (a, b) { return mCount[b] - mCount[a]; });
-        const mix = mixSorted.map(function (v, i) {
-          const share = mCount[v] / mTotal;
-          const c = v === 'ไม่ระบุ' ? '#9ca3af'
-            : (mixKey === '__list' ? OPT_PALETTE[i % OPT_PALETTE.length] : self.optColorOf(mixKey, v));
-          const heavy = share >= 0.4 && mixSorted.length > 1;
-          return {
-            label: v, n: mCount[v], pct: Math.round(share * 100) + '%',
-            flag: heavy ? '⚠︎' : '',
-            labelStyle: 'font-size:11.5px;color:' + (heavy ? '#d97706' : 'var(--pw-text2)') + ';font-weight:' + (heavy ? '600' : '400') + ';',
-            barStyle: 'height:6px;border-radius:3px;background:' + c + ';width:' + Math.max(3, Math.round(share * 100)) + '%;'
-          };
-        });
-        const topShare = mixSorted.length ? mCount[mixSorted[0]] / mTotal : 0;
-        const mixWarn = (mixSorted.length > 1 && topShare >= 0.4)
-          ? mixSorted[0] + ' กินไป ' + Math.round(topShare * 100) + '% ของสัปดาห์นี้ — ลองเกลี่ยให้สมดุลขึ้น'
-          : '';
-
-        // ---- ยังไม่พร้อมลง ----
-        const notReady = week.filter(function (t) { return !isDone(t); })
-          .sort(function (a, b) { return dueOf(a).localeCompare(dueOf(b)); })
-          .map(function (t) {
-            const late = dueOf(t) < TODAY;
-            const sm = self.statusMeta(t.status);
-            return {
-              name: t.name, when: thShort(dueOf(t)), status: t.status,
-              who: self.assigneesOf(t).join(', ') || 'ยังไม่มีคนรับ',
-              onOpen: function () { self.setState({ selected: t.id }); },
-              whenStyle: 'font-size:10.5px;font-weight:600;white-space:nowrap;color:' + (late ? '#dc2626' : 'var(--pw-muted2)') + ';flex:0 0 44px;',
-              chipStyle: 'font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap;background:' + self.chipBg(sm) + ';color:' + sm.c + ';',
-              style: 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;padding:7px 2px;border-bottom:1px solid var(--pw-line);cursor:pointer;color:var(--pw-text);'
-            };
-          });
-
-        const doneN = week.filter(isDone).length;
-        const lateN = week.filter(function (t) { return !isDone(t) && dueOf(t) < TODAY; }).length;
-        const kpis = [
-          { label: 'ชิ้นสัปดาห์นี้', value: String(week.length), color: 'var(--pw-text)' },
-          { label: 'พร้อมลงแล้ว', value: String(doneN), color: '#16a34a' },
-          { label: 'ยังไม่พร้อม', value: String(week.length - doneN), color: '#d97706' },
-          { label: 'เลยกำหนด', value: String(lateN), color: lateN ? '#dc2626' : 'var(--pw-muted2)' }
-        ].map(function (k) {
-          return { label: k.label, value: k.value,
-            valueStyle: 'font-size:22px;font-weight:600;letter-spacing:-0.5px;font-family:\'IBM Plex Mono\', monospace;color:' + k.color + ';' };
-        });
-
-        const isThis = (s.plannerWeek || 0) === 0;
-        return {
-          days: days, platforms: platforms, mix: mix, notReady: notReady, kpis: kpis,
-          mixWarn: mixWarn, hasMixWarn: !!mixWarn,
-          noItems: week.length === 0, hasItems: week.length > 0,
-          allReady: week.length > 0 && notReady.length === 0,
-          range: thShort(from) + ' – ' + thShort(to),
-          weekLabel: isThis ? 'สัปดาห์นี้' : ((s.plannerWeek > 0 ? '+' : '') + s.plannerWeek + ' สัปดาห์'),
-          mixOptions: mixOpts.map(function (o) { return o.label; }),
-          mixLabel: (mixOpts.filter(function (o) { return o.k === mixKey; })[0] || {}).label || 'Channel',
-          mixRef: self.syncRef((mixOpts.filter(function (o) { return o.k === mixKey; })[0] || {}).label || 'Channel'),
-          onMix: function (e) {
-            const hit = mixOpts.filter(function (o) { return o.label === e.target.value; })[0];
-            self.setState({ plannerMix: hit ? hit.k : '' });
-          },
-          onPrev: function () { self.setState(function (st) { return { plannerWeek: (st.plannerWeek || 0) - 1 }; }); },
-          onNext: function () { self.setState(function (st) { return { plannerWeek: (st.plannerWeek || 0) + 1 }; }); },
-          onToday: function () { self.setState({ plannerWeek: 0 }); },
-          todayStyle: 'height:28px;border:1px solid var(--pw-border);border-radius:7px;background:' + (isThis ? 'var(--pw-accent-soft)' : 'transparent') +
-            ';color:' + (isThis ? '#4f46e5' : 'var(--pw-muted)') + ';font-size:11px;font-weight:600;padding:0 11px;cursor:pointer;'
-        };
-      })(),
-      isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      isTable: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner(),
+      isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
+      isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner(),
+      isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
+      isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
       groups: groups,
       columns: columns,
       statusNames: self._opt.status,
@@ -9554,7 +9434,7 @@ class Component extends DCLogic {
           onToggle: function () { self.toggleFilter('due', o[0]); }
         };
       }),
-      isGantt: s.view === 'gantt' && !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      isGantt: s.view === 'gantt' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
       gantt: (function () {
         if (s.view !== 'gantt') return { rows: [], cols: [], zooms: [], gridStyle: '', todayStyle: 'display:none;', rangeLabel: '', onPrev: function () {}, onNext: function () {}, onToday: function () {} };
         const spec = self.ganttSpec();
@@ -9916,10 +9796,132 @@ class Component extends DCLogic {
           onTrash: function () { self.removeTask(t.id); }
         };
       }),
+      isPlannerPage: self.isPlanner(),
+      plannerCal: (function () {
+        if (!self.isPlanner()) return { days: [], legend: [], editOpen: false };
+        const TH_MON = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                        'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+        const localIso = function (d) {
+          return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        };
+        const base = new Date(TODAY + 'T00:00:00');
+        base.setDate(1);
+        base.setMonth(base.getMonth() + (s.plannerMonth || 0));
+        const first = new Date(base);
+        first.setDate(1 - ((base.getDay() + 6) % 7));   // เริ่มวันจันทร์
+
+        const cats = self.plannerCats();
+        const filter = s.plannerCats;                    // null = ดูทุกหมวด
+        const all = self.plannerNotes();
+        const shown = filter && filter.length
+          ? all.filter(function (x) { return filter.indexOf(x.cat) >= 0; })
+          : all;
+
+        const days = [];
+        for (let i = 0; i < 42; i++) {
+          const dt = new Date(first);
+          dt.setDate(dt.getDate() + i);
+          const iso = localIso(dt);
+          const inMonth = dt.getMonth() === base.getMonth();
+          const isToday = iso === TODAY;
+          const notes = shown.filter(function (x) { return x.date === iso; }).map(function (x) {
+            const cm = self.plannerCatMeta(x.cat);
+            return {
+              text: x.text,
+              style: 'display:block;width:100%;text-align:left;border:0;border-left:3px solid ' + cm.c +
+                ';border-radius:4px;padding:3px 6px;margin-bottom:3px;background:' + self.optTint(cm.c) +
+                ';color:' + cm.c + ';font-size:10.5px;line-height:1.45;cursor:pointer;overflow:hidden;' +
+                'text-overflow:ellipsis;white-space:nowrap;font-weight:500;',
+              onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.setState({ plannerEdit: x.id, plannerAdd: null }); }
+            };
+          });
+          const addOpen = s.plannerAdd === iso;
+          days.push({
+            num: String(dt.getDate()), iso: iso, notes: notes,
+            addOpen: addOpen, addClosed: !addOpen,
+            addText: addOpen ? s.plannerAddText : '',
+            addRef: function (el) {
+              if (!el) return;
+              const v = addOpen ? s.plannerAddText : '';
+              if (el.value !== v) el.value = v;
+              if (addOpen && self._focusPlannerAdd) { el.focus(); self._focusPlannerAdd = false; }
+            },
+            onAddOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openPlannerAdd(iso); },
+            onAddText: function (e) { self.setState({ plannerAddText: e.target.value }); },
+            onAddKey: function (e) {
+              if (e.key === 'Enter') { e.preventDefault(); self.submitPlannerAdd(iso); }
+              if (e.key === 'Escape') self.closePlannerAdd();
+            },
+            onAddBlur: function () { self.closePlannerAdd(); },
+            numStyle: 'font-size:11px;font-weight:' + (isToday ? '700' : '500') + ';color:' +
+              (isToday ? '#fff' : (inMonth ? 'var(--pw-text2)' : 'var(--pw-faint)')) + ';' +
+              (isToday ? 'background:#4f46e5;border-radius:50%;width:19px;height:19px;display:inline-grid;place-items:center;' : ''),
+            style: 'min-height:96px;border:1px solid var(--pw-border);border-radius:8px;padding:6px 6px 4px;' +
+              'display:flex;flex-direction:column;gap:3px;background:' +
+              (inMonth ? 'var(--pw-surface)' : 'transparent') + ';opacity:' + (inMonth ? '1' : '0.5') + ';'
+          });
+        }
+
+        const legend = cats.map(function (c) {
+          const on = !filter || filter.indexOf(c.k) >= 0;
+          const cnt = all.filter(function (x) { return x.cat === c.k; }).length;
+          return {
+            label: c.label, count: String(cnt),
+            style: 'display:flex;align-items:center;gap:6px;border:1px solid ' + (on ? c.c : 'var(--pw-border)') +
+              ';border-radius:999px;padding:4px 11px;background:' + (on ? self.optTint(c.c) : 'transparent') +
+              ';color:' + (on ? c.c : 'var(--pw-muted2)') + ';font-size:11px;font-weight:' + (on ? '600' : '400') + ';cursor:pointer;',
+            dotStyle: 'display:inline-block;width:7px;height:7px;border-radius:50%;background:' + c.c + ';',
+            onPick: function () {
+              const cur = s.plannerCats;
+              if (!cur) { self.setState({ plannerCats: cats.map(function (x) { return x.k; }).filter(function (k) { return k !== c.k; }) }); return; }
+              const next = cur.indexOf(c.k) >= 0 ? cur.filter(function (k) { return k !== c.k; }) : cur.concat([c.k]);
+              self.setState({ plannerCats: next.length === cats.length ? null : next });
+            }
+          };
+        });
+
+        const editNote = s.plannerEdit ? all.filter(function (x) { return x.id === s.plannerEdit; })[0] : null;
+        const edit = editNote ? {
+          text: editNote.text,
+          textRef: self.syncRef(editNote.text),
+          date: editNote.date,
+          onText: function (e) { self.patchPlannerNote(editNote.id, { text: e.target.value }); },
+          onDate: function (e) { self.patchPlannerNote(editNote.id, { date: e.target.value }); },
+          onDelete: function () { self.removePlannerNote(editNote.id); },
+          onClose: function () { self.setState({ plannerEdit: null }); },
+          cats: cats.map(function (c) {
+            const on = editNote.cat === c.k;
+            return {
+              label: c.label,
+              style: 'border:1px solid ' + (on ? c.c : 'var(--pw-border)') + ';border-radius:999px;padding:4px 11px;' +
+                'background:' + (on ? self.optTint(c.c) : 'transparent') + ';color:' + (on ? c.c : 'var(--pw-muted2)') +
+                ';font-size:11px;font-weight:' + (on ? '600' : '400') + ';cursor:pointer;',
+              onPick: function () { self.patchPlannerNote(editNote.id, { cat: c.k }); }
+            };
+          })
+        } : null;
+
+        const isThis = (s.plannerMonth || 0) === 0;
+        return {
+          days: days, legend: legend,
+          weekdays: ['จ','อ','พ','พฤ','ศ','ส','อา'],
+          monthLabel: TH_MON[base.getMonth()] + ' ' + base.getFullYear(),
+          count: String(shown.length),
+          editOpen: !!edit, edit: edit || {},
+          onPrev: function () { self.setState(function (st) { return { plannerMonth: (st.plannerMonth || 0) - 1, plannerAdd: null }; }); },
+          onNext: function () { self.setState(function (st) { return { plannerMonth: (st.plannerMonth || 0) + 1, plannerAdd: null }; }); },
+          onToday: function () { self.setState({ plannerMonth: 0, plannerAdd: null }); },
+          todayStyle: 'height:28px;border:1px solid var(--pw-border);border-radius:7px;background:' + (isThis ? 'var(--pw-accent-soft)' : 'transparent') +
+            ';color:' + (isThis ? '#4f46e5' : 'var(--pw-muted)') + ';font-size:11px;font-weight:600;padding:0 11px;cursor:pointer;'
+        };
+      })(),
       isDocs: self.isDocs(),
       docsCount: self.docList().length,
       docsBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isDocs() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isDocs() ? '#fff' : '#cbd2de') + ';',
       onOpenDocs: function () { self.setState({ list: '__docs', selected: null }, function () { self.persist(); }); },
+      onOpenPlanner: function () { self.setState({ list: '__planner', selected: null, plannerAdd: null, plannerEdit: null }, function () { self.persist(); }); },
+      plannerCount: String(self.plannerNotes().length),
+      plannerBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isPlanner() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isPlanner() ? '#fff' : '#cbd2de') + ';',
       onAddDoc: function () { self.addDoc(); },
       onAddSubOfCurrent: function () { const d = self.currentDoc(); if (d) self.addDoc(d.parent || d.id); },
       docsEmpty: self.docList().length === 0,
@@ -9999,7 +10001,7 @@ class Component extends DCLogic {
         };
       })(),
       isTrash: self.isTrash(),
-      notTrash: !self.isTrash() && !self.isDocs() && !self.isArchive(),
+      notTrash: !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isArchive(),
       trashCount: self.trashTasks().length,
       trashBtnStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;background:' + (self.isTrash() ? '#2a2e3b' : 'transparent') + ';color:' + (self.isTrash() ? '#fff' : '#cbd2de') + ';',
       onOpenTrash: function () { self.setState({ list: '__trash', selected: null }, function () { self.persist(); }); },
