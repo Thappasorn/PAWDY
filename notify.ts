@@ -80,6 +80,13 @@ Deno.serve(async (req) => {
     return json({ error: "body ไม่ใช่ JSON" }, 400);
   }
 
+  // ลดสัญญาณรบกวน: อีเมลอัตโนมัติอนุญาตเฉพาะมอบหมาย, @mention และเปลี่ยน Status
+  // `test` สงวนไว้สำหรับปุ่มทดสอบอีเมลของ admin เท่านั้น
+  const kind = String(payload.kind ?? "").toLowerCase().trim();
+  if (!["assign", "mention", "status", "test"].includes(kind)) {
+    return json({ skipped: "เหตุการณ์นี้ไม่อยู่ในกฎอีเมลแจ้งเตือน" });
+  }
+
   const to = String(payload.to ?? "").toLowerCase().trim();
   if (!to || !to.includes("@")) return json({ error: "ไม่มีอีเมลผู้รับ" }, 400);
   if (to === callerEmail) return json({ skipped: "ไม่ส่งอีเมลหาตัวเอง" });
