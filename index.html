@@ -8731,6 +8731,14 @@ class Component extends DCLogic {
       channel: this.channels()
     }[groupField];
     if (spaceName) { groupField = 'list'; groupKeys = scopeLists || []; }
+    // งานเก่าที่ใช้ค่าซึ่งถูกลบ/เปลี่ยนชื่อจาก config ต้องไม่หายจาก Table
+    // เติมค่าที่พบจริงในงานต่อท้ายกลุ่มมาตรฐาน เพื่อให้ผู้ใช้เห็นและแก้ข้อมูลได้
+    vms.forEach(function (v) {
+      const values = groupField === 'channel' ? self.multiValues(v.channel) : [v[groupField]];
+      values.forEach(function (value) {
+        if (value !== undefined && value !== null && String(value) !== '' && groupKeys.indexOf(value) < 0) groupKeys.push(value);
+      });
+    });
     const spaceColor = spaceName ? ((s.spaces.filter(function (x) { return x.name === spaceName; })[0] || {}).color || '#4f46e5') : '#4f46e5';
     const groups = groupKeys.map(function (key) {
       const list = vms.filter(function (v) { return groupField === 'channel' ? self.multiHas(v.channel, key) : v[groupField] === key; }).sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
