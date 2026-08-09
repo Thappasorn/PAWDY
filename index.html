@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="th"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pawdy Workspace</title>
@@ -29,7 +29,7 @@ window.PAWDY_CONFIG = {
      ปลอดภัยที่จะฝังไว้ในหน้าเว็บ (เป็น public key) */
   vapidPublicKey: 'BEtaRYMMAIbyo7pDpY6ez0FAAL4hYfS3G_KxHEEt6RgMhzxX4s4GXsBGC0Nsly4ftHTmxTtR-1m0lp4MettcRCI',
   /* ป้ายเวอร์ชันไฟล์ — โชว์ในแถบ ⚙ ใช้เช็คว่าเว็บที่เปิดอยู่เป็นไฟล์ตัวไหน */
-  build: 'B11 · 2026-08-05'
+  build: 'B12 · 2026-08-09'
 };
 window.__resources = {};  /* template ฝังในไฟล์แล้ว ไม่ต้อง fetch หน้าตัวเองซ้ำ */
 
@@ -299,6 +299,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       return sb.functions.invoke(FN_NAME, {
         body: {
           to: to, toName: to, fromName: me.n || me.email,
+          kind: 'test',
           subject: 'ทดสอบระบบแจ้งเตือน', line: 'ถ้าอ่านอีเมลนี้ได้ = ระบบส่งอีเมลใช้งานได้แล้ว',
           detail: 'ส่งจากปุ่มทดสอบใน Pawdy Workspace เวลา ' + new Date().toLocaleString('th-TH')
         }
@@ -404,6 +405,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
         sb.functions.invoke(FN_NAME, {
           body: {
             to: n.to, toName: n.toName || '', fromName: me.n || me.email,
+            kind: n.kind || '',
             subject: n.subject || '', line: n.line || '', detail: n.detail || ''
           }
         }).then(function (r) {
@@ -536,7 +538,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
   function rowToNotif(r) {
     return {
       id: r.id, to: r.to_email, toName: r.to_name || r.to_email, subject: r.subject,
-      line: r.line, detail: r.detail, at: new Date(r.created_at).getTime(), read: !!r.read,
+      from: r.from_email || '', line: r.line, detail: r.detail, at: new Date(r.created_at).getTime(), read: !!r.read,
       // แถวเก่าที่ยังไม่มีคอลัมน์ task_id — งัดรหัสงานออกจาก detail ให้ (เช่น "... · T34629 · ...")
       taskId: r.task_id || (String(r.detail || '').match(/\bT\d{3,6}\b/) || [null])[0]
     };
@@ -3285,6 +3287,24 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-root~="mobile"] [data-onlinelabel] { display: none !important; }
   [data-root~="mobile"] [data-mobile-nav] { order: -100; flex: 0 0 36px; }
 
+  /* ตารางกว้าง: คงปุ่มสถานะและชื่องานไว้ให้เห็นขณะเลื่อนแนวนอน */
+  [data-table-head] > :first-child,
+  [data-task-row] > :first-child,
+  [data-subtask-row] > :first-child {
+    position: sticky; left: 12px; z-index: 5; background: inherit;
+  }
+  [data-table-head] > [data-task-name-cell] {
+    position: sticky; left: 36px; z-index: 6; align-self: stretch;
+    display: flex; align-items: center; background: var(--pw-surface2);
+  }
+  [data-task-row] > [data-task-name-cell] {
+    position: sticky; left: 36px; z-index: 4; background: var(--pw-surface);
+  }
+  [data-subtask-row] > [data-task-name-cell] {
+    position: sticky; left: 36px; z-index: 4; background: var(--pw-surface2);
+  }
+  [data-active-filters]::-webkit-scrollbar { display: none; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: .001ms !important;
@@ -3299,6 +3319,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   a { color: #4f46e5; text-decoration: none; }
   a:hover { color: #3730a3; text-decoration: underline; }
   input, select, textarea, button { font-family: inherit; font-size: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid #4f46e5 !important; outline-offset: 2px !important; }
   select { appearance: none; -webkit-appearance: none; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--pw-faint); border-radius: 6px; border: 3px solid var(--pw-bg); }
@@ -3339,6 +3360,21 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <span style="width: 16px; text-align: center; opacity: 0.7;">☰</span>Everything
         <span style="margin-left: auto; font-size: 10.5px; color: #6c7280; font-family: 'IBM Plex Mono', monospace;">{{ totalCount }}</span>
       </button>
+
+      <div style="display:flex;flex-direction:column;gap:1px;margin:3px 0 7px;padding-bottom:7px;border-bottom:1px solid #23262f;">
+        <button sc-camel-on-click="{{ onMyTasks }}" title="งานที่มอบหมายให้ฉัน" style="{{ myTasksStyle }}" style-hover="background:#1d202a;color:#fff;">
+          <span style="width:16px;text-align:center;opacity:.78;">◎</span>งานของฉัน
+          <span style="margin-left:auto;font-size:10.5px;color:#6c7280;font-family:'IBM Plex Mono',monospace;">{{ myTasksCount }}</span>
+        </button>
+        <button sc-camel-on-click="{{ onTodayTasks }}" title="งานที่ครบกำหนดวันนี้" style="{{ todayTasksStyle }}" style-hover="background:#1d202a;color:#fff;">
+          <span style="width:16px;text-align:center;opacity:.78;">◷</span>วันนี้
+          <span style="margin-left:auto;font-size:10.5px;color:#6c7280;font-family:'IBM Plex Mono',monospace;">{{ todayTasksCount }}</span>
+        </button>
+        <button sc-camel-on-click="{{ onOverdueTasks }}" title="งานที่เลยกำหนดและยังไม่เสร็จ" style="{{ overdueTasksStyle }}" style-hover="background:#1d202a;color:#fff;">
+          <span style="width:16px;text-align:center;color:#f87171;">!</span>เลยกำหนด
+          <span style="margin-left:auto;font-size:10.5px;color:#f87171;font-family:'IBM Plex Mono',monospace;">{{ overdueTasksCount }}</span>
+        </button>
+      </div>
 
       <button sc-camel-on-click="{{ onOpenDocs }}" title="เอกสารของทีม — Brand CI, ฟอนต์, safezone ฯลฯ" style="{{ docsBtnStyle }}" style-hover="background: #1d202a;">
         <span style="width: 16px; text-align: center; opacity: 0.7;">▤</span>เอกสาร
@@ -3478,6 +3514,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           </div>
         </sc-if>
 
+        <sc-if value="{{ hasFilter }}" hint-placeholder-val="{{ false }}">
+          <div data-active-filters style="display:flex;align-items:center;gap:5px;min-width:0;max-width:48vw;overflow-x:auto;padding:1px 0;scrollbar-width:none;">
+            <sc-for list="{{ activeFilterChips }}" as="af" hint-placeholder-count="3">
+              <button sc-camel-on-click="{{ af.onRemove }}" title="เอาตัวกรองนี้ออก" style="height:26px;display:flex;align-items:center;gap:5px;border:1px solid var(--pw-border);border-radius:14px;background:var(--pw-surface2);color:var(--pw-text2);padding:0 8px;font-size:11px;white-space:nowrap;cursor:pointer;">
+                {{ af.label }} <span aria-hidden="true" style="color:var(--pw-muted2);font-size:13px;line-height:1;">×</span>
+              </button>
+            </sc-for>
+            <button sc-camel-on-click="{{ onClearFilters }}" style="height:26px;border:0;background:transparent;color:#4f46e5;padding:0 5px;font-size:11px;white-space:nowrap;cursor:pointer;">ล้างทั้งหมด</button>
+          </div>
+        </sc-if>
+
         <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
           <div style="display: flex; align-items: center;">
             <sc-for list="{{ memberChips }}" as="m" hint-placeholder-count="4">
@@ -3497,7 +3544,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <button sc-camel-on-click="{{ onInviteMember }}" title="Add a member by email" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--pw-faint); background: var(--pw-surface); color: var(--pw-muted); margin-left: -6px; cursor: pointer; font-size: 13px; line-height: 1; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
           </div>
           <div style="position: relative; display: flex; align-items: center;">
-            <button sc-camel-on-click="{{ onToggleNotif }}" title="Email notifications" style="{{ notifBellStyle }}">✉
+            <button sc-camel-on-click="{{ onToggleNotif }}" title="การแจ้งเตือน" aria-label="เปิดการแจ้งเตือน" style="{{ notifBellStyle }}">✉
               <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
                 <span style="position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: #dc2626; color: #fff; font-size: 9.5px; font-weight: 700; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace;">{{ notifUnread }}</span>
               </sc-if>
@@ -3505,20 +3552,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
               <div data-dropdown style="position: absolute; top: 36px; right: 0; width: 372px; max-height: 62vh; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; box-shadow: 0 14px 34px rgba(16, 24, 40, 0.16); z-index: 30; display: flex; flex-direction: column; overflow: hidden;">
                 <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">
-                  <span style="font-size: 12px; font-weight: 600;">Email notifications</span>
-                  <span style="font-size: 10.5px; color: var(--pw-muted2);">sent on every change</span>
-                  <button sc-camel-on-click="{{ onClearNotif }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted); font-size: 11px; cursor: pointer;" style-hover="color: #dc2626;">Clear</button>
+                  <span style="font-size: 12px; font-weight: 600;">การแจ้งเตือน</span>
+                  <span style="font-size: 10.5px; color: var(--pw-muted2);">มอบหมาย · @mention · เปลี่ยน Status</span>
+                  <button sc-camel-on-click="{{ onClearNotif }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted); font-size: 11px; cursor: pointer;" style-hover="color: #dc2626;">ล้าง</button>
                 </div>
                 <div style="overflow-y: auto;">
                   <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}">
-                    <div style="padding: 22px 14px; text-align: center; font-size: 12px; color: var(--pw-muted2);">No emails yet. Change a status, assignee, due date or priority and the update is mailed to the assignee.</div>
+                    <div style="padding: 22px 14px; text-align: center; font-size: 12px; color: var(--pw-muted2);">ยังไม่มีการแจ้งเตือนใหม่</div>
                   </sc-if>
                   <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="3">
                     <button sc-camel-on-click="{{ n.onOpen }}" title="เปิดงานนี้" style="{{ n.rowStyle }}" style-hover="background: var(--pw-hover);">
                       <span style="{{ n.avatarStyle }}">{{ n.initials }}</span>
                       <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
                         <div style="display: flex; align-items: baseline; gap: 8px;">
-                          <span style="font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.to }}</span>
+                          <span style="font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.actor }}</span>
                           <span style="margin-left: auto; font-size: 10.5px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace; flex: 0 0 auto;">{{ n.when }}</span>
                         </div>
                         <span style="font-size: 12px; color: var(--pw-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ n.subject }}</span>
@@ -3947,9 +3994,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
       <sc-if value="{{ isTableGrid }}" hint-placeholder-val="{{ true }}">
         <div style="{{ tableWrapStyle }}">
-          <div style="{{ tableGridStyle }}">
+          <div data-table-head style="{{ tableGridStyle }}">
             <span></span>
-            <span style="{{ nameColStyle }}">Task name
+            <span data-task-name-cell style="{{ nameColStyle }}">Task name
               <span sc-camel-on-pointer-down="{{ onNameResize }}" sc-camel-on-double-click="{{ onNameResizeReset }}" draggable="false" title="ลากเพื่อปรับความกว้าง · ดับเบิลคลิกเพื่อคืนค่าเดิม" style="{{ resizeHandleStyle }}"></span>
             </span>
             <sc-for list="{{ tableCols }}" as="hc" hint-placeholder-count="11">
@@ -4005,9 +4052,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-if value="{{ group.expanded }}" hint-placeholder-val="{{ true }}">
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
-                <div data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
+                <div data-task-row data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
-                  <div sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; cursor: pointer;">
+                  <div data-task-name-cell sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; cursor: pointer;">
                     <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
                   <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" sc-camel-on-key-down="{{ row.onNameKey }}" sc-camel-on-blur="{{ row.onNameBlur }}" style="{{ row.nameInputStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                     <button sc-camel-on-click="{{ row.onOpen }}" style="margin-left:auto;flex:0 0 auto;background:transparent;border:1px solid var(--pw-border);color:var(--pw-muted);border-radius:4px;font-size:10.5px;padding:2px 6px;cursor:pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
@@ -4092,9 +4139,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <sc-if value="{{ row.expanded }}" hint-placeholder-val="{{ false }}">
                   <div data-panel style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 8px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
                     <sc-for list="{{ row.subs }}" as="sb2" hint-placeholder-count="2">
-                      <div style="display: grid; grid-template-columns: {{ row.subGridCols }}; align-items: center; min-height: 30px; border-radius: 6px;" style-hover="background: var(--pw-hover);">
+                      <div data-subtask-row style="display: grid; grid-template-columns: {{ row.subGridCols }}; align-items: center; min-height: 30px; border-radius: 6px;" style-hover="background: var(--pw-hover);">
                         <button sc-camel-on-click="{{ sb2.onToggle }}" title="ติ๊กเสร็จ" style="{{ sb2.markStyle }}">{{ sb2.mark }}</button>
-                        <div sc-camel-on-click="{{ sb2.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;cursor:pointer;">
+                        <div data-task-name-cell sc-camel-on-click="{{ sb2.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;cursor:pointer;">
                           <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" sc-camel-on-key-down="{{ sb2.onRenameKey }}" sc-camel-on-blur="{{ sb2.onRenameBlur }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                         </div>
                         <sc-for list="{{ sb2.cells }}" as="scell" hint-placeholder-count="8">
@@ -5567,7 +5614,7 @@ class Component extends DCLogic {
     }, () => { this.persist(); this.notifyChange(prev, field, value); });
   }
 
-  // ---- email notifications (simulated outbox) ----
+  // ---- notifications: email only for assignment, @mention and status changes ----
   // หาสมาชิกที่ถูก @ แท็กในข้อความ (รองรับชื่อมีเว้นวรรค เทียบชื่อยาวก่อน)
   mentionsIn(text) {
     const t = String(text || '');
@@ -5594,7 +5641,7 @@ class Component extends DCLogic {
     return { name: (m && m.n) || name || '', email: '' };   // ไม่มีอีเมล = ไม่มีผู้รับ (ไม่ตกไปเป็นตัวเราเอง)
   }
 
-  sendEmail(to, subject, line, detail, taskId) {
+  sendEmail(to, subject, line, detail, taskId, kind) {
     if (this.props.emailNotifications === false) return;
 
     // ไม่มีผู้รับจริง (เช่นงานยังเป็น Unassigned) → บอกตรงๆ ไม่ต้องหลอกว่าส่งแล้ว
@@ -5611,7 +5658,7 @@ class Component extends DCLogic {
     const n = {
       id: 'N' + Date.now() + Math.floor(Math.random() * 900),
       to: to.email, toName: to.name, subject: subject, line: line, detail: detail || '',
-      taskId: taskId || null, at: Date.now(), read: false
+      taskId: taskId || null, kind: kind || '', at: Date.now(), read: false
     };
     window.PawdySync.notify(n);
     this.setState({ toast: n });
@@ -5622,7 +5669,7 @@ class Component extends DCLogic {
   }
 
   // ส่งอีเมลหาผู้รับผิดชอบทุกคน (ตัดตัวเราเอง ตัดคนที่ไม่มีอีเมล ตัดซ้ำ)
-  sendEmailMany(names, subject, line, detail, taskId) {
+  sendEmailMany(names, subject, line, detail, taskId, kind) {
     const self = this;
     const meMail = String(this.me().email || '').toLowerCase();
     const list = (names || [])
@@ -5638,23 +5685,23 @@ class Component extends DCLogic {
         : 'ไม่ได้ส่งแจ้งเตือน — งานนี้ยังไม่มีผู้รับผิดชอบ');
       return;
     }
-    list.forEach(function (to) { self.sendEmail(to, subject, line, detail, taskId); });
+    list.forEach(function (to) { self.sendEmail(to, subject, line, detail, taskId, kind); });
   }
 
   notifyChange(prev, field, value) {
     if (!prev) return;
-    const watched = { status: 'Status', assignee: 'Assignee', due: 'Due date', priority: 'Priority', list: 'List' };
+    const watched = { status: 'Status', assignee: 'Assignee' };
     if (!watched[field] || prev[field] === value) return;
     const subject = '[' + prev.list + '] ' + prev.name;
     const from = this.me().n;
     const detail = 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list;
     if (field === 'assignee') {
-      this.sendEmailMany([value], subject, 'Assigned to you by ' + from, detail, prev.id);
+      this.sendEmailMany([value], subject, 'Assigned to you by ' + from, detail, prev.id, 'assign');
       return;
     }
-    // งานเดียวมีหลายคนรับผิดชอบ → แจ้งทุกคน
+    // เปลี่ยน Status → แจ้งผู้รับผิดชอบทุกคน ยกเว้นคนที่เป็นผู้เปลี่ยนเอง
     this.sendEmailMany(this.assigneesOf(prev), subject,
-      watched[field] + ': ' + (prev[field] || '—') + ' → ' + (value || '—'), detail, prev.id);
+      watched[field] + ': ' + (prev[field] || '—') + ' → ' + (value || '—'), detail, prev.id, 'status');
   }
 
   patchTask(id, fn) {
@@ -5832,7 +5879,6 @@ class Component extends DCLogic {
     };
     this.setState(function (s) { return { tasks: [t].concat(s.tasks), selected: id }; }, () => {
       this.persist();
-      this.sendEmail({ name: this.me().n, email: this.me().email }, '[' + list + '] ' + t.name, 'New task created in ' + list, 'Due ' + t.due + ' · ' + t.priority + ' priority');
     });
   }
 
@@ -6397,17 +6443,12 @@ class Component extends DCLogic {
     const subject = '[' + task.list + '] ' + task.name;
     const mine = String(this.me().email || '').toLowerCase();
     const sentTo = {};
-    const owner = this.emailFor(task.assignee);
-    if (owner && owner.email && String(owner.email).toLowerCase() !== mine) {
-      sentTo[String(owner.email).toLowerCase()] = 1;
-      this.sendEmail(owner, subject, 'New comment from ' + this.me().n, '“' + v + '”', task.id);
-    }
     const self = this;
     this.mentionsIn(v).forEach(function (m) {
       const key = String(m.email || '').toLowerCase();
       if (!key || key === mine || sentTo[key]) return;
       sentTo[key] = 1;
-      self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', task.id);
+      self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', task.id, 'mention');
     });
     this._focusRowComment = true;
     const pos = this.state.commentComposerPos;
@@ -7388,7 +7429,7 @@ class Component extends DCLogic {
     if (!added.length) return;
     const from = this.me().n;
     this.sendEmailMany(added, '[' + prev.list + '] ' + prev.name,
-      'Assigned to you by ' + from, 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list, prev.id);
+      'Assigned to you by ' + from, 'Updated by ' + from + ' · ' + prev.id + ' · ' + prev.list, prev.id, 'assign');
   }
 
   openAssigneePicker(e, taskId, values, subIndex, single) {
@@ -7580,6 +7621,16 @@ class Component extends DCLogic {
   }
   clearFilters() {
     this.setState({ filters: { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' } }, () => this.persist());
+  }
+  openSystemView(kind) {
+    const filters = { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' };
+    if (kind === 'mine') filters.assignee = [this.me().n];
+    if (kind === 'today') filters.due = 'today';
+    if (kind === 'overdue') filters.due = 'overdue';
+    this.setState({
+      list: '__all', view: 'table', filters: filters, filterOpen: false,
+      selected: null, query: ''
+    }, () => this.persist());
   }
   passFilter(t) {
     const f = this.filt();
@@ -9196,19 +9247,12 @@ class Component extends DCLogic {
       const mine = String(self.me().email || '').toLowerCase();
       const sentTo = {};
 
-      // เจ้าของงานได้ก่อน (ถ้าไม่ใช่ตัวเราเอง)
-      const owner = self.emailFor(sel.assignee);
-      if (owner && owner.email && String(owner.email).toLowerCase() !== mine) {
-        sentTo[String(owner.email).toLowerCase()] = 1;
-        self.sendEmail(owner, subject, 'New comment from ' + self.me().n, '“' + v + '”', sel.id);
-      }
-
-      // แล้วค่อยคนที่ถูก @ แท็ก — ไม่ส่งซ้ำถ้าได้ไปแล้ว
+      // ส่งอีเมลเฉพาะคนที่ถูก @ แท็ก — คอมเมนต์ทั่วไปไม่รบกวนผู้รับผิดชอบ
       self.mentionsIn(v).forEach(function (m) {
         const key = String(m.email || '').toLowerCase();
         if (!key || key === mine || sentTo[key]) return;
         sentTo[key] = 1;
-        self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', sel.id);
+        self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', sel.id, 'mention');
       });
 
       self.setState({ newComment: '' });
@@ -9474,10 +9518,22 @@ class Component extends DCLogic {
         };
       })(),
       totalCount: self.liveTasks().length,
+      myTasksCount: self.liveTasks().filter(function (t) { return self.assigneesOf(t).indexOf(self.me().n) >= 0; }).length,
+      todayTasksCount: self.liveTasks().filter(function (t) { return t.due === TODAY && !self.isDone(t.status); }).length,
+      overdueTasksCount: self.liveTasks().filter(function (t) { return t.due < TODAY && !self.isDone(t.status); }).length,
+      myTasksStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;' +
+        (s.list === '__all' && self.filt().assignee.length === 1 && self.filt().assignee[0] === self.me().n && !self.filt().due ? 'background:#262a35;color:#fff;font-weight:600;' : 'background:transparent;color:#cbd2de;'),
+      todayTasksStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;' +
+        (s.list === '__all' && self.filt().due === 'today' ? 'background:#262a35;color:#fff;font-weight:600;' : 'background:transparent;color:#cbd2de;'),
+      overdueTasksStyle: 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;cursor:pointer;padding:6px 8px;border-radius:6px;font-size:12.5px;' +
+        (s.list === '__all' && self.filt().due === 'overdue' ? 'background:rgba(220,38,38,.15);color:#fca5a5;font-weight:600;' : 'background:transparent;color:#cbd2de;'),
       query: s.query,
       queryRef: self.syncRef(s.query),
       onQuery: function (e) { self.setState({ query: e.target.value }); },
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
+      onMyTasks: function () { self.openSystemView('mine'); },
+      onTodayTasks: function () { self.openSystemView('today'); },
+      onOverdueTasks: function () { self.openSystemView('overdue'); },
       breadcrumb: self.isDocs() ? 'Workspace' : self.isTrash() ? 'Workspace' : (s.list === '__all' ? 'Workspace' : (spaceName ? 'Space' : (listMeta ? listMeta.name + ' /' : ''))),
       allLists: allLists,
       listTitle: self.isLinks() ? 'Links' : self.isPlanner() ? 'Planner' : self.isArchive() ? 'Archive' : self.isDocs() ? 'เอกสาร' : self.isTrash() ? 'ถังขยะ' : (s.list === '__all' ? 'Everything' : (spaceName || s.list)),
@@ -9513,11 +9569,13 @@ class Component extends DCLogic {
         const mins = Math.floor((Date.now() - n.at) / 60000);
         const tid = n.taskId || '';
         const live = tid ? (s.tasks || []).some(function (x) { return x.id === tid; }) : false;
+        const actorMember = (s.members || []).filter(function (m) { return String(m.email || '').toLowerCase() === String(n.from || '').toLowerCase(); })[0];
+        const actor = (actorMember && actorMember.n) || n.from || 'สมาชิกในทีม';
         return {
-          to: n.to, subject: n.subject, line: n.line, detail: n.detail,
+          actor: actor, subject: n.subject, line: n.line, detail: n.detail,
           when: mins < 1 ? 'just now' : (mins < 60 ? mins + 'm ago' : Math.floor(mins / 60) + 'h ago'),
-          initials: self.initials(n.toName),
-          avatarStyle: self.avatar(n.toName, 26),
+          initials: self.initials(actor),
+          avatarStyle: self.avatar(actor, 26),
           taskTag: live ? tid : '',
           hasTask: live,
           onOpen: function () { self.openTaskFromNotif(tid); },
@@ -9714,6 +9772,24 @@ class Component extends DCLogic {
       onToggleFilter: function () { self.setState(function (st) { return { filterOpen: !st.filterOpen }; }); },
       onCloseFilter: function () { self.setState({ filterOpen: false }); },
       onClearFilters: function () { self.clearFilters(); },
+      activeFilterChips: (function () {
+        const f = self.filt();
+        const chips = [];
+        const labels = { status: 'สถานะ', assignee: 'ผู้รับผิดชอบ', priority: 'ความสำคัญ', channel: 'Channel', platform: 'Platform' };
+        ['status', 'assignee', 'priority', 'channel', 'platform'].forEach(function (kind) {
+          (f[kind] || []).forEach(function (value) {
+            chips.push({
+              label: labels[kind] + ': ' + value,
+              onRemove: function () { self.toggleFilter(kind, value); }
+            });
+          });
+        });
+        if (f.due) {
+          const dueLabels = { overdue: 'เลยกำหนด', today: 'ครบวันนี้', week: 'ใน 7 วัน', later: 'หลังจากนั้น' };
+          chips.push({ label: 'กำหนดส่ง: ' + (dueLabels[f.due] || f.due), onRemove: function () { self.toggleFilter('due', f.due); } });
+        }
+        return chips;
+      })(),
       filterGroups: (function () {
         const f = self.filt();
         const mk = function (kind, label, values, colorOf) {

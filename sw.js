@@ -9,12 +9,10 @@
    - Supabase / CDN / อะไรที่ไม่ใช่ origin เรา → ไม่ยุ่งเลย ปล่อยผ่าน
    ============================================================ */
 
-const VERSION = 'pawdy-v1';
+const VERSION = 'pawdy-v2';
 const SHELL = [
   './',
   './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
