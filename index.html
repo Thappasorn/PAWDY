@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pawdy Workspace</title>
+<script>window.PAWDY_LOGO = 'data:image/png;base64,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';</script>
 <meta name="description" content="Pawdy Workspace — shared tasks, board, calendar, timeline and dashboard.">
 <meta name="theme-color" content="#14161c">
 <meta name="mobile-web-app-capable" content="yes">
@@ -11,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Pawdy">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%234f46e5%22/%3E%3Ctext x=%2232%22 y=%2241%22 font-family=%22Helvetica,Arial%22 font-size=%2226%22 font-weight=%22700%22 fill=%22%23fff%22 text-anchor=%22middle%22%3EPW%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <script>
 /* ==================================================================
    FILL THESE IN — Supabase → Project Settings → API
@@ -655,8 +656,8 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     wrap.innerHTML =
       '<div style="width:100%;max-width:340px;background:#fff;border-radius:14px;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.4)">' +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">' +
-      '<div style="width:30px;height:30px;border-radius:8px;background:#4f46e5;color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px">PW</div>' +
-      '<div style="line-height:1.2"><div style="font-weight:600;font-size:14px;color:#1f2430">Pawdy Workspace</div>' +
+      '<img src="' + (window.PAWDY_LOGO || '') + '" alt="Pawdy" style="height:34px;width:auto;display:block">' +
+      '<div style="line-height:1.2"><div style="font-weight:600;font-size:13px;color:#1f2430">Workspace</div>' +
       '<div id="pw-sub" style="font-size:11px;color:#9ca3af">เข้าสู่ระบบเพื่อใช้งาน</div></div></div>' +
       '<div id="pw-login">' +
       '<input id="pw-email" type="email" placeholder="you@pawdy.co.th" autocomplete="username" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:9px 11px;font-size:13px;outline:0;margin-bottom:8px">' +
@@ -3339,10 +3340,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   <aside data-sidebar style="{{ sidebarStyle }}">
     <div style="display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-bottom: 1px solid #23262f;">
-      <div style="width: 26px; height: 26px; border-radius: 7px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 12px; letter-spacing: -0.2px;">PW</div>
-      <div style="display: flex; flex-direction: column; line-height: 1.25; min-width: 0;">
-        <span style="color: #fff; font-weight: 600; font-size: 12.5px;">Pawdy Workspace</span>
-        <span style="font-size: 10.5px; color: #6c7280;">{{ workspaceSub }}</span>
+      <img src="{{ brandLogo }}" alt="Pawdy" style="height: 28px; width: auto; flex: 0 0 auto; display: block;">
+      <div style="display: flex; flex-direction: column; line-height: 1.25; min-width: 0; flex: 1;">
+        <span style="color: #fff; font-weight: 600; font-size: 12.5px;">Workspace</span>
+        <span style="font-size: 10.5px; color: #6c7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ workspaceSub }}">{{ workspaceSub }}</span>
       </div>
       <button sc-camel-on-click="{{ onGoHome }}" title="กลับหน้าแรก — ดูทุกงาน ล้างตัวกรอง" style="width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; background: transparent; border: 1px solid #262a35; border-radius: 7px; color: #a7adba; cursor: pointer; font-size: 12px; margin-left: auto;" style-hover="border-color: #4f46e5; color: #fff; background: #1d202a;">⌂</button>
       <button data-desktop-only sc-camel-on-click="{{ onCollapseNav }}" title="พับแถบเมนู" style="width: 22px; height: 22px; border-radius: 6px; border: 1px solid #262a35; background: transparent; color: #6c7280; cursor: pointer; font-size: 11px; line-height: 1; display: grid; place-items: center; flex: 0 0 auto;" style-hover="border-color: #4f46e5; color: #fff;">«</button>
@@ -4443,31 +4444,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <button sc-camel-on-click="{{ onPrevMonth }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">‹</button>
             <span style="font-size: 13.5px; font-weight: 600;">{{ monthLabel }}</span>
             <button sc-camel-on-click="{{ onNextMonth }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">›</button>
-            <span style="font-size: 11px; color: var(--pw-muted2);">ดับเบิลคลิกช่องวัน (หรือกด +) เพื่อเพิ่มงาน · ลากงานไปวางวันอื่นเพื่อเลื่อนกำหนด</span>
+            <span style="font-size: 11px; color: var(--pw-muted2);">คลิกพื้นที่ว่างในช่องวัน (หรือกด +) เพื่อเพิ่มงาน · ลากงานไปวางวันอื่นเพื่อเลื่อนกำหนด</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden;">
             <sc-for list="{{ weekdayNames }}" as="wd" hint-placeholder-count="7">
               <div style="padding: 7px 9px; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">{{ wd }}</div>
             </sc-for>
             <sc-for list="{{ calendarDays }}" as="day" hint-placeholder-count="35">
-              <div data-daycell sc-camel-on-drag-over="{{ day.onDragOver }}" sc-camel-on-drop="{{ day.onDrop }}" sc-camel-on-double-click="{{ day.onAddOpen }}" title="ดับเบิลคลิกเพื่อเพิ่มงานในวันนี้" style="{{ day.style }}">
+              <div data-daycell sc-camel-on-drag-over="{{ day.onDragOver }}" sc-camel-on-drop="{{ day.onDrop }}" sc-camel-on-click="{{ day.onCellClick }}" title="คลิกพื้นที่ว่างเพื่อเพิ่มงานในวันนี้" style="{{ day.style }}">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 5px;">
                   <span style="{{ day.numStyle }}">{{ day.num }}</span>
                   <button data-dayadd sc-camel-on-click="{{ day.onAddOpen }}" title="เพิ่มงานในวันนี้" style="margin-left: auto; width: 18px; height: 18px; border-radius: 5px; border: 1px dashed var(--pw-border); background: transparent; color: var(--pw-muted2); cursor: pointer; font-size: 11px; line-height: 1; padding: 0; display: none; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 3px;">
                   <sc-for list="{{ day.tasks }}" as="ev" hint-placeholder-count="2">
-                    <div draggable="true" sc-camel-on-drag-start="{{ ev.onDragStart }}" sc-camel-on-click="{{ ev.onOpen }}" style="{{ ev.style }}">{{ ev.name }}</div>
+                    <div data-dayevent draggable="true" sc-camel-on-drag-start="{{ ev.onDragStart }}" sc-camel-on-click="{{ ev.onOpen }}" style="{{ ev.style }}">{{ ev.name }}</div>
                   </sc-for>
-                  <sc-if value="{{ day.addOpen }}" hint-placeholder-val="{{ false }}">
-                    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
-                      <input ref="{{ day.addRef }}" data-sync="{{ day.addText }}" value="{{ day.addText }}" sc-camel-on-change="{{ day.onAddText }}" sc-camel-on-key-down="{{ day.onAddKey }}" placeholder="ชื่องาน แล้วกด Enter" style="width: 100%; border: 1px solid #4f46e5; border-radius: 5px; padding: 4px 6px; font-size: 10.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);">
-                      <div style="display: flex; align-items: center; gap: 4px;">
-                        <button sc-camel-on-click="{{ day.onAddCommit }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 4px; padding: 3px 8px; font-size: 10px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">เพิ่ม</button>
-                        <button sc-camel-on-click="{{ day.onAddClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 13px; line-height: 1; cursor: pointer; padding: 0 3px;" style-hover="color: var(--pw-text);">×</button>
-                      </div>
-                    </div>
-                  </sc-if>
                 </div>
               </div>
             </sc-for>
@@ -8039,6 +8031,38 @@ class Component extends DCLogic {
     this.setState(function (s) { return { tasks: s.tasks.concat([t]), calAddText: '' }; }, () => this.persist());
   }
 
+  // ---- ปฏิทิน: คลิกช่องว่างในวัน = ได้งานใหม่ของวันนั้น แล้วเปิดการ์ดให้กรอกต่อทันที ----
+  addOnDateOpen(iso) {
+    const id = 'T' + Math.floor(Math.random() * 90000 + 10000);
+    let list = this.state.list;
+    const scope = this.scopeLists();
+    if (scope) list = scope[0] || 'Tasks';
+    if (list === '__all' || list === '__trash' || list === '__archive' || (list || '').indexOf('__space:') === 0) {
+      const all = [];
+      (this.state.spaces || []).forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
+      list = all[0] || 'Tasks';
+    }
+    const status = (this.statuses()[0] || {}).k;
+    let maxPos = 0;
+    this.state.tasks.forEach(function (x) { if (x.status === status && (x.pos || 0) > maxPos) maxPos = x.pos || 0; });
+    this.mark('เพิ่มงาน');
+    const t = {
+      id: id, list: list, name: 'New task', status: status, assignee: 'Unassigned',
+      start: iso < TODAY ? iso : TODAY, due: iso,
+      priority: 'Normal', tags: [], channel: '—', platform: '—',
+      cost: 0, qty: 1, pos: maxPos + 1000,
+      subtasks: [], comments: [], attachments: [], desc: ''
+    };
+    this._focusDetailName = true;   // เปิดการ์ดมาแล้วพิมพ์ชื่อได้เลย ไม่ต้องคลิกซ้ำ
+    this.setState(function (s) {
+      return {
+        tasks: s.tasks.concat([t]),
+        selected: id, subFocus: null, detailMenu: false, detailFields: true,
+        calAdd: null, calAddText: '', newComment: '', newSubtask: ''
+      };
+    }, () => this.persist());
+  }
+
   // ---- Gantt: ช่วงเวลาแบบซูมได้ ----
   ganttSpec() {
     const zoom = this.state.ganttZoom || 'week';
@@ -9215,7 +9239,13 @@ class Component extends DCLogic {
           if (el.value !== v) el.value = v;
           if (calOpen && self._focusCalAdd) { el.focus(); self._focusCalAdd = false; }
         },
-        onAddOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openCalAdd(iso); },
+        onAddOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.addOnDateOpen(iso); },
+        // คลิกพื้นที่ว่างในช่อง = งานใหม่ + เปิดการ์ด (กดที่ชิ้นงานเดิมหรือปุ่มไม่นับ)
+        onCellClick: function (e) {
+          const tgt = e && e.target;
+          if (tgt && tgt.closest && tgt.closest('[data-dayevent],button,input,select,textarea,a')) return;
+          self.addOnDateOpen(iso);
+        },
         onAddText: function (e) { self.setState({ calAddText: e.target.value }); },
         onAddKey: function (e) {
           if (e.key === 'Enter') { e.preventDefault(); self.addOnDate(iso); }
@@ -9548,7 +9578,15 @@ class Component extends DCLogic {
         channelLabel: self.multiLabel(sel.channel), platformLabel: self.multiLabel(sel.platform),
         cost: String(sel.cost), qty: String(sel.qty),
         tagText: (sel.tags || []).join(', '),
-        nameRef: this.syncRef(sel.name),
+        nameRef: function (el) {
+          if (!el) return;
+          const v = sel.name === undefined || sel.name === null ? '' : String(sel.name);
+          if (el.value !== v) el.value = v;
+          if (self._focusDetailName) {
+            self._focusDetailName = false;
+            setTimeout(function () { try { el.focus(); el.select(); } catch (e) {} }, 40);
+          }
+        },
         listRef: this.syncRef(sel.list),
         statusRef: this.syncRef(sel.status),
         assigneeNames: this.assigneesOf(sel),
@@ -10203,7 +10241,7 @@ class Component extends DCLogic {
             if (el.value !== val) el.value = val;
             if (s.calAdd === iso && self._focusCalAdd) { el.focus(); self._focusCalAdd = false; }
           },
-          onAdd: function () { self.openCalAdd(iso); },
+          onAdd: function () { self.addOnDateOpen(iso); },
           onAddText: function (e) { self.setState({ calAddText: e.target.value }); },
           onAddKey: function (e) {
             if (e.key === 'Enter') { e.preventDefault(); self.addOnDate(iso); }
@@ -10228,7 +10266,7 @@ class Component extends DCLogic {
             headStyle: 'display:flex;align-items:center;gap:8px;padding:8px 2px 6px;font-size:11.5px;font-weight:600;color:' +
               (isToday ? '#4f46e5' : (past ? '#dc2626' : 'var(--pw-text2)')) + ';',
             count: byDate[iso].length,
-            onAdd: function () { self.openCalAdd(iso); },
+            onAdd: function () { self.addOnDateOpen(iso); },
             addOpen: s.calAdd === iso,
             addText: s.calAdd === iso ? s.calAddText : '',
             addRef: function (el) {
@@ -10248,7 +10286,7 @@ class Component extends DCLogic {
         });
       })(),
       agendaEmpty: (function () { return s.view === 'calendar' && self.isMobile() && vms.length === 0; })(),
-      onAddToday: function () { self.openCalAdd(TODAY); },
+      onAddToday: function () { self.addOnDateOpen(TODAY); },
       isTable: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
       isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
@@ -10276,6 +10314,7 @@ class Component extends DCLogic {
       workload: workload,
       channelBars: channelBars,
       attention: attention,
+      brandLogo: (typeof window !== 'undefined' && window.PAWDY_LOGO) || '',
       detailOpen: !!detail,
       detailMenuOpen: !!detail && !!s.detailMenu,
       detailFieldsOpen: !!s.detailFields,
