@@ -3156,6 +3156,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-dayadd] { display: none !important; }
   [data-daycell]:hover [data-dayadd] { display: grid !important; }
 
+  [data-grip] { opacity: .3; transition: opacity .12s ease, color .12s ease; }
+  [data-task-row]:hover [data-grip], [data-subtask-row]:hover [data-grip] { opacity: 1; color: var(--pw-muted) !important; }
+  [data-grip]:active { cursor: grabbing; }
   [data-avatar] { transition: transform .16s cubic-bezier(.2,.8,.2,1); }
   [data-avatar]:hover { transform: scale(1.14); z-index: 5; }
 
@@ -3474,6 +3477,32 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </button>
 
         <sc-if value="{{ notTrash }}" hint-placeholder-val="{{ true }}">
+          <div style="position: relative; display: flex; align-items: center;">
+            <button sc-camel-on-click="{{ onToggleSort }}" title="เลือกวิธีเรียงงาน" style="{{ sortBtnStyle }}">
+              <span style="font-size: 11px; opacity: 0.85;">⇅</span>เรียง
+              <sc-if value="{{ sortActive }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 11px; font-weight: 600; max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">· {{ sortLabel }}</span>
+              </sc-if>
+            </button>
+
+            <sc-if value="{{ sortOpen }}" hint-placeholder-val="{{ false }}">
+              <div sc-camel-on-click="{{ onCloseSort }}" style="position: fixed; inset: 0; z-index: 44;"></div>
+              <div data-dropdown data-panel style="position: absolute; top: 36px; left: 0; width: 344px; background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 11px; box-shadow: 0 16px 40px rgba(16, 24, 40, 0.18); z-index: 45; padding: 8px; display: flex; flex-direction: column; gap: 2px;">
+                <div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px 6px;">
+                  <span style="font-size: 12.5px; font-weight: 600;">เรียงลำดับ</span>
+                  <span style="font-size: 11px; color: var(--pw-muted2);">เห็นเฉพาะคุณ</span>
+                  <button sc-camel-on-click="{{ onCloseSort }}" style="margin-left: auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
+                </div>
+                <sc-for list="{{ sortOptions }}" as="so" hint-placeholder-count="5">
+                  <button sc-camel-on-click="{{ so.onPick }}" style="{{ so.style }}" style-hover="background: var(--pw-surface3);">
+                    <span style="{{ so.markStyle }}">{{ so.mark }}</span>{{ so.label }}<span style="{{ so.hintStyle }}">{{ so.hint }}</span>
+                  </button>
+                </sc-for>
+                <span style="font-size: 10.5px; color: var(--pw-muted2); line-height: 1.5; padding: 6px 6px 2px;">ลากงานสลับตำแหน่งเมื่อไหร่ ระบบจะกลับไปโหมด “เรียงเอง” ให้อัตโนมัติ</span>
+              </div>
+            </sc-if>
+          </div>
+
           <div style="position: relative; display: flex; align-items: center;">
             <button sc-camel-on-click="{{ onToggleFilter }}" title="กรองงานที่เห็น" style="{{ filterBtnStyle }}">
               <span style="font-size: 11px; opacity: 0.85;">⚟</span>ตัวกรอง
@@ -4034,7 +4063,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           </div>
 
           <sc-for list="{{ groups }}" as="group" hint-placeholder-count="4">
-            <div style="display: flex; flex-direction: column; margin-bottom: 22px;">
+            <div sc-camel-on-drag-over="{{ group.onDragOverGroup }}" sc-camel-on-drop="{{ group.onDropGroup }}" style="display: flex; flex-direction: column; margin-bottom: 22px;">
               <div style="display: flex; align-items: center; gap: 7px; padding: 11px 12px 9px 4px; background: var(--pw-surface); border-bottom: 1px solid var(--pw-border); position: sticky; top: 32px; z-index: 2;">
                 <button sc-camel-on-click="{{ group.onToggleGroup }}" title="พับ / กางก้อนนี้" style="{{ group.caretStyle }}" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ group.caret }}</button>
                 <span style="{{ group.chipStyle }}">{{ group.status }}</span>
@@ -4053,9 +4082,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-if value="{{ group.expanded }}" hint-placeholder-val="{{ true }}">
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
-                <div data-task-row data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
+                <div data-task-row data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" sc-camel-on-drag-over="{{ row.onDragOverRow }}" sc-camel-on-drop="{{ row.onDropRow }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
-                  <div data-task-name-cell sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 8px; cursor: pointer;">
+                  <div data-task-name-cell sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 5px; min-width: 0; padding-right: 8px; cursor: pointer;">
+                    <span data-grip draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" title="ลากเพื่อย้ายลำดับ หรือลากข้ามกลุ่ม" style="width: 14px; flex: 0 0 14px; text-align: center; color: var(--pw-faint); font-size: 12px; line-height: 1; cursor: grab; user-select: none;">⠿</span>
                     <button sc-camel-on-click="{{ row.onToggleExpand }}" title="กาง/พับ subtask" style="{{ row.caretStyle }}">{{ row.caret }}</button>
                   <input ref="{{ row.nameRef }}" data-sync="{{ row.name }}" value="{{ row.name }}" sc-camel-on-change="{{ row.onName }}" sc-camel-on-key-down="{{ row.onNameKey }}" sc-camel-on-blur="{{ row.onNameBlur }}" style="{{ row.nameInputStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                     <button sc-camel-on-click="{{ row.onOpen }}" style="margin-left:auto;flex:0 0 auto;background:transparent;border:1px solid var(--pw-border);color:var(--pw-muted);border-radius:4px;font-size:10.5px;padding:2px 6px;cursor:pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">Open</button>
@@ -4140,9 +4170,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <sc-if value="{{ row.expanded }}" hint-placeholder-val="{{ false }}">
                   <div data-panel style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 8px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
                     <sc-for list="{{ row.subs }}" as="sb2" hint-placeholder-count="2">
-                      <div data-subtask-row style="display: grid; grid-template-columns: {{ row.subGridCols }}; align-items: center; min-height: 30px; border-radius: 6px;" style-hover="background: var(--pw-hover);">
+                      <div data-subtask-row sc-camel-on-drag-over="{{ sb2.onSubDragOver }}" sc-camel-on-drop="{{ sb2.onSubDrop }}" style="display: grid; grid-template-columns: {{ row.subGridCols }}; align-items: center; min-height: 30px; border-radius: 6px;" style-hover="background: var(--pw-hover);">
                         <button sc-camel-on-click="{{ sb2.onToggle }}" title="ติ๊กเสร็จ" style="{{ sb2.markStyle }}">{{ sb2.mark }}</button>
-                        <div data-task-name-cell sc-camel-on-click="{{ sb2.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display:flex;align-items:center;min-width:0;padding-left:26px;padding-right:8px;cursor:pointer;">
+                        <div data-task-name-cell sc-camel-on-click="{{ sb2.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display:flex;align-items:center;gap:5px;min-width:0;padding-left:22px;padding-right:8px;cursor:pointer;">
+                          <span data-grip draggable="true" sc-camel-on-drag-start="{{ sb2.onSubDragStart }}" title="ลากเพื่อย้ายลำดับ subtask" style="width:14px;flex:0 0 14px;text-align:center;color:var(--pw-faint);font-size:12px;line-height:1;cursor:grab;user-select:none;">⠿</span>
+                          <span style="width:14px;flex:0 0 14px;"></span>
                           <input ref="{{ sb2.titleRef }}" data-sync="{{ sb2.title }}" value="{{ sb2.title }}" sc-camel-on-change="{{ sb2.onRename }}" sc-camel-on-key-down="{{ sb2.onRenameKey }}" sc-camel-on-blur="{{ sb2.onRenameBlur }}" style="{{ sb2.textStyle }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5;">
                         </div>
                         <sc-for list="{{ sb2.cells }}" as="scell" hint-placeholder-count="8">
@@ -5524,6 +5556,8 @@ class Component extends DCLogic {
       online: (window.PawdySync.onlineNow ? window.PawdySync.onlineNow() : []),
       view: ui.view || 'table',
       list: ui.list || 'Q3 Campaigns',
+      sortMode: ui.sortMode || '',   // '' = เรียงเอง (ลากสลับ) · new/old = ตามเวลาที่เพิ่ม · due/dueFar = ตามวันครบกำหนด
+      sortOpen: false,
       open: { Marketing: true, Product: true, Operations: true },
       query: '',
       selected: null,
@@ -5590,7 +5624,7 @@ class Component extends DCLogic {
     this._prevSnap = this.snapOf(st);
     this._undoLabel = null;
     window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, planner: st.planner, links: st.links, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
-        collapsedGroups: st.collapsedGroups } });
+        sortMode: st.sortMode, collapsedGroups: st.collapsedGroups } });
   }
 
   // ---- undo / redo ----
@@ -6216,6 +6250,7 @@ class Component extends DCLogic {
         if (self.state.listColor) { self.closeListColor(); return; }
         if (self.state.ctxMenu) { self.closeCtx(); return; }
         if (self.state.optEditor) { self.closeOptEditor(); return; }
+        if (self.state.sortOpen) { self.setState({ sortOpen: false }); return; }
         if (self.state.detailMenu) { self.setState({ detailMenu: false }); return; }
         if (self.state.selected) { self.setState({ selected: null, subFocus: null, detailMenu: false }); return; }
       }
@@ -6278,7 +6313,7 @@ class Component extends DCLogic {
       subtasks: [], comments: [], attachments: [], desc: ''
     };
     this._focusRowComposer = true;
-    this.setState(function (s) { return { tasks: s.tasks.concat([t]), rowComposerText: '' }; }, () => this.persist());
+    this.setState(function (s) { return { tasks: [t].concat(s.tasks), rowComposerText: '' }; }, () => this.persist());
   }
 
   // ---- Trello-style board behaviours ----
@@ -6311,7 +6346,7 @@ class Component extends DCLogic {
       cost: 0, qty: 1, pos: maxPos + 1000, subtasks: [], comments: [], attachments: [], desc: ''
     };
     this._focusComposer = true;
-    this.setState(function (s) { return { tasks: s.tasks.concat([t]), composerText: '' }; }, () => this.persist());
+    this.setState(function (s) { return { tasks: [t].concat(s.tasks), composerText: '' }; }, () => this.persist());
   }
 
   moveCard(dragId, targetId, status) {
@@ -6334,6 +6369,7 @@ class Component extends DCLogic {
       const posMap = {};
       arranged.forEach(function (t, i) { posMap[t.id] = (i + 1) * 1000; });
       return {
+        sortMode: '',
         tasks: s.tasks.map(function (t) {
           if (t.id === dragId) return Object.assign({}, t, { status: status, pos: posMap[t.id] });
           if (posMap[t.id] !== undefined && posMap[t.id] !== t.pos) return Object.assign({}, t, { pos: posMap[t.id] });
@@ -6343,6 +6379,122 @@ class Component extends DCLogic {
     }, () => {
       this.persist();
       if (prev.status !== status) this.notifyChange(prev, 'status', status);
+    });
+  }
+
+  /* ============================================================
+     การเรียงลำดับงาน
+     '' (ค่าเริ่มต้น) = ลำดับที่ลากสลับเอง (ฟิลด์ pos)
+     new / old        = ตามเวลาที่เพิ่มงาน
+     due / dueFar     = ตามวันครบกำหนด (งานที่ไม่มีวันครบกำหนดอยู่ท้ายเสมอ)
+     ============================================================ */
+  SORT_MODES() {
+    return [
+      { k: '',       label: 'เรียงเอง (ลากสลับได้)', hint: 'ลำดับที่คุณจัดไว้' },
+      { k: 'new',    label: 'เพิ่มล่าสุดขึ้นก่อน',    hint: 'งานที่เพิ่งสร้างอยู่บนสุด' },
+      { k: 'old',    label: 'เพิ่มก่อนขึ้นก่อน',      hint: 'งานเก่าสุดอยู่บนสุด' },
+      { k: 'due',    label: 'ใกล้ครบกำหนดก่อน',      hint: 'วันครบกำหนดน้อย → มาก' },
+      { k: 'dueFar', label: 'ไกลครบกำหนดก่อน',      hint: 'วันครบกำหนดมาก → น้อย' }
+    ];
+  }
+  sortLabel() {
+    const m = this.state.sortMode || '';
+    const f = this.SORT_MODES().filter(function (x) { return x.k === m; })[0];
+    return f ? f.label : 'เรียงเอง (ลากสลับได้)';
+  }
+  setSort(mode) {
+    this.setState({ sortMode: mode || '', sortOpen: false }, () => this.persist());
+  }
+  // ข้อมูลงานจากเซิร์ฟเวอร์เรียงตาม created_at ใหม่→เก่า ดังนั้นตำแหน่งในอาเรย์ใช้แทนเวลาที่เพิ่มได้
+  createdRank() {
+    const arr = this.state.tasks || [];
+    const map = {};
+    const n = arr.length;
+    for (let i = 0; i < n; i++) map[arr[i].id] = n - i;   // ตัวเลขมาก = เพิ่งเพิ่ม
+    return map;
+  }
+  sortTasks(list) {
+    const mode = this.state.sortMode || '';
+    const arr = (list || []).slice();
+    const byPos = function (a, b) { return (a.pos || 0) - (b.pos || 0); };
+    if (mode === 'new' || mode === 'old') {
+      const rank = this.createdRank();
+      const dir = mode === 'new' ? -1 : 1;
+      arr.sort(function (a, b) {
+        const d = (rank[a.id] || 0) - (rank[b.id] || 0);
+        return d !== 0 ? d * dir : byPos(a, b);
+      });
+      return arr;
+    }
+    if (mode === 'due' || mode === 'dueFar') {
+      const dir = mode === 'due' ? 1 : -1;
+      arr.sort(function (a, b) {
+        const A = a.due || '', B = b.due || '';
+        if (!A && !B) return byPos(a, b);
+        if (!A) return 1;          // ไม่มีวันครบกำหนด = ไว้ท้ายเสมอ
+        if (!B) return -1;
+        if (A === B) return byPos(a, b);
+        return A < B ? -dir : dir;
+      });
+      return arr;
+    }
+    return arr.sort(byPos);
+  }
+
+  /* ---- ลากสลับลำดับในหน้า Table (จับที่ปุ่ม ⠿) ----
+     ลากข้ามกลุ่มได้ด้วย เช่น ลากจากกลุ่ม Backlog ไปกลุ่ม Done = เปลี่ยนสถานะให้เลย */
+  moveRow(dragId, targetId, field, key) {
+    if (!dragId || dragId === targetId) return;
+    const self = this;
+    const prev = (this.state.tasks || []).filter(function (t) { return t.id === dragId; })[0];
+    if (!prev) return;
+    this.mark('ย้ายลำดับงาน');
+    this.fireLand(dragId);
+    const changingGroup = field !== 'channel' && prev[field] !== key;
+    this.setState(function (s) {
+      const dragged = s.tasks.filter(function (t) { return t.id === dragId; })[0];
+      if (!dragged) return {};
+      const inGroup = self.sortTasks(s.tasks.filter(function (t) {
+        if (t.deleted || t.archived || t.id === dragId) return false;
+        return field === 'channel' ? self.multiHas(t.channel, key) : t[field] === key;
+      }));
+      let idx = inGroup.length;
+      if (targetId) {
+        const found = inGroup.map(function (t) { return t.id; }).indexOf(targetId);
+        if (found >= 0) idx = found;
+      }
+      const arranged = inGroup.slice(0, idx).concat([dragged]).concat(inGroup.slice(idx));
+      const posMap = {};
+      arranged.forEach(function (t, i) { posMap[t.id] = (i + 1) * 1000; });
+      return {
+        sortMode: '',              // ลากเอง = กลับไปโหมดเรียงเอง ไม่งั้นจะไม่เห็นผล
+        tasks: s.tasks.map(function (t) {
+          if (t.id === dragId) {
+            const c = Object.assign({}, t, { pos: posMap[t.id] });
+            if (changingGroup) c[field] = key;
+            return c;
+          }
+          if (posMap[t.id] !== undefined && posMap[t.id] !== t.pos) return Object.assign({}, t, { pos: posMap[t.id] });
+          return t;
+        })
+      };
+    }, () => {
+      self.persist();
+      if (changingGroup) self.notifyChange(prev, field, key);
+    });
+  }
+
+  // ---- ลากสลับลำดับ subtask ภายในงานเดียวกัน ----
+  moveSub(taskId, from, to) {
+    if (from === to || from < 0 || to < 0) return;
+    this.mark('ย้ายลำดับ subtask');
+    this.patchTask(taskId, function (t) {
+      const arr = (t.subtasks || []).slice();
+      if (from >= arr.length) return t;
+      const item = arr.splice(from, 1)[0];
+      arr.splice(to > arr.length ? arr.length : to, 0, item);
+      t.subtasks = arr;
+      return t;
     });
   }
 
@@ -6858,7 +7010,7 @@ class Component extends DCLogic {
     copy.pos = (t.pos || 0) + 1;
     delete copy.deleted; delete copy.deletedAt; delete copy.deletedBy;
     copy.comments = [];
-    this.setState(function (s) { return { tasks: s.tasks.concat([copy]) }; }, () => this.persist());
+    this.setState(function (s) { return { tasks: [copy].concat(s.tasks) }; }, () => this.persist());
   }
 
   openOptEditor(kind, taskId) {
@@ -8028,7 +8180,7 @@ class Component extends DCLogic {
       subtasks: [], comments: [], attachments: [], desc: ''
     };
     this._focusCalAdd = true;
-    this.setState(function (s) { return { tasks: s.tasks.concat([t]), calAddText: '' }; }, () => this.persist());
+    this.setState(function (s) { return { tasks: [t].concat(s.tasks), calAddText: '' }; }, () => this.persist());
   }
 
   // ---- ปฏิทิน: คลิกช่องว่างในวัน = ได้งานใหม่ของวันนั้น แล้วเปิดการ์ดให้กรอกต่อทันที ----
@@ -8056,7 +8208,7 @@ class Component extends DCLogic {
     this._focusDetailName = true;   // เปิดการ์ดมาแล้วพิมพ์ชื่อได้เลย ไม่ต้องคลิกซ้ำ
     this.setState(function (s) {
       return {
-        tasks: s.tasks.concat([t]),
+        tasks: [t].concat(s.tasks),
         selected: id, subFocus: null, detailMenu: false, detailFields: true,
         calAdd: null, calAddText: '', newComment: '', newSubtask: ''
       };
@@ -8671,7 +8823,7 @@ class Component extends DCLogic {
       onOpen: function () { self.openTask(t.id); },
       onOpenFromNameCell: function (e) {
         const target = e && e.target;
-        if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
+        if (target && target.closest && target.closest('input,button,select,textarea,a,[data-grip]')) return;
         self.openTask(t.id);
       },
       onContext: function (e) { self.openCtx(e, t.id); },
@@ -8699,10 +8851,28 @@ class Component extends DCLogic {
             if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); }
           },
           onRenameBlur: function () {},
+          onSubDragStart: function (e) {
+            self.dragSub = { taskId: t.id, i: i };
+            if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', String(i)); } catch (err) {} }
+            if (e.stopPropagation) e.stopPropagation();
+          },
+          onSubDragOver: function (e) {
+            if (!self.dragSub || self.dragSub.taskId !== t.id) return;
+            e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+          },
+          onSubDrop: function (e) {
+            e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+            const d = self.dragSub;
+            self.dragSub = null;
+            if (!d || d.taskId !== t.id || d.i === i) return;
+            self.moveSub(t.id, d.i, i);
+          },
           // กด subtask = เปิดการ์ดของงานแม่ แล้วไฮไลต์บรรทัดนี้ (URL ก็เปลี่ยนตาม)
           onOpenFromNameCell: function (e) {
             const target = e && e.target;
-            if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
+            if (target && target.closest && target.closest('input,button,select,textarea,a,[data-grip]')) return;
             self.openSubtask(t.id, i);
           },
           onRemove: function () { self.removeSub(t.id, i); }
@@ -9115,7 +9285,17 @@ class Component extends DCLogic {
     });
     const spaceColor = spaceName ? ((s.spaces.filter(function (x) { return x.name === spaceName; })[0] || {}).color || '#4f46e5') : '#4f46e5';
     const groups = groupKeys.map(function (key) {
-      const list = vms.filter(function (v) { return groupField === 'channel' ? self.multiHas(v.channel, key) : v[groupField] === key; }).sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
+      const list = self.sortTasks(vms.filter(function (v) { return groupField === 'channel' ? self.multiHas(v.channel, key) : v[groupField] === key; }))
+        .map(function (v) {
+          return Object.assign({}, v, {
+            onDragOverRow: function (e) { e.preventDefault(); },
+            onDropRow: function (e) {
+              e.preventDefault();
+              if (e.stopPropagation) e.stopPropagation();
+              if (self.dragId) { self.moveRow(self.dragId, v.id, groupField, key); self.dragId = null; }
+            }
+          });
+        });
       const cost = visible.filter(function (t) { return groupField === 'channel' ? self.multiHas(t.channel, key) : t[groupField] === key; }).reduce(function (a, t) { return a + (t.cost || 0); }, 0);
       let chipStyle;
       if (groupField === 'status') chipStyle = self.chip(key);
@@ -9152,15 +9332,19 @@ class Component extends DCLogic {
         },
         onComposerAdd: function () { self.addQuick(groupField, key); },
         onComposerClose: function () { self.closeRowComposer(); },
-        onAdd: function () { self.openRowComposer(key); }
+        onAdd: function () { self.openRowComposer(key); },
+        // ปล่อยงานตรงหัวกลุ่ม/ท้ายกลุ่ม = ย้ายมาต่อท้ายกลุ่มนี้
+        onDragOverGroup: function (e) { e.preventDefault(); },
+        onDropGroup: function (e) {
+          e.preventDefault();
+          if (self.dragId) { self.moveRow(self.dragId, null, groupField, key); self.dragId = null; }
+        }
       };
     }).filter(function (g) { return g.count > 0 || ((groupField === 'status' || groupField === 'list') && s.query === ''); });
 
     // board columns — Trello-style: ordered cards, drop-to-position, inline composer
     const columns = this.statuses().map(function (st) {
-      const list = vms
-        .filter(function (v) { return v.status === st.k; })
-        .sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); })
+      const list = self.sortTasks(vms.filter(function (v) { return v.status === st.k; }))
         .map(function (v) {
           return Object.assign({}, v, {
             onDragOverCard: function (e) { e.preventDefault(); },
@@ -10340,6 +10524,28 @@ class Component extends DCLogic {
       onAddAttachment: function () { if (sel) self.promptAttachment(sel.id); },
       onCloseDetail: function () { self.setState({ selected: null, subFocus: null, detailMenu: false }); },
       onAddField: function () { self.addField(); },
+      sortOpen: !!s.sortOpen,
+      sortLabel: self.sortLabel(),
+      sortActive: !!s.sortMode,
+      sortBtnStyle: 'display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:7px;border:1px solid ' +
+        ((s.sortOpen || s.sortMode) ? '#4f46e5' : 'var(--pw-border)') + ';background:' +
+        ((s.sortOpen || s.sortMode) ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' +
+        ((s.sortOpen || s.sortMode) ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:12px;white-space:nowrap;',
+      onToggleSort: function () { self.setState(function (st) { return { sortOpen: !st.sortOpen, filterOpen: false }; }); },
+      onCloseSort: function () { self.setState({ sortOpen: false }); },
+      sortOptions: self.SORT_MODES().map(function (m) {
+        const on = (s.sortMode || '') === m.k;
+        return {
+          label: m.label,
+          hint: m.hint,
+          mark: on ? '✓' : '',
+          style: 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:12.5px;background:' +
+            (on ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (on ? '#4f46e5' : 'var(--pw-text2)') + ';font-weight:' + (on ? '600' : '400') + ';white-space:nowrap;',
+          markStyle: 'width:14px;flex:0 0 14px;text-align:center;color:#4f46e5;font-size:11px;',
+          hintStyle: 'margin-left:auto;font-size:10.5px;color:var(--pw-muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:47%;',
+          onPick: function () { self.setSort(m.k); }
+        };
+      }),
       filterOpen: s.filterOpen,
       filterCount: self.filterCount(),
       hasFilter: self.filterCount() > 0,
