@@ -9,7 +9,7 @@
    - Supabase / CDN / อะไรที่ไม่ใช่ origin เรา → ไม่ยุ่งเลย ปล่อยผ่าน
    ============================================================ */
 
-const VERSION = 'pawdy-v2';
+const VERSION = 'pawdy-v3';
 const SHELL = [
   './',
   './manifest.webmanifest',

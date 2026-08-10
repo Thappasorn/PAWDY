@@ -4689,173 +4689,271 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     <div data-scrim sc-camel-on-click="{{ onCloseDetail }}" style="position: fixed; inset: 0; background: rgba(8, 10, 14, 0.45); z-index: 75;"></div>
   </sc-if>
   <aside data-detail style="{{ detailStyle }}">
-      <div style="display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--pw-border);">
-        <span style="{{ detail.statusChip }}">{{ detail.status }}</span>
-        <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ detail.code }}</span>
-        <button sc-camel-on-click="{{ onCloseDetail }}" style="margin-left: auto; background: transparent; border: 0; font-size: 17px; color: var(--pw-muted2); cursor: pointer; line-height: 1;" style-hover="color: var(--pw-text);">×</button>
-      </div>
 
-      <div style="flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 16px;">
-        <input ref="{{ detail.nameRef }}" data-sync="{{ detail.name }}" value="{{ detail.name }}" sc-camel-on-change="{{ detail.onName }}" style="border: 0; outline: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px; padding: 4px 6px; border-radius: 6px; background: transparent;" style-focus="background: var(--pw-bg); box-shadow: 0 0 0 1.5px #4f46e5;">
-
-        <div style="display: grid; grid-template-columns: 88px 1fr; gap: 8px 10px; align-items: center; font-size: 12px;">
-          <span style="color: var(--pw-label);">List</span>
-          <sc-raw-select ref="{{ detail.listRef }}" data-sync="{{ detail.list }}" value="{{ detail.list }}" sc-camel-on-change="{{ detail.onList }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
-            <sc-for list="{{ allLists }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
-          </sc-raw-select>
-          <span style="color: var(--pw-label);">Status</span>
-          <sc-raw-select ref="{{ detail.statusRef }}" data-sync="{{ detail.status }}" value="{{ detail.status }}" sc-camel-on-change="{{ detail.onStatus }}" style="{{ detail.statusSelect }}">
-            <sc-for list="{{ statusNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
-          </sc-raw-select>
-          <span style="color: var(--pw-label);">Assignee</span>
-          <button sc-camel-on-click="{{ detail.onAssigneeOpen }}" title="เลือกผู้รับผิดชอบได้หลายคน" style="display:flex;align-items:center;gap:7px;border:1px solid var(--pw-border);border-radius:6px;padding:5px 8px;background:var(--pw-surface);color:var(--pw-text);font-size:12px;text-align:left;cursor:pointer;">
-            <sc-for list="{{ detail.assigneeAvatars }}" as="av" hint-placeholder-count="2"><span style="{{ av.style }}">{{ av.initials }}</span></sc-for>
-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ detail.assigneeLabel }}</span>
-          </button>
-          <span style="color: var(--pw-label);">Priority</span>
-          <sc-raw-select ref="{{ detail.priorityRef }}" data-sync="{{ detail.priority }}" value="{{ detail.priority }}" sc-camel-on-change="{{ detail.onPriority }}" style="{{ detail.prioritySelect }}">
-            <sc-for list="{{ priorityNames }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
-          </sc-raw-select>
-          <span style="color: var(--pw-label);">Start date</span>
-          <input ref="{{ detail.startRef }}" data-sync="{{ detail.start }}" type="date" value="{{ detail.start }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onStart }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface);">
-          <span style="color: var(--pw-label);">Due date</span>
-          <input ref="{{ detail.dueRef }}" data-sync="{{ detail.due }}" type="date" value="{{ detail.due }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onDue }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface);">
-          <span style="color: var(--pw-label);">Channel</span>
-          <button sc-camel-on-click="{{ detail.onChannelOpen }}" title="เลือก Channel ได้หลายค่า" style="height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;padding:0 9px;background:var(--pw-surface);color:var(--pw-text2);cursor:pointer;">{{ detail.channelLabel }}</button>
-          <span style="color: var(--pw-label);">Platform</span>
-          <button sc-camel-on-click="{{ detail.onPlatformOpen }}" title="เลือก Platform ได้หลายค่า" style="height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;padding:0 9px;background:var(--pw-surface);color:var(--pw-text2);cursor:pointer;">{{ detail.platformLabel }}</button>
-          <span style="color: var(--pw-label);">Cost (฿)</span>
-          <input ref="{{ detail.costRef }}" data-sync="{{ detail.cost }}" value="{{ detail.cost }}" sc-camel-on-change="{{ detail.onCost }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
-          <span style="color: var(--pw-label);">Quantity</span>
-          <input ref="{{ detail.qtyRef }}" data-sync="{{ detail.qty }}" value="{{ detail.qty }}" sc-camel-on-change="{{ detail.onQty }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
-          <span style="color: var(--pw-label);">Tags</span>
-          <input ref="{{ detail.tagRef }}" data-sync="{{ detail.tagText }}" value="{{ detail.tagText }}" sc-camel-on-change="{{ detail.onTags }}" placeholder="comma, separated" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px;">
+      <!-- ═══ หน้าปก + แถบเครื่องมือ (แบบการ์ด Trello) ═══ -->
+      <div style="{{ detail.headWrapStyle }}">
+        <sc-if value="{{ detail.hasCover }}" hint-placeholder-val="{{ false }}">
+          <img src="{{ detail.coverUrl }}" alt="" style="{{ detail.coverImgStyle }}">
+        </sc-if>
+        <div style="{{ detail.headBarStyle }}">
+          <span style="{{ detail.statusChip }}">{{ detail.status }}</span>
+          <span style="{{ detail.codeStyle }}">{{ detail.code }}</span>
+          <span style="{{ detail.crumbStyle }}">{{ detail.crumb }}</span>
+          <button sc-camel-on-click="{{ detail.onCopyLink }}" title="คัดลอกลิงก์ของการ์ดนี้" style="{{ detail.iconBtn }}" style-hover="color: #4f46e5;">⧉</button>
+          <button sc-camel-on-click="{{ detail.onShare }}" title="แชร์การ์ดนี้" style="{{ detail.iconBtn }}" style-hover="color: #4f46e5;">↗</button>
+          <button sc-camel-on-click="{{ onToggleDetailMenu }}" title="เพิ่มเติม" style="{{ detail.iconBtn }}" style-hover="color: #4f46e5;">⋯</button>
+          <button sc-camel-on-click="{{ onCloseDetail }}" title="ปิด (Esc)" style="{{ detail.iconBtn }}" style-hover="color: #dc2626;">×</button>
         </div>
-
-        <div style="display: flex; flex-direction: column; gap: 7px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Custom Fields</span>
-            <button sc-camel-on-click="{{ onAddField }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Add field</button>
-          </div>
-          <sc-for list="{{ detail.customFields }}" as="cf" hint-placeholder-count="2">
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
-              <span style="width: 104px; flex: 0 0 104px; color: var(--pw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ cf.label }}">{{ cf.label }}</span>
-              <sc-if value="{{ cf.isSelect }}" hint-placeholder-val="{{ false }}">
-                <sc-raw-select ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
-                  <sc-for list="{{ cf.options }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
-                </sc-raw-select>
-              </sc-if>
-              <sc-if value="{{ cf.isMultiSelect }}" hint-placeholder-val="{{ false }}">
-                <button sc-camel-on-click="{{ cf.onMultiOpen }}" style="flex:1;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;background:var(--pw-surface);color:var(--pw-text2);padding:0 9px;font-size:11.5px;cursor:pointer;">{{ cf.multiLabel }}</button>
-              </sc-if>
-              <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
-                <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-click="{{ cf.onPick }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
-              </sc-if>
-              <sc-if value="{{ cf.isTimeline }}" hint-placeholder-val="{{ false }}">
-                <div style="display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0;">
-                  <input ref="{{ cf.fromRef }}" data-sync="{{ cf.fromValue }}" type="date" value="{{ cf.fromValue }}" sc-camel-on-click="{{ cf.onDatePick }}" sc-camel-on-change="{{ cf.onFrom }}" title="วันเริ่ม" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 7px; outline: 0; font-size: 11.5px; cursor: pointer;" style-focus="border-color: #4f46e5;">
-                  <span style="color: var(--pw-muted2); font-size: 11px;">→</span>
-                  <input ref="{{ cf.toRef }}" data-sync="{{ cf.toValue }}" type="date" value="{{ cf.toValue }}" sc-camel-on-click="{{ cf.onDatePick }}" sc-camel-on-change="{{ cf.onTo }}" title="วันสิ้นสุด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 7px; outline: 0; font-size: 11.5px; cursor: pointer;" style-focus="border-color: #4f46e5;">
-                </div>
-              </sc-if>
-              <button sc-camel-on-click="{{ cf.onRemove }}" title="Remove this field everywhere" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; flex: 0 0 auto;" style-hover="color: #dc2626;">×</button>
-            </div>
-          </sc-for>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Description</span>
-          <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="10" placeholder="รายละเอียดงาน · บรีฟ · ลิงก์อ้างอิง" style="min-height: 190px; border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; resize: vertical; outline: 0; background: var(--pw-surface); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5;"></textarea>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 7px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Subtasks</span>
-            <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ detail.subLabel }}</span>
-          </div>
-          <sc-for list="{{ detail.subtasks }}" as="st" hint-placeholder-count="3">
-            <div style="display: flex; align-items: center; gap: 8px; padding: 3px 0;">
-              <button sc-camel-on-click="{{ st.onToggle }}" style="{{ st.boxStyle }}">{{ st.mark }}</button>
-              <input ref="{{ st.titleRef }}" data-sync="{{ st.title }}" value="{{ st.title }}" sc-camel-on-change="{{ st.onTitle }}" style="{{ st.textStyle }}">
-              <button sc-camel-on-click="{{ st.onDelete }}" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px;" style-hover="color: #dc2626;">×</button>
-            </div>
-          </sc-for>
-          <div style="display: flex; gap: 6px;">
-            <input ref="{{ newSubtaskRef }}" data-sync="{{ newSubtask }}" value="{{ newSubtask }}" sc-camel-on-change="{{ onNewSubtask }}" sc-camel-on-key-down="{{ onSubtaskKey }}" placeholder="Add a subtask…" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
-            <button sc-camel-on-click="{{ onAddSubtask }}" style="background: var(--pw-surface3); border: 0; border-radius: 6px; padding: 5px 11px; font-size: 12px; cursor: pointer; color: var(--pw-text2);" style-hover="background: var(--pw-border);">Add</button>
-          </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 7px;">
-          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Attachments</span>
-          <div style="display: flex; flex-direction: column; gap: 7px;">
-            <sc-for list="{{ detail.attachments }}" as="att" hint-placeholder-count="2">
-              <div style="display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--pw-border); border-radius: 9px; padding: 8px 10px; background: var(--pw-surface2);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: var(--pw-muted2); font-size: 12px;">{{ att.icon }}</span>
-                <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; color: var(--pw-text2);" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
-                <sc-if value="{{ att.hasUrl }}" hint-placeholder-val="{{ false }}">
-                  <sc-raw-select ref="{{ att.displayRef }}" data-sync="{{ att.display }}" value="{{ att.display }}" sc-camel-on-change="{{ att.onDisplay }}" title="เลือกรูปแบบการแสดงลิงก์" style="border:1px solid var(--pw-border);border-radius:6px;padding:4px 24px 4px 8px;background:var(--pw-surface);font-size:11px;color:var(--pw-text2);cursor:pointer;">
-                    <sc-for list="{{ att.displayOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
-                  </sc-raw-select>
-                  <button sc-camel-on-click="{{ att.onCopy }}" title="คัดลอกลิงก์" style="background: transparent; border: 0; color: var(--pw-muted); cursor: pointer; font-size: 12px;" style-hover="color: #4f46e5;">⧉</button>
-                </sc-if>
-                <button sc-camel-on-click="{{ att.onDelete }}" title="ลบไฟล์แนบ" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="color: #dc2626;">×</button>
-                </div>
-                <sc-if value="{{ att.isUrlMode }}" hint-placeholder-val="{{ false }}">
-                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" title="เปิดลิงก์ในแท็บใหม่" style="font-size:12px;color:#4f46e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 2px;">{{ att.url }}</a>
-                </sc-if>
-                <sc-if value="{{ att.isBookmarkMode }}" hint-placeholder-val="{{ false }}">
-                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;border:1px solid var(--pw-border);border-radius:8px;padding:10px 11px;background:var(--pw-surface);color:var(--pw-text);text-decoration:none;">
-                    <span style="width:32px;height:32px;border-radius:8px;background:var(--pw-accent-soft);color:#4f46e5;display:grid;place-items:center;font-size:15px;flex:0 0 32px;">{{ att.icon }}</span>
-                    <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
-                      <span style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.name }}</span>
-                      <span style="font-size:11px;color:var(--pw-muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.domain }}</span>
-                    </span>
-                    <span style="color:var(--pw-muted);font-size:13px;">↗</span>
-                  </a>
-                </sc-if>
-                <sc-if value="{{ att.isPreviewMode }}" hint-placeholder-val="{{ false }}">
-                  <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#4f46e5;padding:2px;text-decoration:none;">
-                    <span>{{ att.provider }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.domain }}</span><span>↗</span>
-                  </a>
-                  <iframe src="{{ att.previewSrc }}" title="{{ att.name }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width:100%;height:380px;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-surface);"></iframe>
-                </sc-if>
-              </div>
-            </sc-for>
-            <button sc-camel-on-click="{{ onAddAttachment }}" style="border: 1px dashed var(--pw-faint); background: transparent; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Attach file</button>
-          </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 9px;">
-          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Activity</span>
-          <sc-for list="{{ detail.comments }}" as="cm" hint-placeholder-count="2">
-            <div style="display: flex; gap: 9px;">
-              <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>
-              <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
-                <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
-                <textarea ref="{{ cm.textRef }}" data-sync="{{ cm.text }}" value="{{ cm.text }}" sc-camel-on-change="{{ cm.onText }}" rows="2" style="border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; font-size: 12px; line-height: 1.5; color: var(--pw-text2); background: transparent; resize: vertical; outline: 0; width: 100%;" style-focus="border-color: #4f46e5; background: var(--pw-surface);"></textarea>
-              </div>
-              <button sc-camel-on-click="{{ cm.onDelete }}" title="Delete comment" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1; height: 16px;" style-hover="color: #dc2626;">×</button>
-            </div>
-          </sc-for>
-          <div style="display: flex; gap: 6px;">
-            <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="พิมพ์คอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 6px; padding: 6px 9px; font-size: 12px; outline: 0;" style-focus="border-color: #4f46e5;">
-            <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">Send</button>
-          </div>
-          <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-            <sc-for list="{{ detail.mentionChips }}" as="mc" hint-placeholder-count="3">
-              <button data-avatar sc-camel-on-click="{{ mc.onPick }}" title="แท็กคนนี้ในคอมเมนต์" style="{{ mc.style }}" style-hover="border-color: #4f46e5; color: #4f46e5;">
-                <span style="{{ mc.avatarStyle }}">{{ mc.initials }}</span>{{ mc.label }}
+        <sc-if value="{{ detailMenuOpen }}" hint-placeholder-val="{{ false }}">
+          <div sc-camel-on-click="{{ onCloseDetailMenu }}" style="position: fixed; inset: 0; z-index: 2;"></div>
+          <div style="{{ detail.menuStyle }}">
+            <sc-for list="{{ detail.menuItems }}" as="mi" hint-placeholder-count="6">
+              <button sc-camel-on-click="{{ mi.onPick }}" style="{{ mi.style }}" style-hover="background: var(--pw-surface3);">
+                <span style="width: 17px; flex: 0 0 17px; text-align: center;">{{ mi.icon }}</span>{{ mi.label }}
               </button>
             </sc-for>
           </div>
+        </sc-if>
+      </div>
+
+      <div style="{{ detail.bodyStyle }}">
+        <div style="{{ detail.gridStyle }}">
+
+          <!-- ═══════════ คอลัมน์ซ้าย: เนื้อหางาน ═══════════ -->
+          <div style="{{ detail.mainStyle }}">
+
+            <div style="display: flex; align-items: flex-start; gap: 9px;">
+              <button sc-camel-on-click="{{ detail.onToggleDone }}" title="ทำเครื่องหมายว่าเสร็จ / ยังไม่เสร็จ" style="{{ detail.doneBtnStyle }}">{{ detail.doneMark }}</button>
+              <input ref="{{ detail.nameRef }}" data-sync="{{ detail.name }}" value="{{ detail.name }}" sc-camel-on-change="{{ detail.onName }}" style="{{ detail.titleStyle }}" style-focus="background: var(--pw-bg); box-shadow: 0 0 0 1.5px #4f46e5;">
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <sc-for list="{{ detail.quickActions }}" as="qa" hint-placeholder-count="4">
+                <button sc-camel-on-click="{{ qa.onPick }}" title="{{ qa.title }}" style="{{ qa.style }}" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ qa.icon }} {{ qa.label }}</button>
+              </sc-for>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+              <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+                <span style="{{ detail.miniLabel }}">Members</span>
+                <button sc-camel-on-click="{{ detail.onAssigneeOpen }}" title="เลือกผู้รับผิดชอบได้หลายคน" style="{{ detail.memberBtnStyle }}">
+                  <sc-for list="{{ detail.assigneeAvatars }}" as="av" hint-placeholder-count="2"><span style="{{ av.style }}">{{ av.initials }}</span></sc-for>
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ detail.assigneeLabel }}</span>
+                </button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="{{ detail.miniLabel }}">Due date</span>
+                <div style="display: flex; align-items: center; gap: 7px;">
+                  <input ref="{{ detail.dueRef }}" data-sync="{{ detail.due }}" type="date" value="{{ detail.due }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onDue }}" style="{{ detail.dueInputStyle }}">
+                  <sc-if value="{{ detail.overdue }}" hint-placeholder-val="{{ false }}">
+                    <span style="{{ detail.overdueChip }}">Overdue</span>
+                  </sc-if>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span style="{{ detail.miniLabel }}">Priority</span>
+                <sc-raw-select ref="{{ detail.priorityRef }}" data-sync="{{ detail.priority }}" value="{{ detail.priority }}" sc-camel-on-change="{{ detail.onPriority }}" style="{{ detail.prioritySelect }}">
+                  <sc-for list="{{ priorityNames }}" as="o" hint-placeholder-count="4"><option value="{{ o }}">{{ o }}</option></sc-for>
+                </sc-raw-select>
+              </div>
+            </div>
+
+            <!-- ───── Details: ช่องข้อมูลทั้งหมด (พับได้) ───── -->
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <button sc-camel-on-click="{{ onToggleDetailFields }}" style="{{ detail.sectionBtnStyle }}">
+                <span style="{{ detail.sectionIcon }}">☰</span>
+                <span style="{{ detail.sectionTitle }}">Details</span>
+                <span style="{{ detail.caretStyle }}">{{ detail.fieldsCaret }}</span>
+              </button>
+              <sc-if value="{{ detailFieldsOpen }}" hint-placeholder-val="{{ true }}">
+                <div style="{{ detail.fieldGridStyle }}">
+                  <span style="color: var(--pw-label);">List</span>
+                  <sc-raw-select ref="{{ detail.listRef }}" data-sync="{{ detail.list }}" value="{{ detail.list }}" sc-camel-on-change="{{ detail.onList }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
+                    <sc-for list="{{ allLists }}" as="o" hint-placeholder-count="6"><option value="{{ o }}">{{ o }}</option></sc-for>
+                  </sc-raw-select>
+                  <span style="color: var(--pw-label);">Status</span>
+                  <sc-raw-select ref="{{ detail.statusRef }}" data-sync="{{ detail.status }}" value="{{ detail.status }}" sc-camel-on-change="{{ detail.onStatus }}" style="{{ detail.statusSelect }}">
+                    <sc-for list="{{ statusNames }}" as="o" hint-placeholder-count="5"><option value="{{ o }}">{{ o }}</option></sc-for>
+                  </sc-raw-select>
+                  <span style="color: var(--pw-label);">Start date</span>
+                  <input ref="{{ detail.startRef }}" data-sync="{{ detail.start }}" type="date" value="{{ detail.start }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onStart }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface);">
+                  <span style="color: var(--pw-label);">Channel</span>
+                  <button sc-camel-on-click="{{ detail.onChannelOpen }}" title="เลือก Channel ได้หลายค่า" style="height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;padding:0 9px;background:var(--pw-surface);color:var(--pw-text2);cursor:pointer;">{{ detail.channelLabel }}</button>
+                  <span style="color: var(--pw-label);">Platform</span>
+                  <button sc-camel-on-click="{{ detail.onPlatformOpen }}" title="เลือก Platform ได้หลายค่า" style="height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;padding:0 9px;background:var(--pw-surface);color:var(--pw-text2);cursor:pointer;">{{ detail.platformLabel }}</button>
+                  <span style="color: var(--pw-label);">Cost (฿)</span>
+                  <input ref="{{ detail.costRef }}" data-sync="{{ detail.cost }}" value="{{ detail.cost }}" sc-camel-on-change="{{ detail.onCost }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
+                  <span style="color: var(--pw-label);">Quantity</span>
+                  <input ref="{{ detail.qtyRef }}" data-sync="{{ detail.qty }}" value="{{ detail.qty }}" sc-camel-on-change="{{ detail.onQty }}" style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; font-family: 'IBM Plex Mono', monospace;">
+                  <span style="color: var(--pw-label);">Labels</span>
+                  <input ref="{{ detail.tagRef }}" data-sync="{{ detail.tagText }}" value="{{ detail.tagText }}" sc-camel-on-change="{{ detail.onTags }}" placeholder="คั่นด้วยเครื่องหมาย ," style="border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">Custom Fields</span>
+                    <button sc-camel-on-click="{{ onAddField }}" style="margin-left: auto; background: transparent; border: 1px dashed var(--pw-faint); border-radius: 6px; padding: 3px 9px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Add field</button>
+                  </div>
+                  <sc-for list="{{ detail.customFields }}" as="cf" hint-placeholder-count="2">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                      <span style="width: 104px; flex: 0 0 104px; color: var(--pw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ cf.label }}">{{ cf.label }}</span>
+                      <sc-if value="{{ cf.isSelect }}" hint-placeholder-val="{{ false }}">
+                        <sc-raw-select ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" value="{{ cf.value }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; background: var(--pw-surface); cursor: pointer;">
+                          <sc-for list="{{ cf.options }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
+                        </sc-raw-select>
+                      </sc-if>
+                      <sc-if value="{{ cf.isMultiSelect }}" hint-placeholder-val="{{ false }}">
+                        <button sc-camel-on-click="{{ cf.onMultiOpen }}" style="flex:1;min-width:0;height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:1px solid var(--pw-border);border-radius:6px;background:var(--pw-surface);color:var(--pw-text2);padding:0 9px;font-size:11.5px;cursor:pointer;">{{ cf.multiLabel }}</button>
+                      </sc-if>
+                      <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
+                        <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-click="{{ cf.onPick }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
+                      </sc-if>
+                      <sc-if value="{{ cf.isTimeline }}" hint-placeholder-val="{{ false }}">
+                        <div style="display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0;">
+                          <input ref="{{ cf.fromRef }}" data-sync="{{ cf.fromValue }}" type="date" value="{{ cf.fromValue }}" sc-camel-on-click="{{ cf.onDatePick }}" sc-camel-on-change="{{ cf.onFrom }}" title="วันเริ่ม" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 7px; outline: 0; font-size: 11.5px; cursor: pointer;" style-focus="border-color: #4f46e5;">
+                          <span style="color: var(--pw-muted2); font-size: 11px;">→</span>
+                          <input ref="{{ cf.toRef }}" data-sync="{{ cf.toValue }}" type="date" value="{{ cf.toValue }}" sc-camel-on-click="{{ cf.onDatePick }}" sc-camel-on-change="{{ cf.onTo }}" title="วันสิ้นสุด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 7px; outline: 0; font-size: 11.5px; cursor: pointer;" style-focus="border-color: #4f46e5;">
+                        </div>
+                      </sc-if>
+                      <button sc-camel-on-click="{{ cf.onRemove }}" title="Remove this field everywhere" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; flex: 0 0 auto;" style-hover="color: #dc2626;">×</button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+
+            <!-- ───── Description ───── -->
+            <div style="display: flex; flex-direction: column; gap: 7px;">
+              <div style="{{ detail.sectionHeadStyle }}">
+                <span style="{{ detail.sectionIcon }}">▤</span>
+                <span style="{{ detail.sectionTitle }}">Description</span>
+              </div>
+              <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" rows="8" placeholder="รายละเอียดงาน · บรีฟ · ลิงก์อ้างอิง" style="min-height: 150px; border: 1px solid var(--pw-border); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; resize: vertical; outline: 0; background: var(--pw-surface2); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5; background: var(--pw-surface);"></textarea>
+            </div>
+
+            <!-- ───── Checklist (subtask) ───── -->
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <div style="{{ detail.sectionHeadStyle }}">
+                <span style="{{ detail.sectionIcon }}">☑</span>
+                <span style="{{ detail.sectionTitle }}">Checklist</span>
+                <span style="{{ detail.subCountStyle }}">{{ detail.subLabel }} · {{ detail.subPctLabel }}</span>
+              </div>
+              <sc-if value="{{ detail.hasSubs }}" hint-placeholder-val="{{ true }}">
+                <div style="{{ detail.barTrackStyle }}"><div style="{{ detail.barFillStyle }}"></div></div>
+              </sc-if>
+              <sc-for list="{{ detail.subtasks }}" as="st" hint-placeholder-count="3">
+                <div ref="{{ st.rowRef }}" style="{{ st.rowStyle }}">
+                  <button sc-camel-on-click="{{ st.onToggle }}" style="{{ st.boxStyle }}">{{ st.mark }}</button>
+                  <input ref="{{ st.titleRef }}" data-sync="{{ st.title }}" value="{{ st.title }}" sc-camel-on-change="{{ st.onTitle }}" style="{{ st.textStyle }}">
+                  <button sc-camel-on-click="{{ st.onCopyLink }}" title="คัดลอกลิงก์ของรายการนี้" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 12px; line-height: 1;" style-hover="color: #4f46e5;">⧉</button>
+                  <button sc-camel-on-click="{{ st.onDelete }}" title="ลบรายการนี้" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="color: #dc2626;">×</button>
+                </div>
+              </sc-for>
+              <div style="display: flex; gap: 6px;">
+                <input ref="{{ newSubtaskRef }}" data-sync="{{ newSubtask }}" value="{{ newSubtask }}" sc-camel-on-change="{{ onNewSubtask }}" sc-camel-on-key-down="{{ onSubtaskKey }}" placeholder="เพิ่มรายการย่อย…" style="flex: 1; border: 1px solid var(--pw-border); border-radius: 7px; padding: 6px 9px; font-size: 12px; outline: 0; background: var(--pw-surface);" style-focus="border-color: #4f46e5;">
+                <button sc-camel-on-click="{{ onAddSubtask }}" style="background: var(--pw-surface3); border: 0; border-radius: 7px; padding: 6px 13px; font-size: 12px; cursor: pointer; color: var(--pw-text2); font-weight: 600;" style-hover="background: var(--pw-border);">Add</button>
+              </div>
+            </div>
+
+            <!-- ───── Attachments ───── -->
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <div style="{{ detail.sectionHeadStyle }}">
+                <span style="{{ detail.sectionIcon }}">⛓</span>
+                <span style="{{ detail.sectionTitle }}">Attachments</span>
+                <button sc-camel-on-click="{{ onAddAttachment }}" style="margin-left: auto; border: 1px dashed var(--pw-faint); background: transparent; border-radius: 7px; padding: 4px 10px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ Add</button>
+              </div>
+              <sc-for list="{{ detail.attachments }}" as="att" hint-placeholder-count="2">
+                <div style="display: flex; flex-direction: column; gap: 7px; border: 1px solid var(--pw-border); border-radius: 10px; padding: 9px 10px; background: var(--pw-surface2);">
+                  <div style="display: flex; align-items: center; gap: 9px;">
+                    <sc-if value="{{ att.hasThumb }}" hint-placeholder-val="{{ false }}">
+                      <img src="{{ att.thumb }}" alt="" style="{{ att.thumbStyle }}">
+                    </sc-if>
+                    <sc-if value="{{ att.noThumb }}" hint-placeholder-val="{{ true }}">
+                      <span style="width: 34px; height: 34px; flex: 0 0 34px; border-radius: 8px; background: var(--pw-surface3); color: var(--pw-muted2); display: grid; place-items: center; font-size: 14px;">{{ att.icon }}</span>
+                    </sc-if>
+                    <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
+                      <input ref="{{ att.nameRef }}" data-sync="{{ att.name }}" value="{{ att.name }}" sc-camel-on-change="{{ att.onName }}" style="width: 100%; border: 0; outline: 0; background: transparent; font-size: 12.5px; font-weight: 600; color: var(--pw-text);" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px;">
+                      <sc-if value="{{ att.hasAdded }}" hint-placeholder-val="{{ false }}">
+                        <span style="font-size: 10.5px; color: var(--pw-muted2);">{{ att.added }}</span>
+                      </sc-if>
+                    </span>
+                    <sc-if value="{{ att.hasThumb }}" hint-placeholder-val="{{ false }}">
+                      <button sc-camel-on-click="{{ att.onSetCover }}" title="ใช้รูปนี้เป็นหน้าปกการ์ด" style="{{ att.coverBtnStyle }}" style-hover="color: #4f46e5;">▨</button>
+                    </sc-if>
+                    <sc-if value="{{ att.hasUrl }}" hint-placeholder-val="{{ false }}">
+                      <sc-raw-select ref="{{ att.displayRef }}" data-sync="{{ att.display }}" value="{{ att.display }}" sc-camel-on-change="{{ att.onDisplay }}" title="เลือกรูปแบบการแสดงลิงก์" style="border:1px solid var(--pw-border);border-radius:6px;padding:4px 22px 4px 8px;background:var(--pw-surface);font-size:11px;color:var(--pw-text2);cursor:pointer;">
+                        <sc-for list="{{ att.displayOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for>
+                      </sc-raw-select>
+                      <button sc-camel-on-click="{{ att.onCopy }}" title="คัดลอกลิงก์" style="background: transparent; border: 0; color: var(--pw-muted); cursor: pointer; font-size: 12px;" style-hover="color: #4f46e5;">⧉</button>
+                    </sc-if>
+                    <button sc-camel-on-click="{{ att.onDelete }}" title="ลบไฟล์แนบ" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1;" style-hover="color: #dc2626;">×</button>
+                  </div>
+                  <sc-if value="{{ att.isUrlMode }}" hint-placeholder-val="{{ false }}">
+                    <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" title="เปิดลิงก์ในแท็บใหม่" style="font-size:12px;color:#4f46e5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 2px;">{{ att.url }}</a>
+                  </sc-if>
+                  <sc-if value="{{ att.isBookmarkMode }}" hint-placeholder-val="{{ false }}">
+                    <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;border:1px solid var(--pw-border);border-radius:8px;padding:9px 11px;background:var(--pw-surface);color:var(--pw-text);text-decoration:none;">
+                      <span style="width:30px;height:30px;border-radius:8px;background:var(--pw-accent-soft);color:#4f46e5;display:grid;place-items:center;font-size:14px;flex:0 0 30px;">{{ att.icon }}</span>
+                      <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
+                        <span style="font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.name }}</span>
+                        <span style="font-size:11px;color:var(--pw-muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.domain }}</span>
+                      </span>
+                      <span style="color:var(--pw-muted);font-size:13px;">↗</span>
+                    </a>
+                  </sc-if>
+                  <sc-if value="{{ att.isPreviewMode }}" hint-placeholder-val="{{ false }}">
+                    <a href="{{ att.url }}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#4f46e5;padding:2px;text-decoration:none;">
+                      <span>{{ att.provider }}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ att.domain }}</span><span>↗</span>
+                    </a>
+                    <iframe src="{{ att.previewSrc }}" title="{{ att.name }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width:100%;height:340px;border:1px solid var(--pw-border);border-radius:8px;background:var(--pw-surface);"></iframe>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- ═══════════ คอลัมน์ขวา: Comments and activity ═══════════ -->
+          <div style="{{ detail.sideStyle }}">
+            <div style="{{ detail.sectionHeadStyle }}">
+              <span style="{{ detail.sectionIcon }}">❝</span>
+              <span style="{{ detail.sectionTitle }}">Comments and activity</span>
+            </div>
+
+            <div style="display: flex; gap: 6px;">
+              <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="เขียนคอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; outline: 0; background: var(--pw-surface);" style-focus="border-color: #4f46e5;">
+              <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 7px; padding: 7px 13px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">ส่ง</button>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+              <sc-for list="{{ detail.mentionChips }}" as="mc" hint-placeholder-count="3">
+                <button data-avatar sc-camel-on-click="{{ mc.onPick }}" title="แท็กคนนี้ในคอมเมนต์" style="{{ mc.style }}" style-hover="border-color: #4f46e5; color: #4f46e5;">
+                  <span style="{{ mc.avatarStyle }}">{{ mc.initials }}</span>{{ mc.label }}
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="height: 1px; background: var(--pw-border); margin: 2px 0;"></div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ detail.comments }}" as="cm" hint-placeholder-count="3">
+                <div style="display: flex; gap: 9px;">
+                  <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>
+                  <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
+                    <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
+                    <textarea ref="{{ cm.textRef }}" data-sync="{{ cm.text }}" value="{{ cm.text }}" sc-camel-on-change="{{ cm.onText }}" rows="2" style="border: 1px solid var(--pw-border); border-radius: 8px; padding: 7px 9px; font-size: 12px; line-height: 1.55; color: var(--pw-text2); background: var(--pw-surface); resize: vertical; outline: 0; width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
+                  </div>
+                  <button sc-camel-on-click="{{ cm.onDelete }}" title="ลบคอมเมนต์" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1; height: 16px;" style-hover="color: #dc2626;">×</button>
+                </div>
+              </sc-for>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style="border-top: 1px solid var(--pw-border); padding: 9px 14px; display: flex; align-items: center; gap: 8px;">
-        <button sc-camel-on-click="{{ detail.onDelete }}" style="background: transparent; border: 1px solid var(--pw-border); color: #b91c1c; border-radius: 6px; padding: 6px 11px; font-size: 12px; cursor: pointer;" style-hover="border-color: #dc2626; background: var(--pw-danger-soft);">Delete task</button>
-        <span style="margin-left: auto; font-size: 11px; color: var(--pw-muted2);">Synced to workspace</span>
+      <div style="border-top: 1px solid var(--pw-border); padding: 9px 14px; display: flex; align-items: center; gap: 8px; background: var(--pw-surface);">
+        <button sc-camel-on-click="{{ detail.onDelete }}" style="background: transparent; border: 1px solid var(--pw-border); color: #b91c1c; border-radius: 7px; padding: 6px 11px; font-size: 12px; cursor: pointer;" style-hover="border-color: #dc2626; background: var(--pw-danger-soft);">ลบงานนี้</button>
+        <button sc-camel-on-click="{{ detail.onCopyLink }}" style="background: transparent; border: 1px solid var(--pw-border); color: var(--pw-text2); border-radius: 7px; padding: 6px 11px; font-size: 12px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">⧉ คัดลอกลิงก์</button>
+        <span style="margin-left: auto; font-size: 11px; color: var(--pw-muted2);">{{ detail.linkHint }}</span>
       </div>
     </aside>
   </sc-if>
@@ -5437,6 +5535,9 @@ class Component extends DCLogic {
       open: { Marketing: true, Product: true, Operations: true },
       query: '',
       selected: null,
+      subFocus: null,        // { id, i } — subtask ที่ลิงก์ชี้มา ให้ไฮไลต์ในการ์ด
+      detailMenu: false,     // เมนู ⋯ มุมขวาบนของการ์ด
+      detailFields: true,    // กาง/พับกล่อง Details ในการ์ด
       monthOffset: 0,
       sync: 'saved',
       composerCol: null,
@@ -5883,9 +5984,181 @@ class Component extends DCLogic {
   }
 
   // ---- helpers ----
+  /* ============================================================
+     URL routing — ทุกการกด list / space / view / task / subtask
+     เปลี่ยน URL ให้หมด จะได้ copy ไปแชร์ได้เลย
+
+     ใช้ hash (#/...) เพราะแอปเป็นไฟล์เดียว + มี Service Worker
+     ถ้าใช้ path จริงต้องตั้ง rewrite ที่ host และแก้ SW ด้วย
+
+     รูปแบบ:
+       #/all/board                         ดูทุกงาน มุมมอง board
+       #/list/Q3%20Campaigns/table         list เดียว
+       #/space/Marketing/calendar          ทั้ง space
+       #/view/V1abc                        มุมมองที่บันทึกไว้
+       #/docs · #/planner · #/links · #/trash · #/archive
+       ...ต่อท้ายด้วย /task/T12345 และ /sub/2 ได้ทุกแบบ
+     ============================================================ */
+  static get ROUTE_PAGES() {
+    return { __docs: 'docs', __planner: 'planner', __links: 'links', __trash: 'trash', __archive: 'archive' };
+  }
+  routeViews() { return ['table', 'board', 'calendar', 'timeline', 'gantt', 'dashboard']; }
+
+  buildRoute(s) {
+    const st = s || this.state;
+    const enc = encodeURIComponent;
+    const pages = Component.ROUTE_PAGES;
+    const segs = [];
+    const list = String(st.list || '');
+    if (st.customView) {
+      segs.push('view', enc(st.customView));
+    } else if (pages[list]) {
+      segs.push(pages[list]);
+    } else if (list === '__all') {
+      segs.push('all', st.view || 'table');
+    } else if (list.indexOf('__space:') === 0) {
+      segs.push('space', enc(list.slice(8)), st.view || 'table');
+    } else {
+      segs.push('list', enc(list), st.view || 'table');
+    }
+    if (st.selected) {
+      segs.push('task', enc(st.selected));
+      const sf = st.subFocus;
+      if (sf && sf.id === st.selected && sf.i >= 0) segs.push('sub', String(sf.i + 1));
+    }
+    return '#/' + segs.join('/');
+  }
+
+  // แปลง hash กลับเป็น state — คืน null ถ้า hash ไม่ใช่ของเรา (เช่น token ของ Supabase)
+  parseRoute(raw) {
+    const h = String(raw || '');
+    if (h.indexOf('#/') !== 0) return null;
+    const dec = function (x) { try { return decodeURIComponent(x); } catch (e) { return x; } };
+    const parts = h.slice(2).split('/').filter(function (x) { return x !== ''; });
+    if (!parts.length) return null;
+    const pages = Component.ROUTE_PAGES;
+    const byToken = {};
+    Object.keys(pages).forEach(function (k) { byToken[pages[k]] = k; });
+
+    const patch = {};
+    let i = 0;
+    const head = parts[0];
+    if (head === 'view') {
+      const vid = dec(parts[1] || '');
+      if (!vid) return null;
+      const v = this.savedViews().filter(function (x) { return x.id === vid; })[0];
+      patch.customView = vid;
+      if (v) {
+        patch.view = v.type || 'table';
+        if (v.list) patch.list = v.list;
+        if (v.filters) patch.filters = JSON.parse(JSON.stringify(v.filters));
+      } else {
+        this._routeView = vid;    // config ยังมาไม่ถึง เดี๋ยวเปิดให้ตอนโหลดเสร็จ
+      }
+      i = 2;
+    } else if (byToken[head]) {
+      patch.list = byToken[head];
+      patch.customView = null;
+      i = 1;
+    } else if (head === 'all') {
+      patch.list = '__all';
+      patch.customView = null;
+      i = 1;
+    } else if (head === 'space') {
+      patch.list = '__space:' + dec(parts[1] || '');
+      patch.customView = null;
+      i = 2;
+    } else if (head === 'list') {
+      patch.list = dec(parts[1] || '');
+      patch.customView = null;
+      i = 2;
+    } else {
+      return null;
+    }
+
+    if (parts[i] && this.routeViews().indexOf(parts[i]) >= 0) { patch.view = parts[i]; i++; }
+    if (parts[i] === 'task' && parts[i + 1]) {
+      patch.selected = dec(parts[i + 1]);
+      i += 2;
+      patch.subFocus = null;
+      if (parts[i] === 'sub' && parts[i + 1]) {
+        const n = parseInt(parts[i + 1], 10);
+        if (n > 0) patch.subFocus = { id: patch.selected, i: n - 1 };
+      }
+    } else {
+      patch.selected = null;
+      patch.subFocus = null;
+    }
+    return patch;
+  }
+
+  // เขียน URL ใหม่เมื่อ state เปลี่ยน (เรียกจาก componentDidUpdate)
+  syncRoute() {
+    const want = this.buildRoute(this.state);
+    if (want === this._route) return;
+    const prev = this._route;
+    this._route = want;
+    try {
+      // ครั้งแรกแทนที่ของเดิม จากนั้นเพิ่มรายการใหม่ทุกครั้ง — ปุ่ม back จะย้อนหน้า/ปิดการ์ดได้
+      if (prev) history.pushState(null, '', want);
+      else history.replaceState(null, '', want);
+    } catch (e) {}
+  }
+
+  // อ่าน hash ตอนโหลด / ตอนกดปุ่ม back — แล้วพาไปหน้านั้น
+  applyRoute(raw) {
+    const patch = this.parseRoute(raw);
+    this._route = this.buildRoute(Object.assign({}, this.state, patch || {}));
+    if (!patch) return false;
+    const self = this;
+    this._routeTask = patch.selected || null;   // งานอาจยังโหลดไม่เสร็จ ค่อยจัดหน้าให้ทีหลัง
+    if (patch.subFocus) this._scrollSub = true;   // ลิงก์ชี้ subtask → เลื่อนจอไปหาให้
+    this.setState(patch, function () { self.persist(); });
+    return true;
+  }
+
+  // ลิงก์เต็มของงาน (ไว้ copy ไปแชร์)
+  taskLink(id, subIndex) {
+    const base = location.origin + location.pathname + location.search;
+    const st = Object.assign({}, this.state, {
+      selected: id || this.state.selected,
+      subFocus: (typeof subIndex === 'number' && subIndex >= 0)
+        ? { id: id || this.state.selected, i: subIndex } : null
+    });
+    return base + this.buildRoute(st);
+  }
+
+  // ลิงก์ของหน้าที่เปิดอยู่ (ไม่รวมการ์ด)
+  boardLink() {
+    const base = location.origin + location.pathname + location.search;
+    return base + this.buildRoute(Object.assign({}, this.state, { selected: null, subFocus: null }));
+  }
+
+  shareLink(url, title) {
+    const self = this;
+    if (navigator.share) {
+      navigator.share({ title: title || 'Pawdy Workspace', url: url }).catch(function () {});
+      return;
+    }
+    this.copyLink(url);
+  }
+
   componentDidMount() {
     this.syncDom();
     const self = this;
+
+    // ---- routing: อ่าน URL ตอนเข้า แล้วเฝ้าปุ่ม back/forward ----
+    if (!this.applyRoute(location.hash)) {
+      this._route = this.buildRoute(this.state);
+      try { history.replaceState(null, '', this._route); } catch (e) {}
+    }
+    this._onRoute = function () {
+      if (location.hash === self._route) return;
+      self.applyRoute(location.hash);
+    };
+    window.addEventListener('popstate', this._onRoute);
+    window.addEventListener('hashchange', this._onRoute);
+
     window.PawdySync.onData(function (snap) {
       const incoming = snap.tasks || [];
       const before = {};
@@ -5913,6 +6186,25 @@ class Component extends DCLogic {
         self._flashTimer = setTimeout(function () { self.setState({ flash: null }); }, 1500);
       }
       if (!self._undoing) self._prevSnap = self.snapOf(self.state);   // เส้นฐาน undo ขยับตามข้อมูลล่าสุด
+
+      // มาจากลิงก์มุมมองที่บันทึกไว้ — config เพิ่งมาถึง ค่อยเปิดมุมมองนั้นให้ตอนนี้
+      if (self._routeView) {
+        const vid = self._routeView;
+        if (self.savedViews().filter(function (x) { return x.id === vid; })[0]) {
+          self._routeView = null;
+          self.openSavedView(vid);
+        }
+      }
+
+      // มาจากลิงก์ที่แชร์: งานเพิ่งโหลดเสร็จ ถ้ามันอยู่ใน Archive/ถังขยะ ต้องสลับหน้าให้ ไม่งั้นเปิดไม่เจอ
+      if (self._routeTask) {
+        const rt = incoming.filter(function (t) { return t.id === self._routeTask; })[0];
+        self._routeTask = null;
+        if (rt) {
+          const want = rt.deleted ? '__trash' : (rt.archived ? '__archive' : null);
+          if (want && self.state.list !== want) self.setState({ list: want });
+        }
+      }
     });
     if (window.PawdySync.onStatus) window.PawdySync.onStatus(function (st) { self.setState({ sync: st }); });
     setTimeout(function () { try { self.autoPurge(); } catch (e) {} }, 4000);   // ล้างของในถังที่เกิน 30 วัน
@@ -5932,6 +6224,8 @@ class Component extends DCLogic {
         if (self.state.listColor) { self.closeListColor(); return; }
         if (self.state.ctxMenu) { self.closeCtx(); return; }
         if (self.state.optEditor) { self.closeOptEditor(); return; }
+        if (self.state.detailMenu) { self.setState({ detailMenu: false }); return; }
+        if (self.state.selected) { self.setState({ selected: null, subFocus: null, detailMenu: false }); return; }
       }
       const k = (e.key || '').toLowerCase();
       if (k !== 'z' || !(e.metaKey || e.ctrlKey)) return;
@@ -6352,6 +6646,51 @@ class Component extends DCLogic {
       const e = Object.assign({}, s.expanded || {});
       if (e[id]) delete e[id]; else e[id] = true;
       return { expanded: e };
+    });
+  }
+  // เปิดการ์ดงาน — ล้างไฮไลต์ subtask เดิมทิ้ง
+  openTask(id) {
+    this.setState({
+      selected: id, subFocus: null, detailMenu: false, detailFields: true,
+      newComment: '', newSubtask: '',
+      commentComposer: null, commentComposerText: '', commentComposerPos: null
+    });
+  }
+  // เปิดการ์ดงาน แล้วไฮไลต์ subtask ลำดับ i (ใช้ตอนกด subtask หรือเปิดจากลิงก์)
+  openSubtask(id, i) {
+    this._scrollSub = true;
+    this.setState({
+      selected: id, subFocus: { id: id, i: i }, detailMenu: false, detailFields: true,
+      newComment: '', newSubtask: '',
+      commentComposer: null, commentComposerText: '', commentComposerPos: null
+    });
+  }
+  // แนบลิงก์/ไฟล์เข้างาน — ใช้ทั้งปุ่ม + Attach file และปุ่มลัดบนการ์ด
+  promptAttachment(taskId) {
+    const self = this;
+    let url = (window.prompt('วางลิงก์ (Google Drive / YouTube / เว็บไซต์อื่น)\nเว้นว่างไว้ถ้าจะพิมพ์แค่ชื่อไฟล์') || '').trim();
+    if (/^www\./i.test(url)) url = 'https://' + url;
+    if (url && !/^https?:\/\//i.test(url)) {
+      window.alert('ลิงก์ต้องขึ้นต้นด้วย https:// หรือ http://');
+      return;
+    }
+    let name = url;
+    let display = '';
+    if (url) {
+      let domain = '';
+      try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
+      name = /youtu(?:\.be|be\.com)/i.test(url) ? 'YouTube' : (/drive\.google\.com/i.test(url) ? 'Google Drive' : (/docs\.google\.com/i.test(url) ? 'Google Workspace' : (domain || url)));
+      const picked = (window.prompt('ต้องการแสดงลิงก์แบบไหน?\n\nURL = ข้อความลิงก์ที่คลิกได้\nBookmark = การ์ดชื่อเว็บ\nPreview = แสดงเนื้อหาในงาน', 'Bookmark') || 'Bookmark').trim().toLowerCase();
+      display = picked === 'url' || picked === '1' ? 'URL' : (picked === 'preview' || picked === '3' ? 'Preview' : 'Bookmark');
+    }
+    if (!url) {
+      name = (window.prompt('ชื่อไฟล์') || '').trim();
+      if (!name) return;
+    }
+    this.mark('เพิ่มไฟล์แนบ');
+    this.patchTask(taskId, function (t) {
+      t.attachments = (t.attachments || []).concat([{ name: name, url: url || '', display: display, at: Date.now() }]);
+      return t;
     });
   }
   openSubComposer(id) {
@@ -7155,7 +7494,15 @@ class Component extends DCLogic {
   }
 
   me() { return window.PawdySync.me(); }
-  componentDidUpdate() { this.syncDom(); }
+  componentDidUpdate() { this.syncDom(); this.syncRoute(); }
+  componentWillUnmount() {
+    if (this._onRoute) {
+      window.removeEventListener('popstate', this._onRoute);
+      window.removeEventListener('hashchange', this._onRoute);
+    }
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+    if (this._onKey) document.removeEventListener('keydown', this._onKey);
+  }
 
   // Push each control's intended value (data-sync) onto the live DOM node
   syncDom() {
@@ -7871,6 +8218,8 @@ class Component extends DCLogic {
       list: scope,
       view: this.state.view === 'dashboard' ? 'table' : this.state.view,
       selected: t.id,
+      subFocus: null,
+      detailMenu: false,
       notifOpen: false,
       plannerAdd: null,
       plannerEdit: null,
@@ -8295,11 +8644,11 @@ class Component extends DCLogic {
       checkStyle: 'width:14px;height:14px;border-radius:50%;border:1.5px solid ' + sm.c + ';background:' + (this.isDone(t.status) ? sm.c : 'transparent') + ';cursor:pointer;padding:0;',
       statusStyle: 'font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:' + this.chipBg(sm) + ';color:' + sm.c + ';border:0;outline:0;cursor:pointer;max-width:100%;',
       priorityStyle: 'font-size:11.5px;font-weight:500;color:' + pm.c + ';background:transparent;border:0;outline:0;cursor:pointer;width:92px;',
-      onOpen: function () { self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '', commentComposerPos: null }); },
+      onOpen: function () { self.openTask(t.id); },
       onOpenFromNameCell: function (e) {
         const target = e && e.target;
         if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
-        self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '', commentComposerPos: null });
+        self.openTask(t.id);
       },
       onContext: function (e) { self.openCtx(e, t.id); },
       expanded: !!(self.state.expanded && self.state.expanded[t.id]),
@@ -8326,10 +8675,11 @@ class Component extends DCLogic {
             if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); }
           },
           onRenameBlur: function () {},
+          // กด subtask = เปิดการ์ดของงานแม่ แล้วไฮไลต์บรรทัดนี้ (URL ก็เปลี่ยนตาม)
           onOpenFromNameCell: function (e) {
             const target = e && e.target;
             if (target && target.closest && target.closest('input,button,select,textarea,a')) return;
-            self.setState({ selected: t.id, newComment: '', newSubtask: '', commentComposer: null, commentComposerText: '', commentComposerPos: null });
+            self.openSubtask(t.id, i);
           },
           onRemove: function () { self.removeSub(t.id, i); }
         };
@@ -9029,9 +9379,170 @@ class Component extends DCLogic {
     if (sel) {
       const sm = this.statusMeta(sel.status);
       const pm = this.prioMeta(sel.priority);
-      const doneSubs = sel.subtasks.filter(function (x) { return x.done; }).length;
+      const subsAll = sel.subtasks || [];
+      const doneSubs = subsAll.filter(function (x) { return x.done; }).length;
+      const subPct = subsAll.length ? Math.round(doneSubs * 100 / subsAll.length) : 0;
+      const dmSel = this.dueMeta(sel.due, sel.status);
+      const attsSel = sel.attachments || [];
+      const mob = this.isMobile();
+      const subFocusI = (s.subFocus && s.subFocus.id === sel.id) ? s.subFocus.i : -1;
+      const doneKeySel = this.doneKey();
+      const selDone = this.isDone(sel.status);
+
+      // ---- หารูปสำหรับทำหน้าปกการ์ด (แบบ Trello) ----
+      const IMG_RE = /\.(png|jpe?g|gif|webp|avif|svg|bmp)(\?[^#]*)?$/i;
+      const thumbOf = function (a) {
+        let u = a.url || (/^https?:\/\//i.test(a.name || '') ? a.name : '');
+        if (!/^https?:\/\//i.test(u)) return '';
+        if (IMG_RE.test(u)) return u;
+        const dr = /drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/i.exec(u);
+        if (dr) return 'https://drive.google.com/thumbnail?id=' + dr[1] + '&sz=w1000';
+        const yv = /(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i.exec(u);
+        if (yv) return 'https://img.youtube.com/vi/' + yv[1] + '/hqdefault.jpg';
+        return '';
+      };
+      let coverUrl = '';
+      if (sel.cover === '__none') coverUrl = '';
+      else if (sel.cover) coverUrl = sel.cover;
+      else {
+        for (let ci = 0; ci < attsSel.length; ci++) {
+          const cu = thumbOf(attsSel[ci]);
+          if (cu) { coverUrl = cu; break; }
+        }
+      }
+
+      // ---- สไตล์ที่ใช้ซ้ำในการ์ด ----
+      const ICON_BTN = 'width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;border:0;border-radius:8px;' +
+        'background:rgba(255,255,255,0.86);color:#1f2430;cursor:pointer;font-size:14px;line-height:1;padding:0;' +
+        'box-shadow:0 1px 3px rgba(8,10,14,0.25);';
+      const MENU_ITEM = 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:transparent;' +
+        'padding:7px 11px;font-size:12.5px;color:var(--pw-text2);cursor:pointer;border-radius:7px;';
+      const SECTION_TITLE = 'font-size:12.5px;font-weight:700;letter-spacing:-0.1px;color:var(--pw-text);';
+      const SECTION_ICON = 'width:18px;flex:0 0 18px;text-align:center;color:var(--pw-muted2);font-size:13px;';
+      const MINI_LABEL = 'font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pw-label);font-weight:600;';
+      const CHIP_BTN = 'display:inline-flex;align-items:center;gap:6px;border:1px solid var(--pw-border);background:var(--pw-surface3);' +
+        'border-radius:7px;padding:5px 10px;font-size:11.5px;color:var(--pw-text2);cursor:pointer;font-weight:500;';
+
+      const setCover = function (u) {
+        self.mark('เปลี่ยนหน้าปกการ์ด');
+        self.patchTask(sel.id, function (t) { t.cover = u; return t; });
+      };
+
       detail = {
         code: sel.id, name: sel.name, status: sel.status, assignee: sel.assignee,
+
+        // ---------- หน้าปก + แถบเครื่องมือบนสุด ----------
+        hasCover: !!coverUrl,
+        coverUrl: coverUrl,
+        headWrapStyle: 'position:relative;flex:0 0 auto;background:' + (coverUrl ? '#12141a' : 'var(--pw-surface2)') +
+          ';border-bottom:1px solid var(--pw-border);' + (coverUrl ? 'height:150px;' : ''),
+        coverImgStyle: 'width:100%;height:150px;object-fit:cover;display:block;',
+        headBarStyle: 'display:flex;align-items:center;gap:8px;padding:9px 11px;' +
+          (coverUrl ? 'position:absolute;inset:0 0 auto 0;' : ''),
+        codeStyle: 'font-size:11px;font-family:\'IBM Plex Mono\', monospace;padding:2px 7px;border-radius:6px;' +
+          (coverUrl ? 'background:rgba(255,255,255,0.86);color:#1f2430;' : 'background:var(--pw-surface3);color:var(--pw-muted2);'),
+        crumb: (function () {
+          const sp = (s.spaces || []).filter(function (x) { return (x.lists || []).indexOf(sel.list) >= 0; })[0];
+          return (sp ? sp.name + ' / ' : '') + sel.list;
+        })(),
+        crumbStyle: 'font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:36%;' +
+          (coverUrl ? 'color:#e9ebf0;text-shadow:0 1px 3px rgba(0,0,0,0.6);' : 'color:var(--pw-muted2);') + 'margin-right:auto;',
+        iconBtn: ICON_BTN + (coverUrl ? '' : 'background:var(--pw-surface3);color:var(--pw-text2);box-shadow:none;'),
+        onCopyLink: function () { self.copyLink(self.taskLink(sel.id)); },
+        onShare: function () { self.shareLink(self.taskLink(sel.id), sel.name); },
+        menuStyle: 'position:absolute;top:44px;right:10px;z-index:3;width:216px;padding:6px;border-radius:11px;' +
+          'background:var(--pw-surface);border:1px solid var(--pw-border);box-shadow:0 14px 40px rgba(8,10,14,0.28);' +
+          'display:flex;flex-direction:column;gap:1px;',
+        menuItems: (function () {
+          const mk = function (icon, label, fn, danger) {
+            return { icon: icon, label: label, style: MENU_ITEM + (danger ? 'color:#b91c1c;' : ''), onPick: function () { self.setState({ detailMenu: false }); fn(); } };
+          };
+          const items = [
+            mk('⧉', 'คัดลอกลิงก์การ์ด', function () { self.copyLink(self.taskLink(sel.id)); }),
+            mk('↗', 'แชร์การ์ดนี้', function () { self.shareLink(self.taskLink(sel.id), sel.name); }),
+            mk('▨', coverUrl ? 'เปลี่ยน / เอาหน้าปกออก' : 'ใส่หน้าปก', function () {
+              const cur = sel.cover && sel.cover !== '__none' ? sel.cover : '';
+              const v = window.prompt('ลิงก์รูปหน้าปก\n— เว้นว่าง = ใช้รูปแรกจากไฟล์แนบ\n— พิมพ์  -  = ไม่เอาหน้าปก', cur);
+              if (v === null) return;
+              const t = String(v).trim();
+              setCover(t === '-' ? '__none' : t);
+            }),
+            mk('⧉', 'ทำสำเนางาน', function () { self.duplicateTask(sel.id); })
+          ];
+          if (sel.archived) items.push(mk('↩', 'เอาออกจาก Archive', function () { self.unarchiveTask(sel.id); }));
+          else items.push(mk('📦', 'เก็บเข้า Archive', function () { self.archiveTask(sel.id); }));
+          items.push(mk('✕', 'ลบงานนี้', function () { self.removeTask(sel.id); }, true));
+          return items;
+        })(),
+
+        // ---------- โครงสองคอลัมน์ ----------
+        bodyStyle: 'flex:1;min-height:0;overflow-y:auto;',
+        gridStyle: mob
+          ? 'display:flex;flex-direction:column;'
+          : 'display:grid;grid-template-columns:minmax(0,1fr) 322px;align-items:stretch;min-height:100%;',
+        mainStyle: 'min-width:0;padding:16px 18px 22px;display:flex;flex-direction:column;gap:17px;',
+        sideStyle: mob
+          ? 'min-width:0;border-top:1px solid var(--pw-border);background:var(--pw-surface2);padding:14px 16px 20px;display:flex;flex-direction:column;gap:11px;'
+          : 'min-width:0;border-left:1px solid var(--pw-border);background:var(--pw-surface2);padding:15px 15px 22px;display:flex;flex-direction:column;gap:11px;',
+        sectionHeadStyle: 'display:flex;align-items:center;gap:7px;',
+        sectionIcon: SECTION_ICON,
+        sectionTitle: SECTION_TITLE,
+        miniLabel: MINI_LABEL,
+
+        // ---------- ชื่องาน ----------
+        titleStyle: 'flex:1;min-width:0;border:0;outline:0;font-size:19px;font-weight:700;letter-spacing:-0.3px;' +
+          'padding:3px 7px;border-radius:7px;background:transparent;color:var(--pw-text);' +
+          (selDone ? 'text-decoration:line-through;opacity:0.65;' : ''),
+        doneMark: selDone ? '✓' : '',
+        doneBtnStyle: 'width:19px;height:19px;flex:0 0 19px;margin-top:6px;border-radius:50%;border:1.6px solid ' +
+          (selDone ? '#059669' : 'var(--pw-faint)') + ';background:' + (selDone ? '#059669' : 'transparent') +
+          ';color:#fff;font-size:10px;line-height:1;display:grid;place-items:center;cursor:pointer;padding:0;',
+        onToggleDone: function () {
+          if (selDone) {
+            const firstOpen = (self.statuses().filter(function (x) { return !self.isDone(x.k); })[0] || {}).k;
+            self.patch(sel.id, 'status', firstOpen || sel.status);
+          } else self.patch(sel.id, 'status', doneKeySel);
+        },
+
+        // ---------- ปุ่มลัดแถวบน ----------
+        quickActions: [
+          { icon: '☑', label: 'Checklist', title: 'เพิ่มรายการย่อย', style: CHIP_BTN,
+            onPick: function () { self._focusNewSub = true; self.setState({ detailFields: s.detailFields }); } },
+          { icon: '⛓', label: 'Attachment', title: 'แนบลิงก์ / ไฟล์', style: CHIP_BTN,
+            onPick: function () { self.promptAttachment(sel.id); } },
+          { icon: '▨', label: 'Cover', title: 'ตั้งรูปหน้าปกการ์ด', style: CHIP_BTN,
+            onPick: function () {
+              const cur = sel.cover && sel.cover !== '__none' ? sel.cover : '';
+              const v = window.prompt('ลิงก์รูปหน้าปก\n— เว้นว่าง = ใช้รูปแรกจากไฟล์แนบ\n— พิมพ์  -  = ไม่เอาหน้าปก', cur);
+              if (v === null) return;
+              const t = String(v).trim();
+              setCover(t === '-' ? '__none' : t);
+            } },
+          { icon: '☰', label: 'Details', title: 'กาง/พับช่องข้อมูลทั้งหมด', style: CHIP_BTN,
+            onPick: function () { self.setState({ detailFields: !s.detailFields }); } }
+        ],
+        fieldsCaret: s.detailFields ? '▾' : '▸',
+        fieldGridStyle: 'display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px 10px;align-items:center;font-size:12px;' +
+          'border:1px solid var(--pw-border);border-radius:11px;padding:12px 13px;background:var(--pw-surface2);',
+        sectionBtnStyle: 'display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:transparent;border:0;padding:0;cursor:pointer;',
+        caretStyle: 'margin-left:auto;color:var(--pw-muted2);font-size:11px;',
+
+        // ---------- Due date / Members ----------
+        overdue: dmSel.overdue,
+        overdueChip: 'font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:6px;background:#fee2e2;color:#b91c1c;',
+        dueInputStyle: 'border:1px solid var(--pw-border);border-radius:7px;padding:5px 8px;background:var(--pw-surface);' +
+          'font-size:12px;color:' + dmSel.color + ';cursor:pointer;' + (dmSel.overdue ? 'font-weight:700;' : ''),
+        memberBtnStyle: 'display:flex;align-items:center;gap:7px;border:1px solid var(--pw-border);border-radius:7px;' +
+          'padding:5px 9px;background:var(--pw-surface);color:var(--pw-text);font-size:12px;text-align:left;cursor:pointer;max-width:260px;',
+
+        // ---------- Checklist ----------
+        subPctLabel: subPct + '%',
+        barTrackStyle: 'height:6px;border-radius:4px;background:var(--pw-surface3);overflow:hidden;',
+        barFillStyle: 'height:100%;width:' + subPct + '%;border-radius:4px;background:' + (subPct === 100 ? '#059669' : '#4f46e5') + ';transition:width .25s ease;',
+        subCountStyle: 'margin-left:auto;font-size:11px;color:var(--pw-muted2);font-family:\'IBM Plex Mono\', monospace;',
+        hasSubs: subsAll.length > 0,
+        linkHint: 'ลิงก์ของการ์ดนี้อยู่ในแถบที่อยู่แล้ว — copy ไปแชร์ได้เลย',
+
         priority: sel.priority, start: sel.start, due: sel.due,
         channel: sel.channel, platform: sel.platform,
         channelLabel: self.multiLabel(sel.channel), platformLabel: self.multiLabel(sel.platform),
@@ -9080,7 +9591,7 @@ class Component extends DCLogic {
             onRemove: function () { self.removeField(f.id); }
           };
         }),
-        attachments: sel.attachments.map(function (a, ai) {
+        attachments: attsSel.map(function (a, ai) {
           let url = a.url || (/^https?:\/\//i.test(a.name || '') ? a.name : '');
           if (url && !/^https?:\/\//i.test(url)) url = '';
           const drive = /drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/i.exec(url);
@@ -9103,9 +9614,33 @@ class Component extends DCLogic {
           let domain = '';
           try { domain = url ? new URL(url).hostname.replace(/^www\./, '') : ''; } catch (e) {}
           const display = ['URL', 'Bookmark', 'Preview'].indexOf(a.display) >= 0 ? a.display : 'Bookmark';
+          const thumb = thumbOf(a);
+          const addedAt = a.at ? (function () {
+            const mins = Math.floor((Date.now() - a.at) / 60000);
+            if (mins < 1) return 'เพิ่งเพิ่ม';
+            if (mins < 60) return 'เพิ่มเมื่อ ' + mins + ' นาทีก่อน';
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return 'เพิ่มเมื่อ ' + hrs + ' ชั่วโมงก่อน';
+            return 'เพิ่มเมื่อ ' + Math.floor(hrs / 24) + ' วันก่อน';
+          })() : '';
           return {
             name: a.name,
             hasUrl: !!url,
+            hasThumb: !!thumb,
+            noThumb: !thumb,
+            thumb: thumb,
+            coverBtnStyle: 'background:transparent;border:0;cursor:pointer;font-size:12px;line-height:1;color:' +
+              (coverUrl === thumb ? '#4f46e5' : 'var(--pw-faint)') + ';',
+            thumbStyle: 'width:56px;height:40px;flex:0 0 56px;border-radius:6px;object-fit:cover;background:var(--pw-surface3);',
+            added: addedAt,
+            hasAdded: !!addedAt,
+            isCover: !!thumb && coverUrl === thumb,
+            onSetCover: function () {
+              if (!thumb) return;
+              self.mark('เปลี่ยนหน้าปกการ์ด');
+              const next = (coverUrl === thumb && sel.cover) ? '__none' : thumb;
+              self.patchTask(sel.id, function (t) { t.cover = next; return t; });
+            },
             url: url,
             domain: domain,
             provider: provider,
@@ -9151,13 +9686,23 @@ class Component extends DCLogic {
         statusChip: this.chip(sel.status),
         statusSelect: 'border:0;border-radius:6px;padding:5px 8px;font-weight:600;font-size:12px;background:' + sm.bg + ';color:' + sm.c + ';cursor:pointer;',
         prioritySelect: 'border:1px solid var(--pw-border);border-radius:6px;padding:5px 8px;background:var(--pw-surface);cursor:pointer;font-weight:500;color:' + pm.c + ';',
-        subtasks: sel.subtasks.map(function (st, i) {
+        subtasks: subsAll.map(function (st, i) {
+          const hot = i === subFocusI;
           return {
             title: st.title,
             titleRef: self.syncRef(st.title),
             mark: st.done ? '✓' : '',
+            // แถวที่ลิงก์ชี้มา — ตีกรอบม่วง + เลื่อนจอไปหาให้เอง
+            rowStyle: 'display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:8px;' +
+              (hot ? 'background:var(--pw-accent-soft);box-shadow:0 0 0 1.5px #4f46e5;' : 'background:transparent;'),
+            rowRef: function (el) {
+              if (!el || !hot || !self._scrollSub) return;
+              self._scrollSub = false;
+              setTimeout(function () { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }, 60);
+            },
+            onCopyLink: function () { self.copyLink(self.taskLink(sel.id, i)); },
             boxStyle: 'width:15px;height:15px;flex:0 0 15px;border-radius:4px;border:1.5px solid ' + (st.done ? '#059669' : 'var(--pw-faint)') + ';background:' + (st.done ? '#059669' : 'var(--pw-surface)') + ';color:#fff;font-size:9px;line-height:1;cursor:pointer;padding:0;display:grid;place-items:center;',
-            textStyle: 'flex:1;border:0;outline:0;background:transparent;font-size:12px;padding:2px 4px;border-radius:4px;color:' + (st.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';text-decoration:' + (st.done ? 'line-through' : 'none') + ';',
+            textStyle: 'flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:12.5px;padding:2px 4px;border-radius:4px;color:' + (st.done ? 'var(--pw-muted2)' : 'var(--pw-text)') + ';text-decoration:' + (st.done ? 'line-through' : 'none') + ';',
             onToggle: function () {
               self.toggleSub(sel.id, i);
             },
@@ -9732,10 +10277,20 @@ class Component extends DCLogic {
       channelBars: channelBars,
       attention: attention,
       detailOpen: !!detail,
+      detailMenuOpen: !!detail && !!s.detailMenu,
+      detailFieldsOpen: !!s.detailFields,
+      onToggleDetailMenu: function () { self.setState({ detailMenu: !s.detailMenu }); },
+      onCloseDetailMenu: function () { self.setState({ detailMenu: false }); },
+      onToggleDetailFields: function () { self.setState({ detailFields: !s.detailFields }); },
       detail: detail || {},
       newSubtask: s.newSubtask,
       newComment: s.newComment,
-      newSubtaskRef: self.syncRef(s.newSubtask),
+      newSubtaskRef: function (el) {
+        if (!el) return;
+        const v = s.newSubtask === undefined || s.newSubtask === null ? '' : String(s.newSubtask);
+        if (el.value !== v) el.value = v;
+        if (self._focusNewSub) { self._focusNewSub = false; try { el.focus(); el.scrollIntoView({ block: 'center' }); } catch (e) {} }
+      },
       newCommentRef: self.syncRef(s.newComment),
       onNewSubtask: function (e) { self.setState({ newSubtask: e.target.value }); },
       onNewComment: function (e) { self.setState({ newComment: e.target.value }); },
@@ -9743,34 +10298,8 @@ class Component extends DCLogic {
       onCommentKey: function (e) { if (e.key === 'Enter') addComment(); },
       onAddSubtask: addSub,
       onAddComment: addComment,
-      onAddAttachment: function () {
-        if (!sel) return;
-        let url = (window.prompt('วางลิงก์ (Google Drive / YouTube / เว็บไซต์อื่น)\nเว้นว่างไว้ถ้าจะพิมพ์แค่ชื่อไฟล์') || '').trim();
-        if (/^www\./i.test(url)) url = 'https://' + url;
-        if (url && !/^https?:\/\//i.test(url)) {
-          window.alert('ลิงก์ต้องขึ้นต้นด้วย https:// หรือ http://');
-          return;
-        }
-        let name = url;
-        let display = '';
-        if (url) {
-          let domain = '';
-          try { domain = new URL(url).hostname.replace(/^www\./, ''); } catch (e) {}
-          name = /youtu(?:\.be|be\.com)/i.test(url) ? 'YouTube' : (/drive\.google\.com/i.test(url) ? 'Google Drive' : (/docs\.google\.com/i.test(url) ? 'Google Workspace' : (domain || url)));
-          const picked = (window.prompt('ต้องการแสดงลิงก์แบบไหน?\n\nURL = ข้อความลิงก์ที่คลิกได้\nBookmark = การ์ดชื่อเว็บ\nPreview = แสดงเนื้อหาในงาน', 'Bookmark') || 'Bookmark').trim().toLowerCase();
-          display = picked === 'url' || picked === '1' ? 'URL' : (picked === 'preview' || picked === '3' ? 'Preview' : 'Bookmark');
-        }
-        if (!url) {
-          name = (window.prompt('ชื่อไฟล์') || '').trim();
-          if (!name) return;
-        }
-        self.mark('เพิ่มไฟล์แนบ');
-        self.patchTask(sel.id, function (t) {
-          t.attachments = (t.attachments || []).concat([{ name: name, url: url || '', display: display }]);
-          return t;
-        });
-      },
-      onCloseDetail: function () { self.setState({ selected: null }); },
+      onAddAttachment: function () { if (sel) self.promptAttachment(sel.id); },
+      onCloseDetail: function () { self.setState({ selected: null, subFocus: null, detailMenu: false }); },
       onAddField: function () { self.addField(); },
       filterOpen: s.filterOpen,
       filterCount: self.filterCount(),
@@ -9865,7 +10394,7 @@ class Component extends DCLogic {
               handleLeftStyle: 'position:absolute;left:0;top:0;bottom:0;width:8px;cursor:ew-resize;border-radius:5px 0 0 5px;background:rgba(255,255,255,0.3);touch-action:none;',
               handleRightStyle: 'position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;border-radius:0 5px 5px 0;background:rgba(255,255,255,0.3);touch-action:none;',
               title: v.name + ' · ' + range + ' · ' + v.assignee,
-              onOpen: function () { if (self._ganttMoved) { self._ganttMoved = false; return; } self.setState({ selected: v.id }); },
+              onOpen: function () { if (self._ganttMoved) { self._ganttMoved = false; return; } self.openTask(v.id); },
               onBarDown: function (e) { self.beginGantt(e, v.id, 'move', spec.days); },
               onLeftDown: function (e) { self.beginGantt(e, v.id, 'left', spec.days); },
               onRightDown: function (e) { self.beginGantt(e, v.id, 'right', spec.days); },
@@ -10117,7 +10646,7 @@ class Component extends DCLogic {
           onClose: function () { self.closeCtx(); },
           onBack: function () { self.ctxMode('main'); },
           items: [
-            mk('▤', 'เปิดรายละเอียด', function () { self.setState({ selected: t.id, ctxMenu: null }); }),
+            mk('▤', 'เปิดรายละเอียด', function () { self.setState({ ctxMenu: null }); self.openTask(t.id); }),
             mk('✎', 'แก้ชื่องาน', function () { self.setState({ ctxName: t.name }); self.ctxMode('name'); }),
             mk('◧', 'เปลี่ยนสถานะ', function () { self.closeCtx(); self.openOptEditor('statuses', t.id); }),
             mk('◔', 'เปลี่ยนความสำคัญ', function () { self.closeCtx(); self.openOptEditor('priorities', t.id); }),
@@ -10171,7 +10700,7 @@ class Component extends DCLogic {
       detailModal: !!s.selected && !self.isMobile(),
       detailStyle: self.isMobile()
         ? 'position:fixed;inset:0;width:auto;flex:none;z-index:58;background:var(--pw-surface);border-left:0;display:flex;flex-direction:column;overflow:hidden;'
-        : 'position:fixed;top:5vh;left:50%;transform:translateX(-50%);width:min(900px,94vw);max-height:90vh;z-index:76;' +
+        : 'position:fixed;top:4vh;left:50%;transform:translateX(-50%);width:min(1040px,96vw);height:min(880px,92vh);z-index:76;' +
           'background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:14px;' +
           'box-shadow:0 24px 64px rgba(8,10,14,0.38);display:flex;flex-direction:column;overflow:hidden;',
       settingsStyle: self.isMobile()
@@ -10191,7 +10720,7 @@ class Component extends DCLogic {
           who: t.archivedBy || '—',
           age: self.archiveAge(t),
           onRestore: function () { self.unarchiveTask(t.id); },
-          onOpen: function () { self.setState({ selected: t.id }); },
+          onOpen: function () { self.openTask(t.id); },
           onTrash: function () { self.removeTask(t.id); }
         };
       }),
