@@ -282,13 +282,69 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     if (c && typeof c === 'object') snap = Object.assign(snap, c);
   } catch (e) {}
 
-  function cache() { try { localStorage.setItem(CACHE, JSON.stringify(snap)); } catch (e) {} }
+  function cache() {
+    try { localStorage.setItem(CACHE, JSON.stringify(snap)); } catch (e) {}
+    try { dailyBackup(); } catch (e) {}
+  }
+
+  /* ---------------------------------------------------------------
+     สำรองข้อมูลอัตโนมัติไว้ในเครื่อง เก็บย้อนหลัง 7 วัน
+     ไว้กู้คืนได้เองถ้าข้อมูลบนเซิร์ฟเวอร์มีปัญหา
+     ใช้ผ่าน console:  PawdySync.backups()  /  PawdySync.downloadBackup('2026-08-11')
+     --------------------------------------------------------------- */
+  var BK = 'pawdy.backup.';
+  var lastBk = 0;
+  function dailyBackup() {
+    if (!ready) return;
+    if (!snap.tasks || !snap.tasks.length) return;      // ไม่สำรองตอนข้อมูลว่าง
+    var now = Date.now();
+    if (now - lastBk < 600000) return;                  // อย่างมากทุก 10 นาที
+    lastBk = now;
+    var day = new Date(now - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    try {
+      localStorage.setItem(BK + day, JSON.stringify({
+        at: new Date(now).toISOString(),
+        tasks: snap.tasks, spaces: snap.spaces, fields: snap.fields,
+        config: snap.config, docs: snap.docs, planner: snap.planner, links: snap.links
+      }));
+    } catch (e) { return; }
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf(BK) === 0) keys.push(k);
+    }
+    keys.sort();
+    while (keys.length > 7) { try { localStorage.removeItem(keys.shift()); } catch (e) { break; } }
+  }
   function emit() { cache(); dataCbs.forEach(function (f) { try { f(snap); } catch (e) { console.error(e); } }); }
   function log(e) { if (e && e.error) console.error('[sync]', e.error.message || e.error); }
 
   // ---------- public API used by the app ----------
   window.PawdySync = {
     snapshot: function () { return snap; },
+    // ---- สำรอง / กู้คืนข้อมูลด้วยตัวเอง ----
+    backups: function () {
+      var out = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('pawdy.backup.') === 0) {
+          var d = {};
+          try { d = JSON.parse(localStorage.getItem(k) || '{}'); } catch (e) {}
+          out.push({ day: k.slice(13), at: d.at || '', tasks: (d.tasks || []).length, links: (d.links || []).length, docs: (d.docs || []).length });
+        }
+      }
+      return out.sort(function (a, b) { return a.day < b.day ? 1 : -1; });
+    },
+    downloadBackup: function (day) {
+      var key = day ? ('pawdy.backup.' + day) : 'pawdy.workspace.cache.v2';
+      var raw = localStorage.getItem(key);
+      if (!raw) { console.warn('ไม่พบข้อมูลสำรองของ ' + key); return false; }
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+      a.download = 'pawdy-backup-' + (day || 'current') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      return true;
+    },
     me: function () { return me || { n: 'Me', email: '', c: '#4f46e5' }; },
     online: function () { return ready; },
     onData: function (f) { dataCbs.push(f); if (ready) f(snap); },
@@ -352,6 +408,12 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
     save: function (state) {
       snap.ui = state.ui || snap.ui;          // view/list choice stays personal
+      // ---------------------------------------------------------------
+      // กันข้อมูลหาย: ห้ามเขียนขึ้นเซิร์ฟเวอร์ก่อนที่จะ "อ่าน" ของจริงมาครบ
+      // ถ้ายังไม่ ready แปลว่าเรายังไม่รู้ว่าบนเซิร์ฟเวอร์มีอะไร การเขียนตอนนี้
+      // = เอา state ที่อาจไม่ครบไปทับ/ลบของจริงทิ้ง
+      // ---------------------------------------------------------------
+      if (!ready) return;
       var now = Date.now();
       if (state.tasks) {
         var cur = {};
@@ -440,7 +502,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
 
   // ---------- writing ----------
   function flush() {
-    if (!sb || !me) return;
+    if (!sb || !me || !ready) return;          // ยังไม่ได้อ่านของจริง = ห้ามเขียน
     if (!pending) { setStatus(navigator.onLine === false ? 'offline' : 'saved'); return; }
     var st = pending; pending = null;
     var now = Date.now();
@@ -469,7 +531,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }));
 
     var sp = JSON.stringify(st.spaces || null);
-    if (st.spaces && sp !== known.spaces) {
+    if (st.spaces && known.spaces !== null && sp !== known.spaces) {
       var prevSp = known.spaces;
       known.spaces = sp;
       ops.push(sb.from('meta').upsert({ key: 'spaces', doc: st.spaces, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
@@ -478,7 +540,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }
 
     var fd = JSON.stringify(st.fields || null);
-    if (st.fields && fd !== known.fields) {
+    if (st.fields && known.fields !== null && fd !== known.fields) {
       var prevFd = known.fields;
       known.fields = fd;
       ops.push(sb.from('meta').upsert({ key: 'fields', doc: st.fields, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
@@ -487,7 +549,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }
 
     var cf = JSON.stringify(st.config || null);
-    if (st.config && cf !== known.config) {
+    if (st.config && known.config !== null && cf !== known.config) {
       var prevCf = known.config;
       known.config = cf;
       ops.push(sb.from('meta').upsert({ key: 'config', doc: st.config, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
@@ -496,7 +558,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }
 
     var dc = JSON.stringify(st.docs || null);
-    if (st.docs && dc !== known.docs) {
+    if (st.docs && known.docs !== null && dc !== known.docs) {
       var prevDc = known.docs;
       known.docs = dc;
       ops.push(sb.from('meta').upsert({ key: 'docs', doc: st.docs, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
@@ -505,7 +567,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }
 
     var lk = JSON.stringify(st.links || null);
-    if (st.links && lk !== known.links) {
+    if (st.links && known.links !== null && lk !== known.links) {
       var prevLk = known.links;
       known.links = lk;
       ops.push(sb.from('meta').upsert({ key: 'links', doc: st.links, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
@@ -514,7 +576,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     }
 
     var pl = JSON.stringify(st.planner || null);
-    if (st.planner && pl !== known.planner) {
+    if (st.planner && known.planner !== null && pl !== known.planner) {
       var prevPl = known.planner;
       known.planner = pl;
       ops.push(sb.from('meta').upsert({ key: 'planner', doc: st.planner, updated_by: me.email }, { onConflict: 'key' }).then(function (r) {
@@ -6136,10 +6198,11 @@ class Component extends DCLogic {
     const patch = this.parseRoute(raw);
     this._route = this.buildRoute(Object.assign({}, this.state, patch || {}));
     if (!patch) return false;
-    const self = this;
     this._routeTask = patch.selected || null;   // งานอาจยังโหลดไม่เสร็จ ค่อยจัดหน้าให้ทีหลัง
     if (patch.subFocus) this._scrollSub = true;   // ลิงก์ชี้ subtask → เลื่อนจอไปหาให้
-    this.setState(patch, function () { self.persist(); });
+    // ห้ามเรียก persist() ตรงนี้เด็ดขาด — ตอนเปิดหน้าใหม่ข้อมูลจากเซิร์ฟเวอร์ยังมาไม่ถึง
+    // ถ้าบันทึกตอนนี้จะเอา state ว่างๆ ไปทับของจริงบนเซิร์ฟเวอร์
+    this.setState(patch);
     return true;
   }
 
