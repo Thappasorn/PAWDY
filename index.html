@@ -3354,20 +3354,31 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     color-scheme: light;
   }
   /* ---------- Gradient Text (CSS ล้วน ไม่มี dependency) ---------- */
-  .pw-gt, .pw-gt-dark {
-    background-image: linear-gradient(90deg, #6aa11f, #0fa89b, #6aa11f);
+  :root { --pw-gt: linear-gradient(90deg, #6aa11f, #0fa89b, #6aa11f); }
+  :root[data-pw-theme="dark"] { --pw-gt: linear-gradient(90deg, #99ca3f, #3ad1c2, #99ca3f); }
+
+  .pw-gt, .pw-gt-dark, .pw-tab-on {
+    background-image: var(--pw-gt);
     background-size: 250% 100%;
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent; color: transparent;
     animation: pwGtFlow 16s linear infinite;
   }
-  :root[data-pw-theme="dark"] .pw-gt,
-  .pw-gt-dark {                      /* แถบเมนูซ้ายเป็นพื้นมืดเสมอ ใช้สีสว่างตลอด */
-    background-image: linear-gradient(90deg, #99ca3f, #3ad1c2, #99ca3f);
+  /* แถบเมนูซ้ายเป็นพื้นมืดเสมอ ใช้สีสว่างตลอดไม่ว่าธีมไหน */
+  .pw-gt-dark { background-image: linear-gradient(90deg, #99ca3f, #3ad1c2, #99ca3f); }
+
+  /* แท็บมุมมองที่กำลังเปิด — ตัวหนังสือไล่สี + ขีดใต้ไล่สีตาม */
+  .pw-tab-on { position: relative; }
+  .pw-tab-on::after {
+    content: ''; position: absolute; left: 4px; right: 4px; bottom: 0; height: 2px;
+    border-radius: 2px; background-image: var(--pw-gt); background-size: 250% 100%;
+    animation: pwGtFlow 16s linear infinite;
   }
+  .pw-tab-on > span { opacity: 1 !important; }
+
   @keyframes pwGtFlow { to { background-position: -250% 0; } }
   @media (prefers-reduced-motion: reduce) {
-    .pw-gt, .pw-gt-dark { animation: none; background-position: 0 0; }
+    .pw-gt, .pw-gt-dark, .pw-tab-on, .pw-tab-on::after { animation: none; background-position: 0 0; }
   }
 
   :root[data-pw-theme="dark"] {
@@ -3911,13 +3922,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <sc-if value="{{ notTrash }}" hint-placeholder-val="{{ true }}">
         <div data-viewtabs style="display: flex; align-items: center; gap: 2px;">
           <sc-for list="{{ viewTabs }}" as="tab" hint-placeholder-count="5">
-            <button sc-camel-on-click="{{ tab.onSelect }}" style="{{ tab.style }}">
+            <button sc-camel-on-click="{{ tab.onSelect }}" class="{{ tab.cls }}" style="{{ tab.style }}">
               <span style="opacity: 0.75; font-size: 11px;">{{ tab.icon }}</span>{{ tab.label }}
             </button>
           </sc-for>
 
           <sc-for list="{{ savedTabs }}" as="sv" hint-placeholder-count="2">
-            <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="คลิกขวาเพื่อเปลี่ยนชื่อ / บันทึกทับ / ลบ" style="{{ sv.style }}">
+            <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="คลิกขวาเพื่อเปลี่ยนชื่อ / บันทึกทับ / ลบ" class="{{ sv.cls }}" style="{{ sv.style }}">
               <span style="opacity: 0.75; font-size: 11px;">{{ sv.icon }}</span>{{ sv.label }}
             </button>
           </sc-for>
@@ -9500,7 +9511,8 @@ class Component extends DCLogic {
       const active = s.view === t.k && !s.customView;
       return {
         label: t.label, icon: t.icon,
-        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') + ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') + ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
+        cls: active ? 'pw-tab-on' : '',
+        style: 'display:flex;align-items:center;gap:6px;border:0;border-bottom:2px solid transparent;' + (active ? 'font-weight:700;' : 'background:transparent;color:var(--pw-muted);font-weight:500;') + 'font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
         onSelect: function () {
           if (t.k === 'dashboard' && s.view !== 'dashboard') self.startCountUp();
           self.setState({ view: t.k, customView: null }, () => self.persist());
@@ -9514,9 +9526,10 @@ class Component extends DCLogic {
       const icon = ({ table: '▦', board: '▥', calendar: '▤', timeline: '▬', gantt: '⊟', dashboard: '◕' })[v.type] || '▦';
       return {
         label: v.name, icon: icon,
-        style: 'display:flex;align-items:center;gap:6px;background:transparent;border:0;border-bottom:2px solid ' + (active ? '#4f46e5' : 'transparent') +
-          ';color:' + (active ? 'var(--pw-text)' : 'var(--pw-muted)') + ';font-weight:' + (active ? '600' : '500') +
-          ';font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
+        cls: active ? 'pw-tab-on' : '',
+        style: 'display:flex;align-items:center;gap:6px;border:0;border-bottom:2px solid transparent;' +
+          (active ? 'font-weight:700;' : 'background:transparent;color:var(--pw-muted);font-weight:500;') +
+          'font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
         onSelect: function () { self.openSavedView(v.id); },
         onContext: function (e) { self.openViewMenu(e, v.id); }
       };
