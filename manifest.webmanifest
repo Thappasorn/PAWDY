@@ -1,4 +1,5 @@
 {
+  "id": "/?src=pwa",
   "name": "Pawdy Workspace",
   "short_name": "Pawdy",
   "description": "งาน บอร์ด ปฏิทิน ไทม์ไลน์ และแดชบอร์ดของทีม Pawdy",
@@ -29,6 +30,32 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "งานทั้งหมด",
+      "short_name": "งาน",
+      "url": "/?src=pwa#/all/table",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/?src=pwa#/all/dashboard",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Links",
+      "short_name": "Links",
+      "url": "/?src=pwa#/links",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Planner",
+      "short_name": "Planner",
+      "url": "/?src=pwa#/planner",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -5577,6 +5577,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">แอปบนเครื่อง &amp; การแจ้งเตือน</span>
+          <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.55;">{{ settings.installHint }}</span>
+          <span style="{{ settings.notifStatusStyle }}">{{ settings.notifStatus }}</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button sc-camel-on-click="{{ settings.onEnableNotify }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; color: var(--pw-text2); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">เปิดการแจ้งเตือน</button>
+            <button sc-camel-on-click="{{ settings.onTestNotify }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; color: var(--pw-text2); cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">ทดสอบแจ้งเตือน</button>
+          </div>
+          <span style="{{ settings.notifMsgStyle }}">{{ settings.notifMsg }}</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
           <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">ซิงค์ Google Sheet</span>
           <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.5;">แก้งานหรือปรับคอลัมน์เมื่อไหร่ ระบบจะส่งไปวาดชีทใหม่ให้เองภายในไม่กี่วินาที ปุ่มนี้ใช้สั่งทันทีโดยไม่ต้องรอ</span>
           <span style="font-size: 10.5px; color: var(--pw-label); font-family: 'IBM Plex Mono', monospace;">{{ settings.sheetHint }}</span>
@@ -7157,6 +7168,97 @@ class Component extends DCLogic {
     window.PawdyXlsx.download('Pawdy_' + safe + '_' + stamp + '.xlsx', [{ name: 'Tasks', columns: columns, rows: rows }]);
   }
 
+
+  /* ==================================================================
+     แอปบนเครื่อง + แจ้งเตือนระดับระบบ
+     ================================================================== */
+  isStandalone() {
+    try {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             window.navigator.standalone === true;
+    } catch (e) { return false; }
+  }
+  browserKind() {
+    const ua = navigator.userAgent || '';
+    const mac = /Macintosh|Mac OS X/.test(ua);
+    const ios = /iPad|iPhone|iPod/.test(ua);
+    const chromium = /Chrome|Chromium|CriOS|Edg|OPR|Brave/.test(ua);
+    if (ios) return 'ios';
+    if (mac && !chromium && /Safari/.test(ua)) return 'mac-safari';
+    if (mac && chromium) return 'mac-chromium';
+    if (chromium) return 'chromium';
+    return 'other';
+  }
+  notifPerm() {
+    if (!('Notification' in window)) return 'unsupported';
+    return Notification.permission;    // default | granted | denied
+  }
+  // ข้อความสอนติดตั้ง — แต่ละเบราว์เซอร์คนละทางกันหมด
+  installHint() {
+    if (this.isStandalone()) return '✓ กำลังใช้งานจากแอปที่ติดตั้งไว้แล้ว';
+    switch (this.browserKind()) {
+      case 'mac-safari':
+        return 'Safari บน Mac: เมนู File → Add to Dock… แล้วกด Add — จะได้ไอคอนใน Dock เปิดเป็นหน้าต่างแยก';
+      case 'mac-chromium':
+        return 'Chrome/Edge บน Mac: กดไอคอน ⊞ ท้ายช่อง address หรือเมนู ⋮ → Cast, save and share → Install page as app…';
+      case 'chromium':
+        return 'Chrome/Edge: กดไอคอนติดตั้งท้ายช่อง address หรือเมนู ⋮ → ติดตั้งแอป';
+      case 'ios':
+        return 'iPhone/iPad: กดปุ่มแชร์ ⤴ → เพิ่มไปยังหน้าจอโฮม (ต้องทำก่อน ถึงจะเปิดแจ้งเตือนได้)';
+      default:
+        return 'เปิดด้วย Chrome, Edge หรือ Safari เพื่อติดตั้งเป็นแอปบนเครื่อง';
+    }
+  }
+  notifStatusLabel() {
+    const p = this.notifPerm();
+    if (p === 'unsupported') return 'เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน';
+    if (p === 'granted') return '✓ อนุญาตแล้ว — จะเด้งเตือนตอนมีคนมอบหมายงานหรือ @ ถึงคุณ';
+    if (p === 'denied') return '✕ ถูกปิดไว้ที่ระดับเบราว์เซอร์ — ต้องไปเปิดเองในการตั้งค่าเว็บไซต์ แล้วรีเฟรช';
+    return 'ยังไม่ได้เปิด — กดปุ่มด้านล่างเพื่ออนุญาต';
+  }
+  enableDeviceNotify() {
+    const self = this;
+    if (!('Notification' in window)) { this.setState({ notifMsg: 'เบราว์เซอร์นี้ไม่รองรับ', notifOk: false }); return; }
+    if (Notification.permission === 'denied') {
+      this.setState({ notifMsg: 'เบราว์เซอร์ปิดไว้อยู่ ต้องไปเปิดที่การตั้งค่าเว็บไซต์เอง แล้วรีเฟรชหน้านี้', notifOk: false });
+      return;
+    }
+    if (this.browserKind() === 'ios' && !this.isStandalone()) {
+      this.setState({ notifMsg: 'บน iPhone ต้องเพิ่มลงหน้าจอโฮมก่อน ถึงจะขอสิทธิ์แจ้งเตือนได้ (ข้อจำกัดของ Apple)', notifOk: false });
+      return;
+    }
+    this.setState({ notifMsg: 'กำลังขอสิทธิ์…', notifOk: true });
+    if (!window.pawdyEnablePush) { this.setState({ notifMsg: 'ตัวจัดการแจ้งเตือนยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง', notifOk: false }); return; }
+    window.pawdyEnablePush().then(function (r) {
+      if (r && r.ok) { self.setState({ notifMsg: '✓ เปิดแจ้งเตือนเรียบร้อย ลองกดปุ่มทดสอบดูได้', notifOk: true }); return; }
+      // อนุญาตแล้วแต่ push subscription ไม่ผ่าน — ยังเตือนตอนเปิดแอปอยู่ได้
+      const why = (r && r.detail) ? r.detail : '—';
+      self.setState({
+        notifMsg: Notification.permission === 'granted'
+          ? '△ อนุญาตแล้ว แต่ต่อ Web Push ไม่สำเร็จ (' + why + ') — ยังเตือนได้ตอนเปิดแอปค้างไว้'
+          : '✕ ไม่สำเร็จ: ' + why,
+        notifOk: Notification.permission === 'granted'
+      });
+    });
+  }
+  testDeviceNotify() {
+    const self = this;
+    if (this.notifPerm() !== 'granted') { this.setState({ notifMsg: 'ต้องกดเปิดการแจ้งเตือนก่อน', notifOk: false }); return; }
+    const body = 'ถ้าเห็นข้อความนี้ แปลว่าแจ้งเตือนใช้งานได้แล้ว';
+    const opts = { body: body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'pawdy-test' };
+    const done = function () { self.setState({ notifMsg: '✓ ส่งแจ้งเตือนทดสอบแล้ว — ดูที่มุมขวาบนของจอ', notifOk: true }); };
+    const fail = function (e) { self.setState({ notifMsg: '✕ แสดงแจ้งเตือนไม่ได้: ' + e, notifOk: false }); };
+    // Safari ชอบทางนี้มากกว่า และใช้ได้ทุกเบราว์เซอร์ที่มี service worker
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(function (reg) {
+        return reg.showNotification('Pawdy Workspace', opts);
+      }).then(done).catch(function () {
+        try { new Notification('Pawdy Workspace', opts); done(); } catch (e) { fail(e); }
+      });
+      return;
+    }
+    try { new Notification('Pawdy Workspace', opts); done(); } catch (e) { fail(e); }
+  }
 
   /* ==================================================================
      ซิงค์ขึ้น Google Sheet — ส่ง snapshot ทั้งชุดให้ Apps Script วาดใหม่
@@ -12264,6 +12366,14 @@ class Component extends DCLogic {
             onToggle: function () { self.toggleCol(c[0]); }
           };
         }),
+        installHint: self.installHint(),
+        notifStatus: self.notifStatusLabel(),
+        notifStatusStyle: 'font-size:11px;line-height:1.5;color:' +
+          (({ granted: '#059669', denied: '#dc2626', unsupported: 'var(--pw-muted2)' })[self.notifPerm()] || '#d97706') + ';',
+        notifMsg: s.notifMsg || '',
+        notifMsgStyle: 'font-size:11px;line-height:1.5;color:' + (s.notifOk ? '#059669' : '#dc2626') + ';',
+        onEnableNotify: function () { self.enableDeviceNotify(); },
+        onTestNotify: function () { self.testDeviceNotify(); },
         sheetHint: (function () {
           const sc = self.sheetCfg();
           if (!sc.on) return 'ยังไม่เปิดใช้ — ใส่ endpoint ใน PAWDY_CONFIG.sheet';
@@ -12394,6 +12504,19 @@ class Component extends DCLogic {
       e.prompt();
     });
   });
+
+  // Safari บน Mac ไม่มี beforeinstallprompt เหมือนกัน และเดิมไม่เข้าเงื่อนไขไหนเลย
+  // เลยไม่เคยมีอะไรบอกผู้ใช้ว่าติดตั้งได้ — ต้องบอกวิธีเอง (macOS Sonoma ขึ้นไป)
+  var ua0 = navigator.userAgent || '';
+  var isMacDesktop = /Macintosh|Mac OS X/.test(ua0) && !/iPad|iPhone|iPod/.test(ua0);
+  var isChromium = /Chrome|Chromium|CriOS|Edg|OPR|Brave/.test(ua0);
+  if (isMacDesktop && !isChromium && /Safari/.test(ua0) && !standalone) {
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        banner('ติดตั้งเป็นแอปบน Mac ได้: เมนู File → Add to Dock', null, null);
+      }, 2500);
+    });
+  }
 
   // iOS Safari ไม่มี beforeinstallprompt ต้องบอกวิธีเอง
   var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
