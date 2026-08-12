@@ -113,7 +113,7 @@ window.PawdyAurora = function (canvas, opts) {
   var blend = opts.blend != null ? opts.blend : 0.5;
 
   function resize() {
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var dpr = Math.min(window.devicePixelRatio || 1, opts.maxDpr || 2);
     var w = Math.max(canvas.clientWidth, 1), hgt = Math.max(canvas.clientHeight, 1);
     canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(hgt * dpr);
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -151,8 +151,32 @@ window.PawdyAurora = function (canvas, opts) {
     try { var e = gl.getExtension('WEBGL_lose_context'); if (e) e.loseContext(); } catch (er) {}
   } };
 };
+
+/* ---------- พื้นหลัง Aurora ของทั้งแอป (จางๆ อยู่หลังตาราง/การ์ด) ---------- */
+window.PawdyAppAurora = {
+  on: function () {
+    if (document.getElementById('pw-appaurora')) return;
+    var c = document.createElement('canvas');
+    c.id = 'pw-appaurora';
+    c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;';
+    document.body.insertBefore(c, document.body.firstChild);
+    // จางมาก ขยับช้ามาก ความละเอียดต่ำพอ — เป็นแค่แสงเรืองหลังเนื้อหา
+    this._h = window.PawdyAurora(c, { preset: 'pawdy', amp: 0.6, speed: 0.16, blend: 0.95, maxDpr: 1.25 });
+  },
+  off: function () {
+    if (this._h) { try { this._h.stop(); } catch (e) {} this._h = null; }
+    var c = document.getElementById('pw-appaurora');
+    if (c && c.parentNode) c.parentNode.removeChild(c);
+  }
+};
 </script>
 <style>
+/* ให้ตัวแอปโปร่งใส แสง Aurora จะได้ลอดขึ้นมาในช่องว่างระหว่างการ์ด */
+#pw-appaurora { opacity: .16; }
+:root[data-pw-theme="dark"] #pw-appaurora { opacity: .20; }
+[data-root] { background: transparent !important; position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { #pw-appaurora { display: none; } }
+
 /* ---------- หน้าเข้าสู่ระบบ: การ์ดกระจกบนพื้นหลัง Aurora ---------- */
 #pw-auth .pw-card{
   position:relative;z-index:2;background:rgba(18,21,28,.72);
@@ -1013,6 +1037,7 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     if (el.wrap) el.wrap.style.display = 'none';
     // เข้าระบบแล้วหยุดวาด ไม่ให้กิน GPU/แบตทิ้งไว้เบื้องหลัง
     if (el.aurora) { try { el.aurora.stop(); } catch (e) {} el.aurora = null; }
+    try { if (window.PawdyAppAurora) window.PawdyAppAurora.on(); } catch (e) {}
   }
 
   function signIn() {
