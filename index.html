@@ -10923,7 +10923,7 @@ class Component extends DCLogic {
           open: true,
           name: v.name,
           style: 'position:fixed;top:min(' + vm.y + 'px, calc(100vh - 190px));left:min(' + vm.x + 'px, calc(100vw - 240px));' +
-                 'width:228px;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;' +
+                 'width:228px;max-height:calc(100vh - 16px);overflow-y:auto;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;' +
                  'box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:7px;display:flex;flex-direction:column;gap:2px;',
           onClose: function () { self.closeViewMenu(); },
           items: [
@@ -11562,7 +11562,7 @@ class Component extends DCLogic {
           open: true,
           name: lc.name,
           style: 'position:fixed;top:min(' + lc.y + 'px, calc(100vh - 210px));left:min(' + lc.x + 'px, calc(100vw - 230px));' +
-                 'width:214px;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;' +
+                 'width:214px;max-height:calc(100vh - 16px);overflow-y:auto;background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:11px;' +
                  'box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:11px 12px;display:flex;flex-direction:column;gap:9px;',
           previewStyle: 'border-radius:7px;padding:8px 11px;background:' + self.listColorOf(lc.name) +
                         ';color:#fff;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
@@ -11684,6 +11684,25 @@ class Component extends DCLogic {
             onPick: function () { fn(); }
           };
         };
+        // ---- จัดตำแหน่งเมนูให้อยู่ในจอเสมอ ----
+        // เดิมตรึงด้วย calc(100vh - 380px) ซึ่งเตี้ยกว่าเมนูจริง (~420px)
+        // คลิกขวาแถวล่างๆ แล้วรายการท้ายๆ เลยตกขอบจอ กดไม่ได้
+        const vh = window.innerHeight || 800;
+        const vw = window.innerWidth || 1200;
+        const rows = mode === 'main' ? 11
+                   : mode === 'assignee' ? (s.members || []).length + 1
+                   : mode === 'list' ? allLists.length + 1
+                   : 0;
+        const est = Math.min(
+          40 + rows * 34 + (mode === 'name' ? 168 : 0) + (mode === 'date' ? 132 : 0),
+          Math.round(vh * 0.8)
+        );
+        // ที่ว่างข้างล่างไม่พอแต่ข้างบนพอ = พลิกขึ้นไปเปิดเหนือจุดคลิก
+        const flipUp = (m.y + est > vh - 12) && (m.y - est > 12);
+        const top  = flipUp ? Math.max(8, m.y - est)
+                            : Math.max(8, Math.min(m.y, vh - est - 12));
+        const left = Math.max(8, Math.min(m.x, vw - 248));
+
         return {
           open: true,
           taskName: t.name,
@@ -11692,8 +11711,9 @@ class Component extends DCLogic {
           isAssignee: mode === 'assignee',
           isList: mode === 'list',
           isDate: mode === 'date',
-          style: 'position:fixed;top:min(' + m.y + 'px, calc(100vh - 380px));left:min(' + m.x + 'px, calc(100vw - 250px));' +
-                 'width:236px;max-height:70vh;overflow-y:auto;background:var(--pw-surface);border:1px solid var(--pw-border);' +
+          style: 'position:fixed;top:' + top + 'px;left:' + left + 'px;' +
+                 'width:236px;max-height:' + Math.max(180, vh - top - 12) + 'px;overflow-y:auto;' +
+                 'background:var(--pw-surface);border:1px solid var(--pw-border);' +
                  'border-radius:11px;box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:7px;display:flex;flex-direction:column;gap:2px;',
           onClose: function () { self.closeCtx(); },
           onBack: function () { self.ctxMode('main'); },
