@@ -10,6 +10,63 @@
    ใช้: var a = PawdyAurora(canvasEl, {preset:'pawdy', amp:.95, speed:.4, blend:.5});
         a.stop();  // หยุดเมื่อไม่ใช้แล้ว ไม่ให้กินแบต
    ============================================================ */
+/* ============================================================
+   เอฟเฟกต์เล็กๆ ตอนใช้งาน — Spotlight Card + Click Spark
+   ทั้งคู่เป็น JS ล้วน ไม่มี dependency และไม่วาดอะไรตอนที่ไม่ได้ใช้
+   ============================================================ */
+(function () {
+  var reduce = false;
+  try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  // ---------- Spotlight: จำตำแหน่งเมาส์ลงบนการ์ดใบที่ชี้อยู่ ----------
+  var cur = null;
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'touch') return;
+    var el = e.target && e.target.closest ? e.target.closest('.pw-spot') : null;
+    if (el !== cur) {
+      if (cur) cur.removeAttribute('data-spot');
+      cur = el;
+      if (cur) cur.setAttribute('data-spot', '');
+    }
+    if (!cur) return;
+    var r = cur.getBoundingClientRect();
+    cur.style.setProperty('--pw-mx', (e.clientX - r.left) + 'px');
+    cur.style.setProperty('--pw-my', (e.clientY - r.top) + 'px');
+  }, { passive: true });
+
+  // ---------- Click Spark: ประกายจากจุดที่กด ----------
+  var host = null;
+  function sparkHost() {
+    if (host && host.isConnected) return host;
+    host = document.createElement('div');
+    host.id = 'pw-sparks';
+    document.body.appendChild(host);
+    return host;
+  }
+  document.addEventListener('click', function (e) {
+    if (reduce || !e.target || !e.target.closest) return;
+    var btn = e.target.closest('button, [data-spark]');
+    if (!btn || btn.hasAttribute('data-nospark')) return;
+    if (!e.clientX && !e.clientY) return;           // กดด้วยคีย์บอร์ด ไม่ต้องมีประกาย
+    var host = sparkHost(), n = 6;
+    for (var i = 0; i < n; i++) {
+      var deg = (360 / n) * i - 90 + (i % 2 ? 9 : -9);
+      var base = 'translate(-50%,-50%) rotate(' + deg + 'deg)';
+      var s = document.createElement('i');
+      s.style.cssText = 'position:absolute;left:' + e.clientX + 'px;top:' + e.clientY +
+        'px;width:2px;height:8px;border-radius:2px;background:linear-gradient(#eaffb0,#3ad1c2);' +
+        'transform:' + base + ' translateY(-3px);will-change:transform,opacity;';
+      host.appendChild(s);
+      var an = s.animate(
+        [{ transform: base + ' translateY(-3px)', opacity: 1 },
+         { transform: base + ' translateY(-15px)', opacity: 0 }],
+        { duration: 380, easing: 'cubic-bezier(.2,.7,.3,1)' }
+      );
+      an.onfinish = (function (node) { return function () { if (node.parentNode) node.parentNode.removeChild(node); }; })(s);
+    }
+  }, true);
+})();
+
 window.PawdyAurora = function (canvas, opts) {
   opts = opts || {};
   var stopped = false;
@@ -152,31 +209,8 @@ window.PawdyAurora = function (canvas, opts) {
   } };
 };
 
-/* ---------- พื้นหลัง Aurora ของทั้งแอป (จางๆ อยู่หลังตาราง/การ์ด) ---------- */
-window.PawdyAppAurora = {
-  on: function () {
-    if (document.getElementById('pw-appaurora')) return;
-    var c = document.createElement('canvas');
-    c.id = 'pw-appaurora';
-    c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;';
-    document.body.insertBefore(c, document.body.firstChild);
-    // จางมาก ขยับช้ามาก ความละเอียดต่ำพอ — เป็นแค่แสงเรืองหลังเนื้อหา
-    this._h = window.PawdyAurora(c, { preset: 'pawdy', amp: 0.6, speed: 0.16, blend: 0.95, maxDpr: 1.25 });
-  },
-  off: function () {
-    if (this._h) { try { this._h.stop(); } catch (e) {} this._h = null; }
-    var c = document.getElementById('pw-appaurora');
-    if (c && c.parentNode) c.parentNode.removeChild(c);
-  }
-};
 </script>
 <style>
-/* ให้ตัวแอปโปร่งใส แสง Aurora จะได้ลอดขึ้นมาในช่องว่างระหว่างการ์ด */
-#pw-appaurora { opacity: .16; }
-:root[data-pw-theme="dark"] #pw-appaurora { opacity: .20; }
-[data-root] { background: transparent !important; position: relative; z-index: 1; }
-@media (prefers-reduced-motion: reduce) { #pw-appaurora { display: none; } }
-
 /* ---------- หน้าเข้าสู่ระบบ: การ์ดกระจกบนพื้นหลัง Aurora ---------- */
 #pw-auth .pw-card{
   position:relative;z-index:2;background:rgba(18,21,28,.72);
@@ -1037,7 +1071,6 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
     if (el.wrap) el.wrap.style.display = 'none';
     // เข้าระบบแล้วหยุดวาด ไม่ให้กิน GPU/แบตทิ้งไว้เบื้องหลัง
     if (el.aurora) { try { el.aurora.stop(); } catch (e) {} el.aurora = null; }
-    try { if (window.PawdyAppAurora) window.PawdyAppAurora.on(); } catch (e) {}
   }
 
   function signIn() {
@@ -3402,6 +3435,62 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   .pw-tab-on > span { opacity: 1 !important; }
 
   @keyframes pwGtFlow { to { background-position: -250% 0; } }
+
+  /* ---------- Spotlight Card: แสงนุ่มตามเคอร์เซอร์ ---------- */
+  .pw-spot { position: relative; }
+  .pw-spot::before {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    opacity: 0; transition: opacity .28s ease; z-index: 0;
+    background: radial-gradient(230px circle at var(--pw-mx, 50%) var(--pw-my, 50%),
+                rgba(153, 202, 63, .13), rgba(58, 209, 194, .07) 40%, transparent 66%);
+  }
+  :root[data-pw-theme="dark"] .pw-spot::before {
+    background: radial-gradient(230px circle at var(--pw-mx, 50%) var(--pw-my, 50%),
+                rgba(153, 202, 63, .20), rgba(58, 209, 194, .10) 40%, transparent 66%);
+  }
+  .pw-spot[data-spot]::before { opacity: 1; }
+  .pw-spot > * { position: relative; z-index: 1; }
+
+  /* ---------- Animated Content: จางเข้า + เลื่อนขึ้นตอนโหลด ---------- */
+  /* ใช้เฉพาะคีย์เฟรม from เท่านั้น ปลายทางจะได้ไม่ไปทับ transform ตอน hover/ลาก */
+  @keyframes pwIn { from { opacity: 0; transform: translateY(7px); } }
+  .pw-in { animation: pwIn .34s cubic-bezier(.22, .7, .28, 1) both; }
+  .pw-in:nth-child(2)  { animation-delay: 25ms; }
+  .pw-in:nth-child(3)  { animation-delay: 50ms; }
+  .pw-in:nth-child(4)  { animation-delay: 75ms; }
+  .pw-in:nth-child(5)  { animation-delay: 100ms; }
+  .pw-in:nth-child(6)  { animation-delay: 120ms; }
+  .pw-in:nth-child(7)  { animation-delay: 140ms; }
+  .pw-in:nth-child(8)  { animation-delay: 160ms; }
+  .pw-in:nth-child(9)  { animation-delay: 175ms; }
+  .pw-in:nth-child(10) { animation-delay: 190ms; }
+  .pw-in:nth-child(11) { animation-delay: 205ms; }
+  .pw-in:nth-child(n+12) { animation-delay: 220ms; }
+
+  /* ---------- Star Border: กรอบไล่แสงวิ่งรอบปุ่ม ---------- */
+  @property --pw-ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  .pw-star { position: relative; }
+  .pw-star::after {
+    content: ''; position: absolute; inset: -1.5px; border-radius: inherit; padding: 1.5px;
+    pointer-events: none;
+    background: conic-gradient(from var(--pw-ang),
+      transparent 0deg, transparent 236deg, rgba(153,202,63,.55) 280deg,
+      #eaffb0 310deg, #3ad1c2 338deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: pwStarSpin 3.4s linear infinite;
+  }
+  @keyframes pwStarSpin { to { --pw-ang: 360deg; } }
+
+  /* ---------- Click Spark ---------- */
+  #pw-sparks { position: fixed; inset: 0; z-index: 99998; pointer-events: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pw-in { animation: none; }
+    .pw-star::after { animation: none; }
+    .pw-spot::before { transition: none; }
+  }
   @media (prefers-reduced-motion: reduce) {
     .pw-gt, .pw-gt-dark, .pw-tab-on, .pw-tab-on::after { animation: none; background-position: 0 0; }
   }
@@ -3938,7 +4027,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
             </sc-if>
           </div>
-          <button sc-camel-on-click="{{ onAddTask }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;" style-hover="background: #4338ca;">
+          <button sc-camel-on-click="{{ onAddTask }}" class="pw-star" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;" style-hover="background: #4338ca;">
             <span style="font-size: 14px; line-height: 1;">+</span>New task
           </button>
         </div>
@@ -4379,7 +4468,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-if value="{{ group.expanded }}" hint-placeholder-val="{{ true }}">
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
-                <div data-task-row data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" sc-camel-on-drag-over="{{ row.onDragOverRow }}" sc-camel-on-drop="{{ row.onDropRow }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
+                <div class="pw-in" data-task-row data-flash="{{ row.flash }}" draggable="true" sc-camel-on-context-menu="{{ row.onContext }}" sc-camel-on-drag-start="{{ row.onDragStart }}" sc-camel-on-drag-over="{{ row.onDragOverRow }}" sc-camel-on-drop="{{ row.onDropRow }}" style="{{ row.rowStyle }}" style-hover="background: var(--pw-hover);">
                   <button data-ripple data-pulse="{{ row.pulse }}" sc-camel-on-click="{{ row.onCycleStatus }}" title="กดเพื่อเลื่อนสถานะ" style="{{ row.checkStyle }}"></button>
                   <div data-task-name-cell sc-camel-on-click="{{ row.onOpenFromNameCell }}" title="คลิกพื้นที่ว่างเพื่อเปิดรายละเอียดงาน" style="display: flex; align-items: center; gap: 5px; min-width: 0; padding-right: 8px; cursor: pointer;">
                     <span data-grip draggable="true" sc-camel-on-drag-start="{{ row.onDragStart }}" title="ลากเพื่อย้ายลำดับ หรือลากข้ามกลุ่ม" style="width: 14px; flex: 0 0 14px; text-align: center; color: var(--pw-faint); font-size: 12px; line-height: 1; cursor: grab; user-select: none;">⠿</span>
@@ -4728,7 +4817,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
-                  <div data-card data-land="{{ card.land }}" data-pulse="{{ card.pulse }}" draggable="true" sc-camel-on-context-menu="{{ card.onContext }}" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                  <div class="pw-spot pw-in" data-card data-land="{{ card.land }}" data-pulse="{{ card.pulse }}" draggable="true" sc-camel-on-context-menu="{{ card.onContext }}" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -4930,7 +5019,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;">
           <div data-dashgrid style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
             <sc-for list="{{ statCards }}" as="c" hint-placeholder-count="4">
-              <div style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 13px 14px; display: flex; flex-direction: column; gap: 5px;">
+              <div class="pw-spot pw-in" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; padding: 13px 14px; display: flex; flex-direction: column; gap: 5px;">
                 <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">{{ c.label }}</span>
                 <span class="pw-gt" style="font-size: 25px; font-weight: 700; letter-spacing: -0.5px; font-family: 'IBM Plex Mono', monospace;">{{ c.value }}</span>
                 <span style="{{ c.subStyle }}">{{ c.sub }}</span>
@@ -6471,6 +6560,9 @@ class Component extends DCLogic {
     this.syncDom();
     const self = this;
 
+    // เปิดเว็บมาแล้วอยู่หน้า Dashboard พอดี ก็ให้ตัวเลขวิ่งตั้งแต่ครั้งแรก
+    if (this.state.view === 'dashboard') setTimeout(function () { self.startCountUp(); }, 60);
+
     // ---- routing: อ่าน URL ตอนเข้า แล้วเฝ้าปุ่ม back/forward ----
     if (!this.applyRoute(location.hash)) {
       this._route = this.buildRoute(this.state);
@@ -6962,7 +7054,7 @@ class Component extends DCLogic {
   startCountUp() {
     clearInterval(this._countTimer);
     this.setState({ countUp: 0 });
-    const t0 = Date.now(), dur = 480;
+    const t0 = Date.now(), dur = 900;
     this._countTimer = setInterval(() => {
       const p = Math.min(1, (Date.now() - t0) / dur);
       this.setState({ countUp: 1 - Math.pow(1 - p, 3) });
@@ -10793,7 +10885,7 @@ class Component extends DCLogic {
       ganttRows: ganttRows,
       statCards: statCards,
       donutStyle: donutStyle,
-      donutTotal: total,
+      donutTotal: self.upNum(total),
       statusLegend: statusLegend,
       workload: workload,
       channelBars: channelBars,
