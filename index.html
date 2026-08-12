@@ -364,7 +364,20 @@ window.PAWDY_CONFIG = {
      ปลอดภัยที่จะฝังไว้ในหน้าเว็บ (เป็น public key) */
   vapidPublicKey: 'BEtaRYMMAIbyo7pDpY6ez0FAAL4hYfS3G_KxHEEt6RgMhzxX4s4GXsBGC0Nsly4ftHTmxTtR-1m0lp4MettcRCI',
   /* ป้ายเวอร์ชันไฟล์ — โชว์ในแถบ ⚙ ใช้เช็คว่าเว็บที่เปิดอยู่เป็นไฟล์ตัวไหน */
-  build: 'B12 · 2026-08-09'
+  build: 'B13 · 2026-08-12 · sheet-sync',
+
+  /* ---------------- ซิงค์ขึ้น Google Sheet อัตโนมัติ ----------------
+     endpoint = URL ที่ได้จาก Apps Script → Deploy → Web app (ลงท้าย /exec)
+     token    = ต้องตรงกับ SECRET ใน Code.gs เป๊ะๆ
+     space    = ซิงค์เฉพาะ space นี้ (เว้นว่าง = ทุกงานในระบบ)
+     ปล่อย endpoint ว่างไว้ = ปิดฟีเจอร์นี้ แอปทำงานเหมือนเดิมทุกอย่าง */
+  sheet: {
+    endpoint : '',
+    token    : 'pawdy-sync-CHANGE-ME',
+    sheetName: 'Content',
+    space    : 'Content',
+    debounce : 2500
+  }
 };
 window.__resources = {};  /* template ฝังในไฟล์แล้ว ไม่ต้อง fetch หน้าตัวเองซ้ำ */
 
@@ -4218,6 +4231,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           </div>
 
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <button sc-camel-on-click="{{ linkHub.onStarFilter }}" title="ดูเฉพาะลิงก์ที่ติดดาว" style="{{ linkHub.starFilterStyle }}">
+              ★ ติดดาว <span style="opacity:0.65;">{{ linkHub.starCount }}</span>
+            </button>
             <sc-for list="{{ linkHub.cats }}" as="lc" hint-placeholder-count="5">
               <button sc-camel-on-click="{{ lc.onPick }}" style="{{ lc.style }}">
                 <span style="{{ lc.dotStyle }}"></span>{{ lc.label }}
@@ -4249,6 +4265,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </div>
                 </div>
                 <div style="display:flex;gap:2px;flex:0 0 auto;">
+                  <button sc-camel-on-click="{{ li.onStar }}" title="{{ li.starTitle }}" style="{{ li.starStyle }}">{{ li.starMark }}</button>
                   <button sc-camel-on-click="{{ li.onCopy }}" title="คัดลอกลิงก์" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted2);font-size:12px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#4f46e5;">⧉</button>
                   <button sc-camel-on-click="{{ li.onEdit }}" title="แก้" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-muted2);font-size:12px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#4f46e5;">✎</button>
                   <button sc-camel-on-click="{{ li.onDelete }}" title="ลบ" style="width:27px;height:27px;border:0;border-radius:6px;background:transparent;color:var(--pw-faint);font-size:11px;cursor:pointer;" style-hover="background:var(--pw-hover);color:#dc2626;">✕</button>
@@ -5560,6 +5577,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 7px;">
+          <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">ซิงค์ Google Sheet</span>
+          <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.5;">แก้งานหรือปรับคอลัมน์เมื่อไหร่ ระบบจะส่งไปวาดชีทใหม่ให้เองภายในไม่กี่วินาที ปุ่มนี้ใช้สั่งทันทีโดยไม่ต้องรอ</span>
+          <span style="font-size: 10.5px; color: var(--pw-label); font-family: 'IBM Plex Mono', monospace;">{{ settings.sheetHint }}</span>
+          <button sc-camel-on-click="{{ settings.onSheetSync }}" style="background: transparent; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; color: var(--pw-text2); cursor: pointer; text-align: left;" style-hover="border-color: #4f46e5; color: #4f46e5;">ซิงค์ชีทเดี๋ยวนี้</button>
+          <span style="{{ settings.sheetMsgStyle }}">{{ settings.sheetMsg }}</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 7px;">
           <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">อีเมลแจ้งเตือน</span>
           <span style="font-size: 11px; color: var(--pw-muted2); line-height: 1.5;">กดปุ่มนี้เพื่อดูว่าติดตรงไหน — ชื่อ Edge Function ที่แอปเรียกต้องตรงกับชื่อบน Supabase</span>
           <span style="font-size: 10.5px; color: var(--pw-label); font-family: 'IBM Plex Mono', monospace;">{{ buildLabel }}</span>
@@ -6172,6 +6197,7 @@ class Component extends DCLogic {
     this._undoLabel = null;
     window.PawdySync.save({ tasks: st.tasks, spaces: st.spaces, fields: st.fields, config: st.config, docs: st.docs, planner: st.planner, links: st.links, ui: { view: st.view, list: st.list, filters: st.filters, navCollapsed: st.navCollapsed, calMobileMode: st.calMobileMode,
         sortMode: st.sortMode, collapsedGroups: st.collapsedGroups } });
+    this.queueSheetSync();   // แก้อะไรก็ตาม (รวมย้าย/ซ่อน/เพิ่มคอลัมน์) ให้ชีทตามด้วย
   }
 
   // ---- undo / redo ----
@@ -6721,6 +6747,13 @@ class Component extends DCLogic {
     this.syncDom();
     const self = this;
 
+    // ค้างอยู่ใน debounce แล้วปิดแท็บ — ยิงให้จบก่อน ไม่งั้นชีทตกรอบ
+    this._onSheetFlush = function () { if (self._sheetDirty) self.pushSheet(false); };
+    window.addEventListener('pagehide', this._onSheetFlush);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') self._onSheetFlush();
+    });
+
     // เปิดเว็บมาแล้วอยู่หน้า Dashboard พอดี ก็ให้ตัวเลขวิ่งตั้งแต่ครั้งแรก
     if (this.state.view === 'dashboard') setTimeout(function () { self.startCountUp(); }, 60);
 
@@ -7122,6 +7155,183 @@ class Component extends DCLogic {
     const safe = String(scope).replace(/[\\/:*?"<>|]/g, '-');
     const stamp = TODAY;
     window.PawdyXlsx.download('Pawdy_' + safe + '_' + stamp + '.xlsx', [{ name: 'Tasks', columns: columns, rows: rows }]);
+  }
+
+
+  /* ==================================================================
+     ซิงค์ขึ้น Google Sheet — ส่ง snapshot ทั้งชุดให้ Apps Script วาดใหม่
+     คอลัมน์/ลำดับ/ความกว้าง/สี อ้างจากค่าที่ตั้งไว้ในหน้า Table จริง
+     ================================================================== */
+  sheetCfg() {
+    const c = (window.PAWDY_CONFIG || {}).sheet || {};
+    return {
+      on       : !!c.endpoint,
+      endpoint : c.endpoint || '',
+      token    : c.token || '',
+      sheetName: c.sheetName || 'Content',
+      space    : c.space || '',
+      debounce : c.debounce || 2500
+    };
+  }
+
+  // คอลัมน์ที่เปิดอยู่ ตามลำดับจริงในหน้า Table (ไม่สนโหมดมือถือ)
+  sheetColumns() {
+    const self = this, c = this.cols();
+    const out = [{ key: 'name', label: 'ชื่องาน', width: this.colWidth('name') || 320 }];
+    this.colOrder().forEach(function (k) {
+      const on = String(k).indexOf('cf:') === 0 ? c[k] !== false : !!c[k];
+      if (!on) return;
+      const d = self.cdef(k);
+      if (!d) return;
+      const f = d.field;
+      let type = 'text', style = null;
+      if (k === 'due') { type = 'date'; }
+      else if (k === 'cost' || k === 'qty') { type = 'number'; }
+      else if (k === 'status') { style = 'solid'; }
+      else if (k === 'list') { style = 'tint'; }
+      else if (k === 'priority') { style = 'text'; }
+      else if (k === 'channel' || k === 'platform') { style = 'tint'; }
+      else if (f) {
+        if (f.type === 'number') type = 'number';
+        else if (f.type === 'date') type = 'date';
+        else if (f.type === 'select') style = 'tint';
+      }
+      out.push({ key: k, label: d.label, width: self.colWidth(k) || d.w || 130, type: type, style: style });
+    });
+    return out;
+  }
+
+  // ค่าที่จะลงในเซลล์ — ข้อความล้วน ไม่เอา markup ของหน้าเว็บ
+  sheetValue(t, key) {
+    if (key === 'name')     return t.name || '';
+    if (key === 'status')   return t.status || '';
+    if (key === 'assignee') return this.assigneesOf(t).join(', ') || 'Unassigned';
+    if (key === 'due')      return t.due || '';
+    if (key === 'priority') return t.priority || '';
+    if (key === 'tags')     return (t.tags || []).join(', ');
+    if (key === 'list')     return t.list || '';
+    if (key === 'channel')  return this.multiValues(t.channel).join(', ');
+    if (key === 'platform') return this.multiValues(t.platform).join(', ');
+    if (key === 'cost')     return t.cost || 0;
+    if (key === 'qty')      return t.qty || 0;
+    if (key === 'activity') {
+      const subs = t.subtasks || [];
+      const done = subs.filter(function (x) { return x.done; }).length;
+      return (subs.length ? done + '/' + subs.length : '') +
+             ((t.comments || []).length ? (subs.length ? ' · ' : '') + '💬' + t.comments.length : '');
+    }
+    const f = this.fieldOfKey(key);
+    if (!f) return '';
+    if (f.type === 'timeline') {
+      const r = this.tlRange(t, f.id);
+      if (!r.from) return '';
+      return (r.to && r.to !== r.from) ? (r.from + ' → ' + r.to) : r.from;
+    }
+    const v = t.custom ? t.custom[f.id] : '';
+    if (Array.isArray(v)) return v.join(', ');
+    return (v === undefined || v === null) ? '' : v;
+  }
+
+  // สีของค่าในคอลัมน์นั้น — ดึงจากที่ตั้งไว้ในเว็บ ชีทจะได้สีเดียวกันเสมอ
+  sheetColorOf(key, value) {
+    if (!value) return null;
+    const first = String(value).split(',')[0].trim();
+    if (key === 'status')   return this.statusMeta(first).c;
+    if (key === 'list')     return this.listColorOf(first);
+    if (key === 'priority') return this.prioMeta(first).c;
+    if (key === 'channel')  return this.optColorOf('channels', first);
+    if (key === 'platform') return this.optColorOf('platforms', first);
+    if (String(key).indexOf('cf:') === 0) return this.optColorOf(key, first);
+    return null;
+  }
+
+  sheetPayload() {
+    const self = this;
+    const sc   = this.sheetCfg();
+    const cols = this.sheetColumns();
+
+    // ขอบเขต: space ที่ตั้งไว้ (ถ้าไม่เจอชื่อนั้น = เอาทุกงาน)
+    const sp    = (this.state.spaces || []).filter(function (x) { return x.name === sc.space; })[0];
+    const scope = sp ? sp.lists : null;
+
+    const tasks = (this.state.tasks || []).filter(function (t) {
+      if (t.deleted || t.archived) return false;
+      return scope ? scope.indexOf(t.list) >= 0 : true;
+    }).sort(function (a, b) { return (a.pos || 0) - (b.pos || 0); });
+
+    // จัดก้อนตาม list เหมือนหน้า Table เรียงตามลำดับ list ใน space
+    const bucket = {}, order = (scope || []).slice();
+    tasks.forEach(function (t) {
+      const k = t.list || '—';
+      if (!bucket[k]) bucket[k] = [];
+      if (order.indexOf(k) < 0) order.push(k);
+      bucket[k].push(t);
+    });
+
+    const colors = {};
+    // list ที่ยังไม่มีงานก็โชว์หัวก้อนไว้ เหมือนหน้า Table
+    const groups = order.map(function (k) {
+      return {
+        label: k,
+        color: self.listColorOf(k),
+        rows: (bucket[k] || []).map(function (t) {
+          const row = {};
+          cols.forEach(function (col) {
+            const v = self.sheetValue(t, col.key);
+            row[col.key] = v;
+            if (!col.style || v === '' || v === 0) return;
+            const c = self.sheetColorOf(col.key, v);
+            if (!c) return;
+            if (!colors[col.key]) colors[col.key] = {};
+            colors[col.key][String(v)] = c;
+          });
+          return row;
+        })
+      };
+    });
+
+    return {
+      token    : sc.token,
+      sheetName: sc.sheetName,
+      title    : sc.space || 'Pawdy Workspace',
+      columns  : cols,
+      groups   : groups,
+      colors   : colors
+    };
+  }
+
+  queueSheetSync() {
+    const sc = this.sheetCfg();
+    if (!sc.on) return;
+    const self = this;
+    this._sheetDirty = true;
+    clearTimeout(this._sheetTimer);
+    this._sheetTimer = setTimeout(function () { self.pushSheet(false); }, sc.debounce);
+  }
+
+  pushSheet(manual) {
+    const sc = this.sheetCfg(), self = this;
+    if (!sc.on) {
+      if (manual) this.setState({ sheetMsg: 'ยังไม่ได้ใส่ endpoint — เปิดไฟล์แล้วเติม PAWDY_CONFIG.sheet.endpoint ก่อน', sheetOk: false });
+      return;
+    }
+    clearTimeout(this._sheetTimer);
+    this._sheetDirty = false;
+    let body;
+    try { body = JSON.stringify(this.sheetPayload()); }
+    catch (e) { if (manual) this.setState({ sheetMsg: '✕ เตรียมข้อมูลไม่สำเร็จ: ' + e, sheetOk: false }); return; }
+    if (manual) this.setState({ sheetMsg: 'กำลังส่ง…', sheetOk: true });
+    // no-cors + text/plain = คำขอแบบง่าย ไม่ติด preflight ของ Apps Script
+    fetch(sc.endpoint, {
+      method: 'POST', mode: 'no-cors', keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: body
+    }).then(function () {
+      self._sheetAt = Date.now();
+      if (manual) self.setState({ sheetMsg: '✓ ส่งแล้ว — เปิดชีทดูได้เลย (ถ้าชีทไม่ขยับ ให้เช็ค token กับสิทธิ์ของ Web app)', sheetOk: true });
+    }).catch(function (e) {
+      if (manual) self.setState({ sheetMsg: '✕ ส่งไม่สำเร็จ: ' + e, sheetOk: false });
+    });
   }
 
   // ---- ลากปรับวันบน Timeline: ขอบซ้าย = วันเริ่ม, ขอบขวา = วันครบกำหนด, กลาง = เลื่อนทั้งงาน ----
@@ -8879,10 +9089,30 @@ class Component extends DCLogic {
     const self = this;
     const q = String(this.state.linkQuery || '').trim();
     const cat = this.state.linkCat;
+    const starOnly = !!this.state.linkStarOnly;
     return this.allLinks()
       .filter(function (l) { return !cat || l.cat === cat; })
+      .filter(function (l) { return !starOnly || !!l.star; })
       .filter(function (l) { return self.matchLink(l, q); })
-      .sort(function (a, b) { return (b.at || 0) - (a.at || 0); });
+      // ติดดาวลอยขึ้นบนสุดเสมอ ที่เหลือเรียงใหม่สุดก่อนเหมือนเดิม
+      .sort(function (a, b) {
+        const d = (b.star ? 1 : 0) - (a.star ? 1 : 0);
+        return d !== 0 ? d : (b.at || 0) - (a.at || 0);
+      });
+  }
+  starredLinks() { return this.allLinks().filter(function (l) { return !!l.star; }); }
+  // ติด/ปลดดาว — เป็นค่าของทีม ทุกคนเห็นตรงกัน
+  toggleLinkStar(id) {
+    const l = this.allLinks().filter(function (x) { return x.id === id; })[0];
+    if (!l) return;
+    this.mark(l.star ? 'ปลดดาวลิงก์' : 'ติดดาวลิงก์');
+    this.setState(function (st) {
+      return {
+        links: (st.links || []).map(function (x) {
+          return x.id === id ? Object.assign({}, x, { star: !x.star }) : x;
+        })
+      };
+    }, () => this.persist());
   }
   normalizeUrl(u) {
     const v = String(u || '').trim();
@@ -11572,8 +11802,16 @@ class Component extends DCLogic {
             catStyle: 'font-size:9.5px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:4px;white-space:nowrap;background:' +
               self.optTint(cm.c) + ';color:' + cm.c + ';',
             kindStyle: 'font-size:9.5px;color:var(--pw-muted2);background:var(--pw-hover);border-radius:4px;padding:2px 6px;white-space:nowrap;',
-            rowStyle: 'display:flex;align-items:flex-start;gap:10px;padding:12px 13px;border:1px solid var(--pw-border);' +
-              'border-left:3px solid ' + cm.c + ';border-radius:10px;background:var(--pw-surface);',
+            rowStyle: 'display:flex;align-items:flex-start;gap:10px;padding:12px 13px;border:1px solid ' +
+              (l.star ? 'rgba(245,158,11,.45)' : 'var(--pw-border)') +
+              ';border-left:3px solid ' + cm.c + ';border-radius:10px;background:' +
+              (l.star ? 'linear-gradient(90deg, rgba(245,158,11,.07), var(--pw-surface) 55%)' : 'var(--pw-surface)') + ';',
+            starMark: l.star ? '★' : '☆',
+            starTitle: l.star ? 'ปลดดาว' : 'ติดดาว',
+            starStyle: 'width:27px;height:27px;border:0;border-radius:6px;background:' +
+              (l.star ? 'rgba(245,158,11,.14)' : 'transparent') + ';color:' +
+              (l.star ? '#f59e0b' : 'var(--pw-faint)') + ';font-size:13px;line-height:1;cursor:pointer;',
+            onStar: function () { self.toggleLinkStar(l.id); },
             onCopy: function () { self.copyLink(l.url); },
             onEdit: function () { self.openLinkEditor(l.id); },
             onDelete: function () { self.removeLink(l.id); }
@@ -11630,12 +11868,19 @@ class Component extends DCLogic {
           empty: items.length === 0,
           hasItems: items.length > 0,
           noneAtAll: all.length === 0,
-          searching: !!q || !!s.linkCat,
+          searching: !!q || !!s.linkCat || !!s.linkStarOnly,
           query: s.linkQuery || '',
           queryRef: self.syncRef(s.linkQuery || ''),
           countLabel: items.length + ' จาก ' + all.length + ' ลิงก์',
+          starCount: String(self.starredLinks().length),
+          starFilterStyle: 'display:flex;align-items:center;gap:6px;border:1px solid ' +
+            (s.linkStarOnly ? '#f59e0b' : 'var(--pw-border)') + ';border-radius:999px;padding:5px 12px;background:' +
+            (s.linkStarOnly ? 'rgba(245,158,11,.14)' : 'transparent') + ';color:' +
+            (s.linkStarOnly ? '#f59e0b' : 'var(--pw-muted2)') + ';font-size:11.5px;font-weight:' +
+            (s.linkStarOnly ? '600' : '400') + ';cursor:pointer;',
+          onStarFilter: function () { self.setState({ linkStarOnly: !s.linkStarOnly }); },
           onQuery: function (e) { self.setState({ linkQuery: e.target.value }); },
-          onClear: function () { self.setState({ linkQuery: '', linkCat: null }); },
+          onClear: function () { self.setState({ linkQuery: '', linkCat: null, linkStarOnly: false }); },
           onAdd: function () { self.openLinkEditor('__new'); },
           editOpen: !!edit, edit: edit || {}
         };
@@ -11999,6 +12244,15 @@ class Component extends DCLogic {
             onToggle: function () { self.toggleCol(c[0]); }
           };
         }),
+        sheetHint: (function () {
+          const sc = self.sheetCfg();
+          if (!sc.on) return 'ยังไม่เปิดใช้ — ใส่ endpoint ใน PAWDY_CONFIG.sheet';
+          return 'ชีท ' + sc.sheetName + (sc.space ? ' · เฉพาะ space ' + sc.space : ' · ทุกงาน') +
+                 ' · ' + self.sheetColumns().length + ' คอลัมน์';
+        })(),
+        sheetMsg: s.sheetMsg || '',
+        sheetMsgStyle: 'font-size:11px;line-height:1.5;color:' + (s.sheetOk ? '#059669' : '#dc2626') + ';',
+        onSheetSync: function () { self.pushSheet(true); },
         mailTest: s.mailTest || '',
         mailTestStyle: 'font-size:11px;line-height:1.5;color:' + (s.mailTestOk ? '#059669' : '#dc2626') + ';',
         onTestMail: function () {
