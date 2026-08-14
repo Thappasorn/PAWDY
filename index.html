@@ -4067,14 +4067,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <button sc-camel-on-click="{{ onCloseFilter }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: var(--pw-text);">×</button>
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">วันครบกำหนด</span>
-                  <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                    <sc-for list="{{ dueFilters }}" as="df" hint-placeholder-count="4">
-                      <button sc-camel-on-click="{{ df.onToggle }}" style="{{ df.style }}">{{ df.label }}</button>
-                    </sc-for>
+                <input ref="{{ filterQueryRef }}" data-sync="{{ filterQuery }}" value="{{ filterQuery }}" sc-camel-on-change="{{ onFilterQuery }}" placeholder="พิมพ์ค้นหา — ชื่อฟิลด์ / ชื่อคน / ตัวเลือก" style="width: 100%; border: 1px solid var(--pw-border); border-radius: 8px; padding: 8px 10px; font-size: 12px; outline: 0; background: var(--pw-surface2); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
+
+                <sc-if value="{{ hasDueFilter }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pw-label); font-weight: 600;">วันครบกำหนด</span>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                      <sc-for list="{{ dueFilters }}" as="df" hint-placeholder-count="4">
+                        <button sc-camel-on-click="{{ df.onToggle }}" style="{{ df.style }}">{{ df.label }}</button>
+                      </sc-for>
+                    </div>
                   </div>
-                </div>
+                </sc-if>
 
                 <sc-for list="{{ filterGroups }}" as="fg" hint-placeholder-count="5">
                   <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -8967,14 +8971,22 @@ class Component extends DCLogic {
   // ---- ตัวกรอง (เป็นค่าส่วนตัวของแต่ละคน ไม่กวนคนอื่น) ----
   filt() {
     const f = this.state.filters || {};
-    return {
+    // คีย์ที่ไม่รู้จัก (id ของ custom field) ปล่อยผ่านมาด้วย
+    return Object.assign({}, f, {
       status: f.status || [], assignee: f.assignee || [], priority: f.priority || [],
-      channel: f.channel || [], platform: f.platform || [], due: f.due || ''
-    };
+      channel: f.channel || [], platform: f.platform || [], list: f.list || [], due: f.due || ''
+    });
   }
   filterCount() {
     const f = this.filt();
-    return f.status.length + f.assignee.length + f.priority.length + f.channel.length + f.platform.length + (f.due ? 1 : 0);
+    return Object.keys(f).reduce(function (n, k) { return n + (Array.isArray(f[k]) ? f[k].length : 0); }, 0) + (f.due ? 1 : 0);
+  }
+  // ฟิลด์ที่เป็น dropdown เอามาทำตัวกรองได้
+  selectFields() { return (this.state.fields || []).filter(function (x) { return x.type === 'select'; }); }
+  allLists() {
+    const out = [];
+    (this.state.spaces || []).forEach(function (sp) { (sp.lists || []).forEach(function (l) { if (out.indexOf(l) < 0) out.push(l); }); });
+    return out;
   }
   toggleFilter(kind, val) {
     this.setState(function (s) {
@@ -9013,6 +9025,14 @@ class Component extends DCLogic {
     if (f.priority.length && f.priority.indexOf(t.priority) < 0) return false;
     if (f.channel.length && !f.channel.some((v) => this.multiHas(t.channel, v))) return false;
     if (f.platform.length && !f.platform.some((v) => this.multiHas(t.platform, v))) return false;
+    if (f.list.length && f.list.indexOf(t.list) < 0) return false;
+    const cf = this.selectFields();
+    for (let i = 0; i < cf.length; i++) {
+      const sel = f[cf[i].id];
+      if (!sel || !sel.length) continue;
+      const val = t.custom ? t.custom[cf[i].id] : '';
+      if (!sel.some((v) => this.multiHas(val, v))) return false;
+    }
     if (f.due) {
       const done = this.isDone(t.status);
       if (f.due === 'overdue' && !(t.due < TODAY && !done)) return false;
@@ -11460,14 +11480,18 @@ class Component extends DCLogic {
       hasFilter: self.filterCount() > 0,
       filterBtnStyle: 'display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:7px;border:1px solid ' + ((s.filterOpen || self.filterCount()) ? '#4f46e5' : 'var(--pw-border)') + ';background:' + ((s.filterOpen || self.filterCount()) ? 'var(--pw-accent-soft)' : 'var(--pw-surface)') + ';color:' + ((s.filterOpen || self.filterCount()) ? '#4f46e5' : 'var(--pw-muted)') + ';cursor:pointer;font-size:12px;white-space:nowrap;',
       filterBadge: self.filterCount() ? String(self.filterCount()) : '',
-      onToggleFilter: function () { self.setState(function (st) { return { filterOpen: !st.filterOpen }; }); },
-      onCloseFilter: function () { self.setState({ filterOpen: false }); },
+      onToggleFilter: function () { self.setState(function (st) { return { filterOpen: !st.filterOpen, filterQuery: '' }; }); },
+      onCloseFilter: function () { self.setState({ filterOpen: false, filterQuery: '' }); },
       onClearFilters: function () { self.clearFilters(); },
+      filterQuery: s.filterQuery || '',
+      filterQueryRef: self.syncRef(s.filterQuery || ''),
+      onFilterQuery: function (e) { self.setState({ filterQuery: e.target.value }); },
       activeFilterChips: (function () {
         const f = self.filt();
         const chips = [];
-        const labels = { status: 'สถานะ', assignee: 'ผู้รับผิดชอบ', priority: 'ความสำคัญ', channel: 'Channel', platform: 'Platform' };
-        ['status', 'assignee', 'priority', 'channel', 'platform'].forEach(function (kind) {
+        const labels = { status: 'สถานะ', assignee: 'ผู้รับผิดชอบ', priority: 'ความสำคัญ', list: 'List', channel: 'Channel', platform: 'Platform' };
+        self.selectFields().forEach(function (x) { labels[x.id] = x.label; });
+        Object.keys(labels).forEach(function (kind) {
           (f[kind] || []).forEach(function (value) {
             chips.push({
               label: labels[kind] + ': ' + value,
@@ -11483,10 +11507,14 @@ class Component extends DCLogic {
       })(),
       filterGroups: (function () {
         const f = self.filt();
+        const q = String(s.filterQuery || '').trim().toLowerCase();
         const mk = function (kind, label, values, colorOf) {
+          // พิมพ์ชื่อกลุ่มตรง = โชว์ทั้งกลุ่ม, ไม่ตรง = กรองเฉพาะตัวเลือกที่ตรง
+          const vals = (!q || label.toLowerCase().indexOf(q) >= 0) ? values
+            : values.filter(function (v) { return String(v).toLowerCase().indexOf(q) >= 0; });
           return {
             label: label,
-            items: values.map(function (v) {
+            items: vals.map(function (v) {
               const on = f[kind].indexOf(v) >= 0;
               const c = colorOf ? colorOf(v) : '#4f46e5';
               return {
@@ -11503,11 +11531,21 @@ class Component extends DCLogic {
           mk('status', 'สถานะ', self.statuses().map(function (x) { return x.k; }), function (v) { return self.statusMeta(v).c; }),
           mk('assignee', 'ผู้รับผิดชอบ', (s.members || []).map(function (x) { return x.n; }), function (v) { return self.memberMeta(v).c; }),
           mk('priority', 'ความสำคัญ', self.priorities().map(function (x) { return x.k; }), function (v) { return self.prioMeta(v).c; }),
+          mk('list', 'List', self.allLists(), null),
           mk('channel', 'Channel', self.channels(), null),
           mk('platform', 'Platform', self.platforms(), null)
-        ];
+        ].concat(self.selectFields().map(function (x) {
+          return mk(x.id, x.label, (x.options || []).concat(['—']), null);
+        })).filter(function (g) { return g.items.length; });
       })(),
-      dueFilters: [['overdue', 'เลยกำหนด'], ['today', 'ครบวันนี้'], ['week', 'ใน 7 วัน'], ['later', 'หลังจากนั้น']].map(function (o) {
+      hasDueFilter: (function () {
+        const q = String(s.filterQuery || '').trim().toLowerCase();
+        return !q || 'วันครบกำหนด เลยกำหนด ครบวันนี้ ใน 7 วัน หลังจากนั้น'.toLowerCase().indexOf(q) >= 0;
+      })(),
+      dueFilters: [['overdue', 'เลยกำหนด'], ['today', 'ครบวันนี้'], ['week', 'ใน 7 วัน'], ['later', 'หลังจากนั้น']].filter(function (o) {
+        const q = String(s.filterQuery || '').trim().toLowerCase();
+        return !q || 'วันครบกำหนด'.indexOf(q) >= 0 || o[1].toLowerCase().indexOf(q) >= 0;
+      }).map(function (o) {
         const on = self.filt().due === o[0];
         return {
           label: o[1],
