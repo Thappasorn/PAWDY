@@ -8971,11 +8971,13 @@ class Component extends DCLogic {
   // ---- ตัวกรอง (เป็นค่าส่วนตัวของแต่ละคน ไม่กวนคนอื่น) ----
   filt() {
     const f = this.state.filters || {};
-    // คีย์ที่ไม่รู้จัก (id ของ custom field) ปล่อยผ่านมาด้วย
-    return Object.assign({}, f, {
+    const out = Object.assign({}, f, {
       status: f.status || [], assignee: f.assignee || [], priority: f.priority || [],
       channel: f.channel || [], platform: f.platform || [], list: f.list || [], due: f.due || ''
     });
+    // custom field ต้องมีค่าเป็น [] เสมอ ไม่งั้นฝั่งที่เรียก .indexOf จะพัง
+    this.selectFields().forEach(function (x) { out[x.id] = f[x.id] || []; });
+    return out;
   }
   filterCount() {
     const f = this.filt();

@@ -42,6 +42,15 @@ set({ [FREELANCE]: ['Ann'] });
 assert.deepStrictEqual(app.filt()[FREELANCE], ['Ann'], 'filt() ทิ้งคีย์ custom field');
 assert.deepStrictEqual(app.filt().list, [], 'filt() ต้องมี list เป็น []');
 
+// --- ยังไม่ตั้งตัวกรอง: ทุกคีย์ที่กรองได้ต้องเป็น [] ไม่ใช่ undefined ---
+// (เคยพังตรงนี้: filterGroups เรียก f[kind].indexOf(v) แล้ว Cannot read properties of undefined)
+set({});
+const empty = app.filt();
+['status', 'assignee', 'priority', 'channel', 'platform', 'list', FREELANCE].forEach(function (k) {
+  assert.ok(Array.isArray(empty[k]), 'filt().' + k + ' ต้องเป็น array เสมอ');
+  assert.doesNotThrow(function () { empty[k].indexOf('x'); }, k + ' ต้องเรียก .indexOf ได้');
+});
+
 // --- filterCount() นับ custom + list ด้วย ---
 set({ status: ['Done'], list: ['Official'], [FREELANCE]: ['Ann', 'Bee'], due: 'today' });
 assert.strictEqual(app.filterCount(), 5, 'filterCount() นับผิด');
