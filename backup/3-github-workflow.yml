@@ -1,0 +1,54 @@
+# ============================================================================
+#  Pawdy Workspace — สำรองข้อมูลขึ้น GitHub อัตโนมัติทุกวัน
+#
+#  วางไฟล์นี้ใน repo ที่ path:  .github/workflows/backup.yml
+#  และวางไฟล์ 3-github-backup.py ที่ path:  backup.py  (ราก repo)
+#
+#  ต้องตั้ง Repository secrets 4 ตัวก่อน (Settings → Secrets and variables →
+#  Actions → New repository secret):
+#      SUPABASE_URL · SUPABASE_ANON_KEY · PAWDY_EMAIL · PAWDY_PASSWORD
+# ============================================================================
+
+name: Pawdy backup
+
+on:
+  schedule:
+    - cron: '30 */6 * * *'      # ทุก 6 ชั่วโมง — เสียงานอย่างมากแค่ 6 ชม.
+  workflow_dispatch:            # กดสั่งเองได้จากแท็บ Actions
+
+# ⚠ GitHub จะปิด schedule อัตโนมัติถ้า repo ไม่มีความเคลื่อนไหว 60 วัน
+#   ถ้าใช้ GitHub เป็นตัวสำรองหลัก ควรเข้าไปดูแท็บ Actions เดือนละครั้ง
+#   ว่ายังรันอยู่ไหม (หรือทำชั้นที่ 1 ใน Supabase ควบไว้ด้วย ซึ่งไม่มีข้อจำกัดนี้)
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: ดึงข้อมูลจาก Supabase
+        env:
+          SUPABASE_URL:      ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          PAWDY_EMAIL:       ${{ secrets.PAWDY_EMAIL }}
+          PAWDY_PASSWORD:    ${{ secrets.PAWDY_PASSWORD }}
+        run: python3 backup.py
+
+      - name: commit ถ้ามีอะไรเปลี่ยน
+        run: |
+          git config user.name  "pawdy-backup"
+          git config user.email "actions@github.com"
+          git add backups/
+          if git diff --staged --quiet; then
+            echo "ไม่มีอะไรเปลี่ยน ข้าม commit"
+          else
+            git commit -m "backup $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

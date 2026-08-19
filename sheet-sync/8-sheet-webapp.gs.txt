@@ -1,0 +1,292 @@
+/* ============================================================================
+   Pawdy Workspace → Google Sheet  ·  ตัวรับข้อมูล (Apps Script Web App)
+
+   ทำอะไร: รับข้อมูลที่ Supabase ยิงมาทุกครั้งที่มีคนเพิ่ม/แก้/ลบงานในเว็บ
+           แล้วเขียนลงแท็บ "Sync" ทันที พร้อมทำ dropdown ให้เหมือนหน้าเว็บ
+
+   ไม่ต้องเก็บรหัสผ่านหรือ key ของ Supabase เลยสักตัว — ข้อมูลไหลมาทางเดียว
+
+   ── โครงคอลัมน์ ─────────────────────────────────────────
+   A-R  เว็บเป็นเจ้าของ  (สคริปต์เขียนทับ ห้ามแก้มือ · หัวสีเทา)
+   S-U  ทีมลงสื่อกรอกเอง (สคริปต์ไม่แตะเด็ดขาด · หัวสีเขียว)
+
+   ── วิธีติดตั้ง ─────────────────────────────────────────
+   1. เปิด Google Sheet ที่ต้องการ → ส่วนขยาย (Extensions) → Apps Script
+   2. ลบโค้ดเดิมทิ้ง วางไฟล์นี้ทั้งไฟล์
+   3. แก้ SECRET ข้างล่างเป็นรหัสอะไรก็ได้ที่เดายาก (จำไว้ ใช้ในไฟล์ SQL ด้วย)
+   4. กด Save → เลือกฟังก์ชัน setupSheet → Run → กดอนุญาตสิทธิ์
+   5. กด Deploy → New deployment → เลือกชนิด Web app
+        Execute as        : Me
+        Who has access    : Anyone            ← จำเป็น Supabase ถึงจะยิงเข้ามาได้
+      กด Deploy แล้วก๊อป URL ที่ลงท้ายด้วย /exec เก็บไว้
+   6. เอา URL + SECRET ไปกรอกในไฟล์ 7-sheet-push.sql ขั้นที่ 3 แล้วรันใน Supabase
+   7. กลับมาที่ Supabase รัน  select public.push_all_to_sheet();  เพื่อส่งงานเดิมขึ้นครั้งแรก
+
+   ⚠ ทุกครั้งที่แก้ไฟล์นี้ ต้อง Deploy → Manage deployments → แก้ไข → Version: New version
+      ไม่งั้น URL เดิมจะยังรันโค้ดเก่าอยู่
+   ============================================================================ */
+
+const SECRET     = 'ตั้งรหัสลับตรงนี้-อะไรก็ได้ที่เดายาก';
+const SHEET_NAME = 'Sync';
+
+const HEADERS = [
+  'Task ID',            // A  ← กุญแจจับคู่แถว ห้ามแก้ ห้ามลบ
+  'List',               // B
+  'ชื่องาน',             // C
+  'Status',             // D  dropdown
+  'ผู้รับผิดชอบ',        // E  dropdown
+  'Priority',           // F  dropdown
+  'วันเริ่มงาน',         // G
+  'วันครบกำหนด',        // H
+  'Channel',            // I  dropdown
+  'Platform',           // J  dropdown
+  'Format',             // K  dropdown (custom field)
+  'ประเภท Banner',      // L  dropdown (custom field)
+  'Tags',               // M
+  'Link',               // N  กดได้
+  'Description',        // O
+  'Checklist',          // P  เช่น 2/5
+  'Comment',            // Q  จำนวนคอมเมนต์
+  'เปิดการ์ดในเว็บ',     // R  กดได้
+  // ── ตั้งแต่ตรงนี้ทีมลงสื่อกรอกเอง สคริปต์ไม่แตะ ──
+  'วันลงสื่อจริง',       // S
+  'Link Post',          // T
+  'หมายเหตุทีมลงสื่อ'    // U
+];
+
+const WEB_COLS   = 18;                 // A-R เว็บเป็นเจ้าของ
+const TOTAL_COLS = HEADERS.length;     // ถึง U
+const APP_URL    = 'https://pawdycontent.vercel.app';
+
+
+/* ==================== ตัวรับข้อมูลจาก Supabase ==================== */
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(25000);
+  } catch (err) {
+    return json_({ ok: false, error: 'ระบบกำลังยุ่ง ลองใหม่' });
+  }
+
+  try {
+    const body = JSON.parse(e.postData.contents || '{}');
+    if (body.secret !== SECRET) return json_({ ok: false, error: 'รหัสลับไม่ถูก' });
+
+    const sh = getSheet_();
+    refreshDropdowns_(sh, body.meta || {});
+
+    if (body.op === 'DELETE') {
+      markDeleted_(sh, body.task_id);
+    } else {
+      upsertTask_(sh, body.task_id, body.task || {}, body.meta || {});
+    }
+    return json_({ ok: true });
+
+  } catch (err) {
+    return json_({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function doGet() {
+  return ContentService.createTextOutput('Pawdy sheet receiver พร้อมทำงาน');
+}
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+/* ==================== เขียนลงชีต ==================== */
+
+function upsertTask_(sh, taskId, t, meta) {
+  const row = buildRow_(taskId, t, meta);
+  const at  = findRow_(sh, taskId);
+
+  if (at > 0) {
+    sh.getRange(at, 1, 1, WEB_COLS).setValues([row]);
+    sh.getRange(at, 1, 1, TOTAL_COLS).setFontLine('none').setFontColor(null);
+  } else {
+    const r = sh.getLastRow() + 1;
+    sh.getRange(r, 1, 1, WEB_COLS).setValues([row]);
+    applyRowFormat_(sh, r);
+  }
+}
+
+// งานถูกลบในเว็บ — ไม่ลบแถวทิ้ง เพราะทีมลงสื่ออาจกรอกอะไรไว้แล้ว
+// ทำเป็นขีดฆ่าสีเทาแทน จะได้เห็นว่าไม่มีในเว็บแล้ว
+function markDeleted_(sh, taskId) {
+  const at = findRow_(sh, taskId);
+  if (at <= 0) return;
+  sh.getRange(at, 1, 1, TOTAL_COLS).setFontColor('#9aa0a6').setFontLine('line-through');
+  sh.getRange(at, 4).setValue('(ลบจากเว็บแล้ว)');
+}
+
+function findRow_(sh, taskId) {
+  const last = sh.getLastRow();
+  if (last < 2) return -1;
+  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]).trim() === String(taskId).trim()) return i + 2;
+  }
+  return -1;
+}
+
+function buildRow_(taskId, t, meta) {
+  const fields = (meta && meta.fields) || [];
+  const custom = t.custom || {};
+
+  const byLabel = {};
+  fields.forEach(function (f) { if (f && f.label) byLabel[String(f.label).trim()] = f.id; });
+  const cf = function (label) {
+    const id = byLabel[label];
+    return id ? flat_(custom[id]) : '';
+  };
+
+  const subs = t.subtasks || [];
+  const done = subs.filter(function (x) { return x && x.done; }).length;
+
+  return [
+    taskId,                                              // A
+    t.list || '',                                        // B
+    t.name || '',                                        // C
+    t.status || '',                                      // D
+    assignees_(t).join(', '),                            // E
+    t.priority || '',                                    // F
+    toDate_(t.start),                                    // G
+    toDate_(t.due),                                      // H
+    flat_(t.channel),                                    // I
+    flat_(t.platform),                                   // J
+    cf('Format'),                                        // K
+    cf('ประเภท Banner'),                                 // L
+    (t.tags || []).join(', '),                           // M
+    cf('Link'),                                          // N
+    String(t.desc || '').slice(0, 2000),                 // O
+    subs.length ? (done + '/' + subs.length) : '',       // P
+    (t.comments || []).length || '',                     // Q
+    APP_URL + '/#/list/' + encodeURIComponent(t.list || '') + '/table/task/' + encodeURIComponent(taskId)  // R
+  ];
+}
+
+function assignees_(t) {
+  if (Array.isArray(t.assignees) && t.assignees.length) return t.assignees;
+  const a = t.assignee;
+  if (Array.isArray(a)) return a;
+  if (!a || a === 'Unassigned') return [];
+  return String(a).split(/\s*[,·]\s*/).filter(Boolean);
+}
+
+function flat_(v) {
+  if (v === undefined || v === null) return '';
+  if (Array.isArray(v)) return v.filter(function (x) { return x && x !== '—'; }).join(' · ');
+  return v === '—' ? '' : String(v);
+}
+
+function toDate_(s) {
+  if (!s) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
+  if (!m) return String(s);
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+
+/* ==================== dropdown ให้เหมือนหน้าเว็บ ==================== */
+
+function refreshDropdowns_(sh, meta) {
+  const sig = JSON.stringify([meta.config || null, meta.members || null,
+                              (meta.fields || []).map(function (f) { return [f.label, f.options]; })]);
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('optSig') === sig) return;      // ตัวเลือกไม่เปลี่ยน ไม่ต้องทำใหม่
+
+  const cfg    = meta.config || {};
+  const names  = function (arr, fb) {
+    const v = (arr && arr.length) ? arr : fb;
+    return (v || []).map(function (x) { return typeof x === 'string' ? x : (x.k || x.name || ''); })
+                    .filter(Boolean);
+  };
+
+  const statuses   = names(cfg.statuses,   [{ k: 'Backlog' }, { k: 'In Progress' }, { k: 'Review' }, { k: 'Blocked' }, { k: 'Done' }]);
+  const priorities = names(cfg.priorities, [{ k: 'Urgent' }, { k: 'High' }, { k: 'Normal' }, { k: 'Low' }]);
+  const channels   = names(cfg.channels,   ['—']);
+  const platforms  = names(cfg.platforms,  ['—']);
+  const members    = (meta.members || []).filter(function (m) { return m && m !== 'Unassigned'; });
+
+  const lists = [];
+  (meta.spaces || []).forEach(function (sp) { (sp.lists || []).forEach(function (l) { lists.push(l); }); });
+
+  const fieldOpts = function (label) {
+    const f = (meta.fields || []).filter(function (x) { return String(x.label).trim() === label; })[0];
+    return (f && f.options) ? f.options : [];
+  };
+
+  const put = function (col, values) {
+    if (!values || !values.length) return;
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(values, true).setAllowInvalid(true).build();
+    sh.getRange(2, col, Math.max(sh.getMaxRows() - 1, 1), 1).setDataValidation(rule);
+  };
+
+  put(2,  lists);                       // B  List
+  put(4,  statuses);                    // D  Status
+  put(5,  members);                     // E  ผู้รับผิดชอบ
+  put(6,  priorities);                  // F  Priority
+  put(9,  channels);                    // I  Channel
+  put(10, platforms);                   // J  Platform
+  put(11, fieldOpts('Format'));         // K  Format
+  put(12, fieldOpts('ประเภท Banner'));  // L  ประเภท Banner
+
+  props.setProperty('optSig', sig);
+}
+
+
+/* ==================== สร้าง / จัดรูปแบบแท็บ ==================== */
+
+function setupSheet() {
+  getSheet_();
+  SpreadsheetApp.getUi().alert(
+    'สร้างแท็บ "' + SHEET_NAME + '" เรียบร้อย\n\n' +
+    'คอลัมน์ A-R เว็บเขียนทับทุกครั้ง (หัวสีเทา)\n' +
+    'คอลัมน์ S-U ทีมลงสื่อกรอกเอง สคริปต์ไม่แตะ (หัวสีเขียว)\n\n' +
+    'ต่อไปกด Deploy → New deployment → Web app แล้วเอา URL ไปใส่ในไฟล์ SQL'
+  );
+}
+
+function getSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_NAME);
+  if (sh && sh.getLastRow() > 0) return sh;
+  if (!sh) sh = ss.insertSheet(SHEET_NAME);
+
+  sh.getRange(1, 1, 1, TOTAL_COLS).setValues([HEADERS])
+    .setFontWeight('bold').setFontSize(10).setVerticalAlignment('middle').setWrap(true);
+
+  sh.getRange(1, 1, 1, WEB_COLS).setBackground('#e8eaed').setFontColor('#3c4043');
+  sh.getRange(1, WEB_COLS + 1, 1, TOTAL_COLS - WEB_COLS).setBackground('#99ca3f').setFontColor('#1f2430');
+
+  sh.setFrozenRows(1);
+  sh.setFrozenColumns(3);
+  sh.setRowHeight(1, 42);
+
+  const w = [92, 120, 300, 118, 130, 84, 96, 100, 110, 110, 96, 110, 130, 190, 260, 78, 78, 110, 106, 220, 200];
+  w.forEach(function (px, i) { sh.setColumnWidth(i + 1, px); });
+
+  [7, 8, 19].forEach(function (c) {
+    sh.getRange(2, c, sh.getMaxRows() - 1, 1).setNumberFormat('dd/mm/yyyy');
+  });
+
+  sh.getProtections(SpreadsheetApp.ProtectionType.RANGE)
+    .filter(function (p) { return p.getDescription() === 'เว็บเป็นเจ้าของ'; })
+    .forEach(function (p) { p.remove(); });
+  sh.getRange(1, 1, sh.getMaxRows(), WEB_COLS)
+    .protect().setDescription('เว็บเป็นเจ้าของ').setWarningOnly(true);
+
+  return sh;
+}
+
+function applyRowFormat_(sh, r) {
+  sh.getRange(r, 7, 1, 2).setNumberFormat('dd/mm/yyyy');
+  sh.getRange(r, 15).setWrap(true);
+}

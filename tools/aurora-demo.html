@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pawdy · Aurora — ตัวอย่าง</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:#0f1115; color:#e7e9ee;
+         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Sarabun',Tahoma,sans-serif; }
+
+  /* ---------- ฉากหลัง aurora ---------- */
+  .aurora-wrap { position:fixed; inset:0; z-index:0; overflow:hidden; background:#0f1115; }
+  .aurora-wrap canvas { width:100%; height:100%; display:block; }
+
+  .page { position:relative; z-index:1; min-height:100vh;
+          display:flex; align-items:center; justify-content:center; padding:24px; }
+
+  /* ---------- การ์ดล็อกอินจำลอง ---------- */
+  .card { width:100%; max-width:360px; border-radius:18px; padding:28px 26px;
+          background:rgba(20,22,28,0.72); border:1px solid rgba(255,255,255,0.10);
+          backdrop-filter:blur(18px) saturate(140%); -webkit-backdrop-filter:blur(18px) saturate(140%);
+          box-shadow:0 24px 70px rgba(0,0,0,0.45); }
+  .brand { display:flex; align-items:center; gap:11px; margin-bottom:20px; }
+  .logo { height:34px; width:auto; display:block; }
+  .brand b { font-size:14px; font-weight:600; display:block; }
+  .brand span { font-size:11.5px; color:#98a0af; }
+  input { width:100%; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05);
+          color:#e7e9ee; border-radius:10px; padding:11px 13px; font-size:13.5px; outline:0; margin-bottom:9px; }
+  input::placeholder { color:#6c7583; }
+  input:focus { border-color:#99ca3f; background:rgba(255,255,255,0.08); }
+  .go { width:100%; border:0; border-radius:10px; padding:12px; font-size:13.5px; font-weight:700;
+        background:#99ca3f; color:#16210a; cursor:pointer; margin-top:4px; }
+  .go:hover { background:#a8d84e; }
+  .hint { font-size:11px; color:#8a92a2; text-align:center; margin-top:14px; }
+
+  /* ---------- แผงปรับค่า ---------- */
+  .panel { position:fixed; z-index:2; right:16px; top:16px; width:230px; padding:14px 15px;
+           border-radius:14px; background:rgba(20,22,28,0.82); border:1px solid rgba(255,255,255,0.10);
+           backdrop-filter:blur(14px); font-size:12px; }
+  .panel h4 { margin:0 0 10px; font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:#8a92a2; }
+  .panel label { display:block; margin:9px 0 3px; color:#c6ccd7; font-size:11.5px; }
+  .panel input[type=range] { width:100%; margin:0; accent-color:#99ca3f; }
+  .row { display:flex; gap:6px; margin-top:10px; }
+  .row button { flex:1; border:1px solid rgba(255,255,255,0.14); background:transparent; color:#c6ccd7;
+                border-radius:8px; padding:7px 0; font-size:11px; cursor:pointer; }
+  .row button:hover { border-color:#99ca3f; color:#99ca3f; }
+  .fps { margin-top:11px; font-size:10.5px; color:#6c7583; font-family:ui-monospace,Menlo,monospace; }
+</style>
+</head>
+<body>
+
+<div class="aurora-wrap"><canvas id="aurora"></canvas></div>
+
+<div class="panel">
+  <h4>ปรับค่า</h4>
+  <label>ความเข้ม <span id="vAmp">1.0</span></label>
+  <input type="range" id="amp" min="0" max="2" step="0.05" value="1">
+  <label>ความเร็ว <span id="vSpd">0.5</span></label>
+  <input type="range" id="spd" min="0" max="1.5" step="0.05" value="0.5">
+  <label>ความสูงแถบ <span id="vBlend">0.5</span></label>
+  <input type="range" id="blend" min="0" max="1" step="0.05" value="0.5">
+  <div class="row">
+    <button data-preset="pawdy">Pawdy</button>
+    <button data-preset="indigo">ม่วง</button>
+    <button data-preset="cool">ฟ้า</button>
+  </div>
+  <div class="fps" id="fps">—</div>
+</div>
+
+<div class="page">
+  <div class="card">
+    <div class="brand">
+      <img class="logo" id="logo" alt="Pawdy">
+      <div><b>Workspace</b><span>เข้าสู่ระบบเพื่อใช้งาน</span></div>
+    </div>
+    <input type="email" placeholder="you@pawdy.co.th">
+    <input type="password" placeholder="รหัสผ่าน">
+    <button class="go">เข้าสู่ระบบ</button>
+    <div class="hint">ตัวอย่างเท่านั้น · ยังไม่ได้ต่อกับระบบจริง</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Aurora — พอร์ตจากแนวคิดของ reactbits.dev/backgrounds/aurora
+   เขียนใหม่เป็น WebGL ล้วน ไม่ต้องใช้ React / ogl / npm
+   ใส่ในไฟล์เดียวได้เลย ไม่มี dependency ภายนอก
+   ============================================================ */
+(function () {
+  var canvas = document.getElementById('aurora');
+  var gl = canvas.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: true });
+  if (!gl) { document.querySelector('.aurora-wrap').style.background =
+    'linear-gradient(160deg,#0f1115,#16261a 45%,#0f1115)'; return; }
+
+  var VERT = [
+    'attribute vec2 p;',
+    'varying vec2 uv;',
+    'void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }'
+  ].join('\n');
+
+  var FRAG = [
+    'precision highp float;',
+    'varying vec2 uv;',
+    'uniform float uTime, uAmp, uBlend;',
+    'uniform vec2  uRes;',
+    'uniform vec3  uC0, uC1, uC2;',
+
+    // ---- simplex noise 2D (Ashima) ----
+    'vec3 mod289(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }',
+    'vec2 mod289(vec2 x){ return x - floor(x*(1.0/289.0))*289.0; }',
+    'vec3 permute(vec3 x){ return mod289(((x*34.0)+1.0)*x); }',
+    'float snoise(vec2 v){',
+    '  const vec4 C = vec4(0.211324865,0.366025404,-0.577350269,0.024390244);',
+    '  vec2 i = floor(v + dot(v, C.yy));',
+    '  vec2 x0 = v - i + dot(i, C.xx);',
+    '  vec2 i1 = (x0.x > x0.y) ? vec2(1.0,0.0) : vec2(0.0,1.0);',
+    '  vec4 x12 = x0.xyxy + C.xxzz; x12.xy -= i1;',
+    '  i = mod289(i);',
+    '  vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));',
+    '  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);',
+    '  m = m*m; m = m*m;',
+    '  vec3 x = 2.0 * fract(p * C.www) - 1.0;',
+    '  vec3 h = abs(x) - 0.5;',
+    '  vec3 ox = floor(x + 0.5);',
+    '  vec3 a0 = x - ox;',
+    '  m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);',
+    '  vec3 g;',
+    '  g.x = a0.x * x0.x + h.x * x0.y;',
+    '  g.yz = a0.yz * x12.xz + h.yz * x12.yw;',
+    '  return 130.0 * dot(m, g);',
+    '}',
+
+    // ---- ไล่สีจาก 3 จุด ----
+    'vec3 ramp(float t){',
+    '  t = clamp(t, 0.0, 1.0);',
+    '  return t < 0.5 ? mix(uC0, uC1, t*2.0) : mix(uC1, uC2, (t-0.5)*2.0);',
+    '}',
+
+    'void main(){',
+    '  vec2 st = uv;',
+    '  st.x *= uRes.x / max(uRes.y, 1.0);',
+
+    // แถบแสงหลายชั้นซ้อนกัน ทำให้ดูไหลเป็นม่าน
+    '  float n = 0.0;',
+    '  n += snoise(vec2(st.x * 2.0,  uTime * 0.35)) * 0.50;',
+    '  n += snoise(vec2(st.x * 4.5,  uTime * 0.22 + 3.7)) * 0.28;',
+    '  n += snoise(vec2(st.x * 9.0,  uTime * 0.15 + 8.1)) * 0.14;',
+
+    '  float base = 0.30 + n * 0.22 * uAmp;',       // ขอบล่างของม่าน
+    '  float thick = mix(0.10, 0.45, uBlend);',      // ความสูงของม่าน
+    '  float d = uv.y - base;',
+
+    // ความสว่าง: สว่างสุดที่ขอบล่าง แล้วจางขึ้นบน
+    '  float glow = exp(-max(d, 0.0) / thick) * step(0.0, d);',
+    '  glow += exp(-max(-d, 0.0) / (thick * 0.28)) * step(0.0, -d) * 0.55;',
+    '  glow *= smoothstep(0.0, 0.18, uv.y);',        // เฟดขอบล่างจอ
+    '  glow *= uAmp;',
+
+    // สีเปลี่ยนตามแนวนอน + ขยับช้าๆ
+    '  float t = uv.x + snoise(vec2(uv.x * 1.3, uTime * 0.08)) * 0.18;',
+    '  vec3 col = ramp(t) * glow;',
+
+    '  float a = clamp(glow * 0.95, 0.0, 1.0);',
+    '  gl_FragColor = vec4(col, a);',
+    '}'
+  ].join('\n');
+
+  function compile(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); }
+    return s;
+  }
+  var prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog); gl.useProgram(prog);
+
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  var U = {};
+  ['uTime','uAmp','uBlend','uRes','uC0','uC1','uC2'].forEach(function (k) {
+    U[k] = gl.getUniformLocation(prog, k);
+  });
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+  var PRESETS = {
+    pawdy:  [[0.20,0.55,0.16], [0.60,0.79,0.25], [0.31,0.83,0.76]],   // เขียว Pawdy → ฟ้าเทอร์ควอยซ์
+    indigo: [[0.31,0.27,0.90], [0.55,0.36,0.96], [0.86,0.35,0.72]],
+    cool:   [[0.10,0.45,0.75], [0.25,0.75,0.85], [0.55,0.90,0.70]]
+  };
+  var cols = PRESETS.pawdy;
+  var amp = 1.0, spd = 0.5, blend = 0.5;
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width  = Math.floor(canvas.clientWidth  * dpr);
+    canvas.height = Math.floor(canvas.clientHeight * dpr);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+
+  var t = 0, last = performance.now(), frames = 0, fpsAt = last, paused = false;
+  document.addEventListener('visibilitychange', function () { paused = document.hidden; });
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (paused) { last = now; return; }
+    var dt = Math.min((now - last) / 1000, 0.05); last = now;
+    t += dt * spd;
+
+    gl.uniform1f(U.uTime, t);
+    gl.uniform1f(U.uAmp, amp);
+    gl.uniform1f(U.uBlend, blend);
+    gl.uniform2f(U.uRes, canvas.width, canvas.height);
+    gl.uniform3fv(U.uC0, cols[0]);
+    gl.uniform3fv(U.uC1, cols[1]);
+    gl.uniform3fv(U.uC2, cols[2]);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    frames++;
+    if (now - fpsAt > 500) {
+      document.getElementById('fps').textContent =
+        Math.round(frames * 1000 / (now - fpsAt)) + ' fps · ' + canvas.width + '×' + canvas.height;
+      frames = 0; fpsAt = now;
+    }
+  }
+  resize(); requestAnimationFrame(loop);
+
+  // ---- แผงปรับค่า ----
+  var bind = function (id, label, set) {
+    var el = document.getElementById(id), out = document.getElementById(label);
+    el.addEventListener('input', function () { set(parseFloat(el.value)); out.textContent = (+el.value).toFixed(2); });
+  };
+  bind('amp', 'vAmp', function (v) { amp = v; });
+  bind('spd', 'vSpd', function (v) { spd = v; });
+  bind('blend', 'vBlend', function (v) { blend = v; });
+  document.querySelectorAll('[data-preset]').forEach(function (b) {
+    b.addEventListener('click', function () { cols = PRESETS[b.dataset.preset]; });
+  });
+})();
+</script>
+<script>
+  // โลโก้ Pawdy (ดึงจาก index.html ตัวจริง ฝังไว้ในไฟล์เดียวกัน)
+  document.getElementById('logo').src = 'data:image/png;base64,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';
+</script>
+</body></html>

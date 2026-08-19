@@ -1,0 +1,1731 @@
+{
+ "at": "rescued-merged-chrome+opera",
+ "tasks": [
+  {
+   "id": "T46995",
+   "due": "2026-08-08",
+   "pos": 13000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "AW Gen Z ทายนิสัย",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmsg9lme53d3hk": "",
+    "Fmshkhbcw05454": [
+     "Artwork"
+    ],
+    "Fmshkjs9pu1c6s": "https://www.facebook.com/share/p/1Lz7rYaZVD/"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook",
+    "IG"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [
+    "เด็กเจนซี"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T72088",
+   "due": "2026-08-08",
+   "pos": -9000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmsg9lme53d3hk": "https://www.facebook.com/share/p/1Bemd4XQZd/",
+    "Fmshkhbcw05454": [
+     "Artwork"
+    ],
+    "Fmshkjs9pu1c6s": "https://www.facebook.com/share/p/1Bemd4XQZd/"
+   },
+   "status": "Backlog",
+   "channel": [
+    "Facebook"
+   ],
+   "assignee": "Janji",
+   "comments": [],
+   "platform": [
+    "เด็กเจนซี"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T15263",
+   "due": "2026-11-10",
+   "pos": 12000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\n\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T29203",
+   "due": "2026-11-10",
+   "pos": 11000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\n\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T60638",
+   "due": "2026-10-10",
+   "pos": 10000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\n\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T46195",
+   "due": "2026-10-10",
+   "pos": 9000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\n\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T25526",
+   "due": "2026-09-10",
+   "pos": 8000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\n\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T76306",
+   "due": "2026-08-14",
+   "pos": 7000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "https://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T10:44:28.969Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T90911",
+   "due": "2026-09-10",
+   "pos": 6000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\n\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T21510",
+   "due": "2026-08-05",
+   "pos": 12000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Pawdyraksus",
+   "name": "Large Kibble คู่",
+   "tags": [],
+   "start": "2026-08-05",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ],
+    "Fmshkjs9pu1c6s": "https://drive.google.com/file/d/1XfFepTVSoI-aXSfOultK7VwZgEAYLuXJ/view"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [],
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T47519",
+   "due": "2026-08-05",
+   "pos": 11000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Pawdyraksus",
+   "name": "มื้อแรกกับ Pawdy ลด 10%",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ],
+    "Fmshkjs9pu1c6s": "https://drive.google.com/file/d/1zi9IDJnrHvAaSX7c-C7xYNmBVDlb-Umt/view"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook",
+    "LINE OA"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [
+    "SALE VDO"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T93576",
+   "due": "2026-08-06",
+   "pos": 10000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Pawdyraksus",
+   "name": "Sale VDO Pamper Every Paw",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ],
+    "Fmshkjs9pu1c6s": "https://drive.google.com/drive/folders/1yMOfo3kyYsbIpsd2KSVvEPVvCg7uPRxz?usp=sharing"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T79939",
+   "due": "2026-08-12",
+   "pos": 5000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "ตารางถ่าย",
+   "name": "ถ่ายที่คลัง 13",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "attachments": []
+  },
+  {
+   "id": "T88698",
+   "due": "2026-08-08",
+   "pos": 9000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Pawdyraksus",
+   "name": "เปิดรับตัวแทนจำหน่าย",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Done",
+   "channel": [
+    "Facebook",
+    "LINE OA"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [
+    "SALE VDO"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T21230",
+   "due": "2026-08-08",
+   "pos": 8000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "Content หนัง บีโธเฟ่น",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "Artwork"
+    ],
+    "Fmshkjs9pu1c6s": "https://www.facebook.com/photo.php?fbid=1076652598450590&set=pb.100083175789956.-2207520000&type=3"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "https://drive.google.com/drive/folders/1sVcRMJoR1ZimPKybYYN5_78rwcLGcxL4?usp=drive_link",
+     "when": "just now",
+     "author": "Thappasorn"
+    }
+   ],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T54114",
+   "due": "2026-08-08",
+   "pos": 7000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Pawdyraksus",
+   "name": "8.8 มื้อนี้จัดเต็ม",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ],
+    "Fmshkjs9pu1c6s": "https://drive.google.com/drive/folders/1m8J9HrT_X-lm5K4ks23VvCxebCPfi-Ye"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook"
+   ],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [
+    "หลังบ้าน"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T83903",
+   "due": "2026-08-17",
+   "pos": 7000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "กล่องเด็กเจนซี ลิ้งไปที่แคมเปญขาย ซิ้งค์ไปที่แคมเปญ",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "attachments": []
+  },
+  {
+   "id": "T28268",
+   "due": "2026-08-15",
+   "pos": 6000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "เพิ่มสอนวิธีการเล่นอัดจอเสริม",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "attachments": []
+  },
+  {
+   "id": "T66725",
+   "due": "2026-08-14",
+   "pos": -8000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Backlog",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T11:37:57.944Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T24367",
+   "due": "2026-08-13",
+   "pos": 5000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "ส่งตัด",
+   "list": "Official",
+   "name": "Unbox (Voice Over )",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": [
+    "Facebook",
+    "TikTok"
+   ],
+   "assignee": "Unassigned",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [
+    "เด็กเจนซี"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "attachments": []
+  },
+  {
+   "id": "T16488",
+   "due": "2026-08-15",
+   "pos": 4000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? ",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "https://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link",
+     "when": "just now",
+     "author": "Thappasorn"
+    }
+   ],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T35689",
+   "due": "2026-08-26",
+   "pos": -7000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "ฟ8888888",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Backlog",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T11:38:00.027Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T64779",
+   "due": "2026-08-14",
+   "pos": -6000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "ใส่ยังงี้",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Backlog",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T11:38:02.219Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T81298",
+   "due": "2026-08-15",
+   "pos": 3000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "มี 8 VDO ครับ \nหมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?\nhttps://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link\n\nหมอไม้ x Pawdy_ไม่ทำหมันหมาแมวได้ไหม กลัวน้องเจ็บ ? \nhttps://drive.google.com/file/d/1Dbe3xq6NrkEOT9w8iRWlH2aqNSdzhu09/view?usp=drive_link       \n     \nหมอไม้ x Pawdy_ถ้าสัตวแพทย์เก่ง โอกาสรอดของลูกๆจะเยอะขึ้นไหม ?\nhttps://drive.google.com/file/d/17PzFrpfE3tfM01yhSAJKlGFTnCYRptxN/view?usp=drive_link\n\nหมอไม้ x Pawdy_ทำไมน้องหมาชอบแพ้ไก่ ?\nhttps://drive.google.com/file/d/1EidyJvzioqav7XRty5GBq3pH82aA2H0c/view?usp=drive_link\nหมอไม้ x Pawdy_ขอวิธีรับมือ เวลาแมวตีพ่อตีแม่ (แม่เป*-)\nhttps://drive.google.com/file/d/1cK0J7bj32LrKGGhu7sl4a419Sa6VSUXP/view?usp=sharing\n\nหมอไม้ x Pawdy_กัญชาคนให้แมวได้ไหม ?\nhttps://drive.google.com/file/d/12zk1JBrF6MzVMUP7JHdHsRtxH4klKFBj/view?usp=sharing\n\nหมอไม้ x Pawdy_ทำไมค่ารักษาน้องหมา น้องแมวแพงมากเลย\nhttps://drive.google.com/file/d/14k76Vt7sMbAR9NgDX-52EXOGq6S6r6DD/view?usp=sharing\n\nหมอไม้ x Pawdy_ความเหงา ความเครียด มีผลกับหมา แมว ไหม ?\nhttps://drive.google.com/file/d/1WDq1JX7tgmV_ngpvxgPF7YWusL1isPAE/view?usp=sharing",
+   "list": "Official",
+   "name": "หมอไม้ x Pawdy_อาหารน้องแมวมีสูตรขนสวย ช่วยได้จริงไหม ?",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkhbcw05454": [
+     "VDO"
+    ]
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "https://drive.google.com/file/d/1xSgy7YANxckAmmgMBP8zsqw1KAb7vIjZ/view?usp=drive_link",
+     "when": "just now",
+     "author": "Thappasorn"
+    }
+   ],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T21203",
+   "due": "2026-08-14",
+   "pos": -5000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กล่องเด็กเจนซี ลิ้งไปที่แคมเปญขาย ซิ้งค์ไปที่แคมเปญ",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Backlog",
+   "channel": [
+    "Facebook",
+    "TikTok"
+   ],
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": [
+    "SALE VDO",
+    "เด็กเจนซี"
+   ],
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T11:38:03.594Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T17095",
+   "due": "2026-08-03",
+   "pos": 2000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "ฟหกฟหฟหกฟหกฟหกฟหกฟหก",
+   "tags": [],
+   "start": "2026-08-03",
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T07:50:18.954Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T62980",
+   "due": "2026-08-08",
+   "pos": -4000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "Content หนัง",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmsg9lme53d3hk": "https://www.facebook.com/share/p/1Lrnq1GTcp/",
+    "Fmshkhbcw05454": [
+     "Artwork"
+    ],
+    "Fmshkjs9pu1c6s": "https://www.facebook.com/share/p/1Lrnq1GTcp/"
+   },
+   "status": "Backlog",
+   "channel": [
+    "Facebook"
+   ],
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    },
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T11:38:05.244Z",
+   "deletedBy": "Thappasorn",
+   "attachments": [
+    {
+     "url": "https://drive.google.com/file/d/1VtX6Suc46tAZ0LOVKFcsyLAk20azGdVT/view?usp=sharing",
+     "name": "Google Drive",
+     "display": "Bookmark"
+    }
+   ]
+  },
+  {
+   "id": "T42066",
+   "due": "2026-08-14",
+   "pos": -4000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "Content (หนัง)",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmshkjs9pu1c6s": "https://www.facebook.com/share/p/1Lrnq1GTcp/"
+   },
+   "status": "Done",
+   "channel": [
+    "Facebook"
+   ],
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [
+    {
+     "text": "@Thappasorn",
+     "when": "just now",
+     "author": "Janji"
+    }
+   ],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T07:52:34.418Z",
+   "deletedBy": "Janji",
+   "attachments": []
+  },
+  {
+   "id": "T45631",
+   "due": "2026-08-14",
+   "pos": -3000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Backlog",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T11:38:06.809Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T67279",
+   "due": "2026-08-14",
+   "pos": -2000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "status": "Backlog",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T07:01:35.993Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T83439",
+   "due": "2026-08-14",
+   "pos": -1000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-08",
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T07:01:33.983Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T80898",
+   "due": "2026-08-14",
+   "pos": 2000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "ร",
+   "tags": [],
+   "start": "2026-08-08",
+   "custom": {
+    "Fmsfz6hs54pmax": {
+     "to": "",
+     "from": "2026-08-08"
+    }
+   },
+   "doneAt": "",
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-08T07:01:38.229Z",
+   "deletedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T36734",
+   "due": "2026-08-13",
+   "pos": 4000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "ถ่าย Pet Lap",
+   "tags": [],
+   "start": "2026-08-07",
+   "custom": {
+    "Fmsfz6hs54pmax": {
+     "to": "2026-08-12",
+     "from": "2026-08-10"
+    },
+    "Fmshkhbcw05454": [
+     "VDO",
+     "Artwork"
+    ]
+   },
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": [],
+   "assignee": "Janji",
+   "comments": [
+    {
+     "text": "Test จ๊ะ",
+     "when": "just now",
+     "author": "Thappasorn"
+    },
+    {
+     "text": "88",
+     "when": "just now",
+     "author": "Thappasorn"
+    }
+   ],
+   "platform": [],
+   "priority": "Low",
+   "subtasks": [],
+   "attachments": []
+  },
+  {
+   "id": "T34629",
+   "due": "2026-08-12",
+   "pos": 3000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "ถ่ายงานที่โกดัง",
+   "tags": [],
+   "start": "2026-08-07",
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "attachments": []
+  },
+  {
+   "id": "T40147",
+   "due": "2026-08-12",
+   "pos": 2000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "เรื่องนี้ต้องเล่า (ช่องใหม่)",
+   "name": "Test",
+   "tags": [],
+   "start": "2026-08-06",
+   "custom": {
+    "Fmsg9lme53d3hk": "Test"
+   },
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-11T04:30:50.653Z",
+   "deletedBy": "Sawanya",
+   "attachments": []
+  },
+  {
+   "id": "T43290",
+   "due": "2026-08-12",
+   "pos": 1000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Q3 Campaigns",
+   "name": "265",
+   "tags": [],
+   "start": "2026-08-06",
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "deleted": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "deletedAt": "2026-08-11T04:31:00.920Z",
+   "deletedBy": "Sawanya",
+   "attachments": []
+  },
+  {
+   "id": "T62593",
+   "due": "2026-08-12",
+   "pos": 6000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "We",
+   "tags": [],
+   "start": "2026-08-06",
+   "status": "Done",
+   "channel": "—",
+   "archived": true,
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "archivedAt": "2026-08-06T06:46:13.374Z",
+   "archivedBy": "Thappasorn",
+   "attachments": []
+  },
+  {
+   "id": "T60973",
+   "due": "2026-09-16",
+   "pos": 3000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "Pawdy_Guide_for_Aug 8 VDO",
+   "tags": [],
+   "start": "2026-08-04",
+   "custom": {
+    "Fmsfz6hs54pmax": {
+     "to": "2026-08-19",
+     "from": "2026-08-17"
+    },
+    "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0",
+    "Fmshkhbcw05454": [
+     "VDO",
+     "Artwork"
+    ],
+    "Fmshkjs9pu1c6s": "Dropdown"
+   },
+   "status": "ถ่ายทำ / กำลังทำ",
+   "channel": "—",
+   "assignee": "Thappasorn",
+   "comments": [
+    {
+     "text": "REF รูป  Pawdy guide\nhttps://drive.google.com/drive/folders/1PNRARBh2ueNvUmUt8og7k05Yv8_t1TTs?usp=sharing",
+     "when": "just now",
+     "author": "Thappasorn"
+    },
+    {
+     "text": "ลองดูใหม่จ๊ะ",
+     "when": "just now",
+     "author": "Thappasorn"
+    }
+   ],
+   "platform": [
+    "Pawdyguide"
+   ],
+   "priority": "Normal",
+   "subtasks": [
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(01/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0",
+      "Fmshkhbcw05454": [
+       "VDO",
+       "Artwork"
+      ]
+     },
+     "status": "ถ่ายทำ / กำลังทำ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": [
+      "เด็กเจนซี",
+      "Pawdyguide"
+     ],
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(02/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0"
+     },
+     "status": "ถ่ายทำ / กำลังทำ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": [
+      "เด็กเจนซี",
+      "Pawdyguide"
+     ],
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(03/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0"
+     },
+     "status": "ถ่ายทำ / กำลังทำ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": [
+      "เด็กเจนซี",
+      "Pawdyguide"
+     ],
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(04/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0",
+      "Fmshkgbhnwa3ig": "asd"
+     },
+     "status": "ถ่ายทำ / กำลังทำ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": "เด็กเจนซี",
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(05/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0"
+     },
+     "status": "รับบรีฟ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": "เด็กเจนซี",
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(06/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0"
+     },
+     "status": "รับบรีฟ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": "เด็กเจนซี",
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(07/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0"
+     },
+     "status": "รับบรีฟ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": "เด็กเจนซี",
+     "priority": "Normal"
+    },
+    {
+     "due": "2026-08-04",
+     "qty": 1,
+     "cost": 0,
+     "done": false,
+     "list": "Official",
+     "tags": [],
+     "start": "2026-08-04",
+     "title": "Pawdy_Guide_(08/08)_",
+     "custom": {
+      "Fmsfz6hs54pmax": {
+       "to": "2026-08-20",
+       "from": "2026-08-04"
+      },
+      "Fmsg9lme53d3hk": "https://docs.google.com/document/d/15j4xxhxZ8s95Jn_vxsK2P7w-CG9IUApFI_7HaW5w1oI/edit?tab=t.0"
+     },
+     "status": "รับบรีฟ",
+     "channel": "—",
+     "assignee": "Janji",
+     "platform": "เด็กเจนซี",
+     "priority": "Normal"
+    }
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T73172",
+   "due": "2026-08-05",
+   "pos": 16000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่\nเคยมอบหมายให้: Janji, Sawanya (ระบบใส่คนล่าสุดไว้ให้ ตรวจอีกที)",
+   "list": "Official",
+   "name": "PawdyGuide",
+   "tags": [],
+   "start": "2026-08-05",
+   "custom": {},
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T12062",
+   "due": "2026-08-11",
+   "pos": 1000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่\nงานนี้เคยมีคอมเมนต์จาก Janji ที่แท็กถึง Thappasorn 2 ครั้ง — เนื้อหาคอมเมนต์กู้ไม่ได้",
+   "list": "Official",
+   "name": "Aw GenZ รับ1.2 kg",
+   "tags": [],
+   "start": "2026-08-11",
+   "custom": {},
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [],
+   "attachments": []
+  },
+  {
+   "id": "T13942",
+   "due": "2026-08-10",
+   "pos": 2000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่\nงานนี้เคยมีคอมเมนต์จาก Janji ที่แท็กถึง Thappasorn 2 ครั้ง — เนื้อหาคอมเมนต์กู้ไม่ได้",
+   "list": "Official",
+   "name": "Clearance Sales 3/3",
+   "tags": [],
+   "start": "2026-08-10",
+   "custom": {},
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [],
+   "attachments": []
+  },
+  {
+   "id": "T20324",
+   "due": "2026-08-21",
+   "pos": 5000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่",
+   "list": "Q3 Campaigns",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-04",
+   "custom": {},
+   "status": "Done",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [],
+   "attachments": []
+  },
+  {
+   "id": "T21944",
+   "due": "2026-08-05",
+   "pos": 6000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่",
+   "list": "พี่ต้อง CEO PAWDY (พักลง Content)",
+   "name": "696",
+   "tags": [],
+   "start": "2026-08-05",
+   "custom": {},
+   "status": "Blocked",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Low",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T22958",
+   "due": "2026-08-06",
+   "pos": 7000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-06",
+   "custom": {},
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Janji",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Janji"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T93467",
+   "due": "2026-08-10",
+   "pos": 20000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่\nงานนี้เคยมีคอมเมนต์จาก Janji ที่แท็กถึง Thappasorn 2 ครั้ง — เนื้อหาคอมเมนต์กู้ไม่ได้",
+   "list": "Official",
+   "name": "Clearance Sales 1/3",
+   "tags": [],
+   "start": "2026-08-10",
+   "custom": {},
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [],
+   "attachments": []
+  },
+  {
+   "id": "T35620",
+   "due": "2026-08-04",
+   "pos": 10000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่",
+   "list": "Q3 Campaigns",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-04",
+   "custom": {},
+   "status": "In Progress",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Low",
+   "subtasks": [],
+   "assignees": [],
+   "attachments": []
+  },
+  {
+   "id": "T77243",
+   "due": "2026-08-19",
+   "pos": 17000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "กู้คืนจากประวัติแจ้งเตือน — คำอธิบาย/คอมเมนต์/subtask/ไฟล์แนบ/custom fields เดิมไม่ได้ถูกเก็บในแจ้งเตือน ต้องกรอกใหม่",
+   "list": "Pawdyraksus",
+   "name": "Test 2sad",
+   "tags": [],
+   "start": "2026-08-05",
+   "custom": {},
+   "status": "Done",
+   "channel": "—",
+   "assignee": "Sawanya",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "assignees": [
+    "Sawanya"
+   ],
+   "attachments": []
+  },
+  {
+   "id": "T55051",
+   "due": "2026-08-13",
+   "pos": 5000,
+   "qty": 1,
+   "cost": 0,
+   "desc": "",
+   "list": "Official",
+   "name": "New task",
+   "tags": [],
+   "start": "2026-08-11",
+   "status": "รับบรีฟ",
+   "channel": "—",
+   "assignee": "Unassigned",
+   "comments": [],
+   "platform": "—",
+   "priority": "Normal",
+   "subtasks": [],
+   "attachments": []
+  }
+ ],
+ "links": [
+  {
+   "at": 1786188438441,
+   "by": "Thappasorn",
+   "id": "Lmskah7s9gyxw",
+   "cat": "request",
+   "url": "https://docs.google.com/spreadsheets/d/10BO5Il6oyXLLIx6WIwOg2qq2h6mJVzS7d15qTxi3f1w/edit?usp=sharing",
+   "note": "",
+   "tags": [],
+   "title": "Ada ขอ Content"
+  },
+  {
+   "at": 1786188709393,
+   "by": "Thappasorn",
+   "id": "Lmskan0upc3he",
+   "cat": "other",
+   "url": "https://docs.google.com/spreadsheets/d/1fQxxVHnGxq6Nz1cTzOuoLPVQ-LH_jFO939KhP55DhxQ/edit?gid=0#gid=0",
+   "note": "",
+   "tags": [],
+   "title": "PAWDY_MKT_KOL"
+  },
+  {
+   "at": 1786188907714,
+   "by": "Thappasorn",
+   "id": "Lmskar9vm2qit",
+   "cat": "request",
+   "url": "https://docs.google.com/presentation/d/1Kx1A73AlcGsC4PuY1vwlmYkvr_aLWSvbJySoUkA6bjQ/edit?slide=id.g3f5664c54f7_2_146#slide=id.g3f5664c54f7_2_146",
+   "note": "",
+   "tags": [],
+   "title": "Pawdy : Momovida x Pawdy"
+  },
+  {
+   "at": 1786191169381,
+   "by": "Janji",
+   "id": "Lmskc3qzpia9d",
+   "cat": "other",
+   "url": "https://docs.google.com/spreadsheets/d/1Mu3Iqlv_h1ik3-RO8yQQUKvQ2R8_VB7clW6Zi0z4Ns0/edit?gid=1323159772#gid=1323159772",
+   "note": "",
+   "tags": [],
+   "title": "Link โยนงาน X พี่ต่อง"
+  },
+  {
+   "at": 1786191207738,
+   "by": "Janji",
+   "id": "Lmskc4kl68gye",
+   "cat": "other",
+   "url": "https://drive.google.com/drive/folders/1ciNLv9h525KiyHvc2L7J-F4V_MSOUiTS",
+   "note": "",
+   "tags": [],
+   "title": "เอกสาร Payment KOL"
+  },
+  {
+   "at": 1786191290785,
+   "by": "Janji",
+   "id": "Lmskc6co1kiem",
+   "cat": "other",
+   "url": "https://drive.google.com/drive/folders/1yL5gVOQE-xSnKV-ZdpjYUuE4euGMT4Vr",
+   "note": "",
+   "tags": [],
+   "title": "Font Pawmor"
+  },
+  {
+   "at": 1786191299979,
+   "by": "Janji",
+   "id": "Lmskc6jrftlyr",
+   "cat": "other",
+   "url": "https://drive.google.com/drive/folders/1J9D4IllIIWANiIa_yNod-74j-8BIu-aB",
+   "note": "",
+   "tags": [],
+   "title": "Logo Pawdy"
+  },
+  {
+   "at": 1786191317175,
+   "by": "Janji",
+   "id": "Lmskc6x13lbmk",
+   "cat": "script",
+   "url": "https://drive.google.com/drive/folders/1eUjALMWTMHdMPeuQ88W1ZaLrpGUsRytM",
+   "note": "",
+   "tags": [],
+   "title": "Insert หมา"
+  },
+  {
+   "at": 1786191335555,
+   "by": "Janji",
+   "id": "Lmskc7b7ng4n8",
+   "cat": "script",
+   "url": "https://drive.google.com/drive/folders/1_odU7eI0IfSJlV9kdck_P4aUN8xgScNJ?usp=drive_link",
+   "note": "",
+   "tags": [],
+   "title": "Insert แมว"
+  },
+  {
+   "at": 1786191349806,
+   "by": "Janji",
+   "id": "Lmskc7m7imgko",
+   "cat": "other",
+   "url": "https://drive.google.com/drive/folders/1CqdxIi2LLjFgEIPALLzlraSLEtCbxd-o",
+   "note": "",
+   "tags": [],
+   "title": "Mock Up"
+  },
+  {
+   "at": 1786424792325,
+   "by": "Thappasorn",
+   "id": "Lmso773lxslt2",
+   "cat": "script",
+   "url": "https://drive.google.com/drive/folders/1_TG6XefYGlXABX14nXx-mfmRIKoF207Y",
+   "note": "",
+   "tags": [
+    "Momovida"
+   ],
+   "title": "ฟุตเทจสินค้า Momovida For Pawdy"
+  }
+ ]
+}

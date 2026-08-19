@@ -1,0 +1,150 @@
+/* ============================================================================
+   Pawdy Workspace — ชั้นที่ 2a: สำรองข้อมูลลง Google Drive ทุกวัน
+
+   ทำอะไร: ดึงงานทั้งหมด + meta จาก Supabase มาเก็บเป็นไฟล์ .json ใน Drive
+           วันละครั้ง เก็บย้อนหลัง 60 ไฟล์ แล้วลบของเก่าทิ้งเอง
+
+   ฟรี 100% ใช้บัญชี Google ที่มีอยู่แล้ว · ไม่ต้องมีเซิร์ฟเวอร์
+   ข้อดี: อยู่คนละที่กับ Supabase ถ้าโปรเจกต์ Supabase หายทั้งก้อนก็ยังกู้ได้
+
+   ── วิธีติดตั้ง ────────────────────────────────────────────
+   1. เปิด script.google.com → New project
+   2. ลบโค้ดเดิมทิ้ง วางไฟล์นี้ทั้งไฟล์
+   3. กรอก CONFIG ข้างล่างให้ครบ
+   4. กด Save (💾) → เลือกฟังก์ชัน backupNow → กด Run
+      ครั้งแรก Google ขออนุญาต → Review permissions → เลือกบัญชี →
+      Advanced → Go to (ชื่อโปรเจกต์) → Allow
+   5. ดูใน Drive จะมีโฟลเดอร์ "Pawdy Backups" พร้อมไฟล์แรกแล้ว
+   6. เลือกฟังก์ชัน enableDailyBackup → กด Run  (ตั้งเวลาให้ทำเองทุกวัน)
+   ============================================================================ */
+
+const CONFIG = {
+  // 2 ค่านี้อยู่ใน index.html บรรทัดบนๆ ในก้อน window.PAWDY_CONFIG
+  SUPABASE_URL:      'https://xxxxxxxxxxxx.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOi...ใส่ anon key ที่นี่...',
+
+  // บัญชีที่สคริปต์ใช้อ่านข้อมูล — ต้องเป็นอีเมลที่อยู่ในตาราง members
+  LOGIN_EMAIL:    'you@pawdy.co.th',
+  LOGIN_PASSWORD: '••••••••',
+
+  FOLDER_NAME: 'Pawdy Backups',   // ชื่อโฟลเดอร์ใน Drive
+  KEEP_FILES: 60,                 // เก็บย้อนหลังกี่ไฟล์
+};
+
+
+/* ---------------- ตั้งเวลาอัตโนมัติ ---------------- */
+
+function enableDailyBackup() {
+  disableDailyBackup();
+  ScriptApp.newTrigger('backupNow').timeBased().everyDays(1).atHour(1).create();
+  Logger.log('เปิดสำรองอัตโนมัติแล้ว — ทุกวันประมาณตี 1');
+}
+
+function disableDailyBackup() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'backupNow')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+}
+
+
+/* ---------------- ตัวสำรองหลัก ---------------- */
+
+function backupNow() {
+  const token = signIn_();
+
+  const tasks = fetchAll_(token, 'tasks', 'id,doc,created_at').map(r => r.doc).filter(Boolean);
+  const metaRows = fetchAll_(token, 'meta', 'key,doc');
+
+  // กันเก็บสำเนาว่าง — ถ้าดึงมาแล้วไม่มีงานเลย แปลว่ามีอะไรผิดปกติ อย่าเพิ่งเขียนไฟล์
+  if (!tasks.length) {
+    Logger.log('ยกเลิก: ดึงข้อมูลมาแล้วไม่มีงานเลย');
+    MailApp.sendEmail(CONFIG.LOGIN_EMAIL, '[Pawdy] สำรองข้อมูลไม่สำเร็จ',
+      'ดึงข้อมูลจาก Supabase แล้วไม่พบงานเลย — ควรเข้าไปตรวจสอบด่วน');
+    return;
+  }
+
+  const meta = {};
+  metaRows.forEach(m => { meta[m.key] = m.doc; });
+
+  const payload = {
+    at: new Date().toISOString(),
+    source: 'google-drive-backup',
+    tasks: tasks,
+    links: meta.links || [],
+    spaces: meta.spaces || null,
+    fields: meta.fields || null,
+    config: meta.config || null,
+    docs: meta.docs || null,
+    planner: meta.planner || null
+  };
+
+  const folder = getFolder_();
+  const stamp = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd_HHmm');
+  const name = 'pawdy-backup-' + stamp + '.json';
+  folder.createFile(name, JSON.stringify(payload), MimeType.PLAIN_TEXT);
+
+  Logger.log('บันทึกแล้ว: %s — งาน %s ชิ้น · links %s รายการ',
+             name, tasks.length, (meta.links || []).length);
+
+  prune_(folder);
+}
+
+
+function getFolder_() {
+  const it = DriveApp.getFoldersByName(CONFIG.FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(CONFIG.FOLDER_NAME);
+}
+
+function prune_(folder) {
+  const files = [];
+  const it = folder.getFilesByType(MimeType.PLAIN_TEXT);
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.getName().indexOf('pawdy-backup-') === 0) files.push(f);
+  }
+  files.sort((a, b) => b.getName().localeCompare(a.getName()));   // ใหม่ → เก่า
+  files.slice(CONFIG.KEEP_FILES).forEach(f => {
+    f.setTrashed(true);
+    Logger.log('ลบไฟล์เก่า: %s', f.getName());
+  });
+}
+
+
+/* ---------------- คุยกับ Supabase ---------------- */
+
+function signIn_() {
+  const res = UrlFetchApp.fetch(CONFIG.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { apikey: CONFIG.SUPABASE_ANON_KEY },
+    payload: JSON.stringify({ email: CONFIG.LOGIN_EMAIL, password: CONFIG.LOGIN_PASSWORD }),
+    muteHttpExceptions: true
+  });
+  const body = JSON.parse(res.getContentText() || '{}');
+  if (res.getResponseCode() !== 200 || !body.access_token) {
+    throw new Error('เข้าสู่ระบบ Supabase ไม่สำเร็จ — ' + res.getContentText());
+  }
+  return body.access_token;
+}
+
+// ดึงทีละหน้า เผื่ออนาคตงานเกิน 1000 ชิ้น
+function fetchAll_(token, table, select) {
+  const out = [];
+  const size = 1000;
+  for (let offset = 0; offset < 100000; offset += size) {
+    const url = CONFIG.SUPABASE_URL + '/rest/v1/' + table +
+                '?select=' + encodeURIComponent(select) + '&limit=' + size + '&offset=' + offset;
+    const res = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: { apikey: CONFIG.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) {
+      throw new Error('อ่าน ' + table + ' ไม่สำเร็จ (' + res.getResponseCode() + ') ' + res.getContentText());
+    }
+    const rows = JSON.parse(res.getContentText() || '[]');
+    out.push.apply(out, rows);
+    if (rows.length < size) break;
+  }
+  return out;
+}

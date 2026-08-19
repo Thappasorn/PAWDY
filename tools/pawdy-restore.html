@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pawdy — กู้คืนข้อมูล</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin:0; padding:24px; background:#f7f8fa; color:#1f2430;
+         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Sarabun',Tahoma,sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:18px 20px; }
+  h1 { font-size:19px; margin:0 0 4px; }
+  h2 { font-size:13px; margin:0 0 10px; letter-spacing:.04em; text-transform:uppercase; color:#8b91a0; }
+  .sub { font-size:12.5px; color:#6b7280; line-height:1.6; margin:0; }
+  label { display:block; font-size:11.5px; color:#6b7280; margin:10px 0 4px; }
+  input[type=text], input[type=password] { width:100%; box-sizing:border-box; border:1px solid #e5e7eb;
+    border-radius:8px; padding:9px 11px; font-size:13px; outline:0; font-family:ui-monospace,Menlo,monospace; }
+  input:focus { border-color:#4f46e5; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  button { border:0; border-radius:9px; padding:11px 18px; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .primary { background:#4f46e5; color:#fff; }
+  .primary:disabled { background:#c7cbd6; cursor:not-allowed; }
+  .ghost { background:#fff; border:1px solid #e5e7eb; color:#374151; }
+  .drop { border:2px dashed #c9ced8; border-radius:12px; padding:26px; text-align:center; color:#6b7280;
+          font-size:13px; cursor:pointer; background:#fbfbfc; }
+  .drop.on { border-color:#4f46e5; background:#eef2ff; color:#4f46e5; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+  td { padding:6px 4px; border-bottom:1px solid #f3f4f6; }
+  td:last-child { text-align:right; font-family:ui-monospace,Menlo,monospace; font-weight:600; }
+  pre { background:#0f1115; color:#d7dbe3; border-radius:10px; padding:12px 14px; font-size:11.5px;
+        line-height:1.65; max-height:280px; overflow:auto; margin:0; white-space:pre-wrap; }
+  .warn { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px;
+          padding:11px 13px; font-size:12.5px; line-height:1.6; }
+  .ok { color:#059669; } .bad { color:#dc2626; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>Pawdy Workspace — กู้คืนข้อมูล</h1>
+    <p class="sub">เครื่องมือนี้ <strong>เพิ่มและเขียนทับ</strong> ข้อมูลกลับขึ้น Supabase เท่านั้น
+      <strong>ไม่ลบอะไรทิ้งเลย</strong> — งานที่มีอยู่บนเซิร์ฟเวอร์ตอนนี้จะยังอยู่ครบ</p>
+  </div>
+
+  <div class="card">
+    <div class="warn">
+      ก่อนกด “กู้คืน” ให้ทุกคนในทีม <strong>ปิดแท็บเว็บ Pawdy Workspace ให้หมดก่อน</strong>
+      แล้วค่อยเปิดใหม่หลังกู้เสร็จ ไม่งั้นแท็บที่เปิดค้างอาจเขียนทับซ้ำอีก
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1 · เชื่อมต่อ</h2>
+    <p class="sub">ค่า 2 อันแรกอยู่ใน <code>index.html</code> บรรทัดบนๆ ในก้อน <code>PAWDY_CONFIG</code></p>
+    <label>Supabase URL</label>
+    <input id="url" type="text" placeholder="https://xxxxxxxx.supabase.co">
+    <label>Supabase anon key</label>
+    <input id="key" type="text" placeholder="eyJhbGciOi...">
+    <div class="row">
+      <div><label>อีเมลที่ใช้เข้าเว็บ</label><input id="email" type="text" placeholder="you@pawdy.co.th"></div>
+      <div><label>รหัสผ่าน</label><input id="pass" type="password" placeholder="••••••••"></div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:9px;">
+      <button class="ghost" id="btnCheck">ทดสอบเชื่อมต่อ + ดูของบนเซิร์ฟเวอร์</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · ไฟล์สำรอง</h2>
+    <p class="sub">ลากไฟล์ <code>.json</code> มาวาง หรือกดเพื่อเลือกไฟล์ —
+      รองรับทั้งไฟล์จาก <code>PawdySync.downloadBackup()</code> และไฟล์ที่ก๊อป localStorage มาตรงๆ</p>
+    <div class="drop" id="drop">วางไฟล์ตรงนี้ · หรือกดเลือกไฟล์</div>
+    <input id="file" type="file" accept=".json,.txt,application/json" style="display:none">
+    <table id="preview" style="display:none"></table>
+  </div>
+
+  <div class="card">
+    <h2>3 · กู้คืน</h2>
+    <label style="display:flex; align-items:flex-start; gap:9px; margin:0 0 14px; cursor:pointer;">
+      <input type="checkbox" id="skipExisting" checked style="margin-top:2px; width:16px; height:16px;">
+      <span style="font-size:12.5px; color:#374151; line-height:1.55;">
+        <strong>ข้ามงานที่มีอยู่แล้วบนเซิร์ฟเวอร์</strong> (แนะนำให้ติ๊กไว้)<br>
+        <span style="color:#6b7280;">กู้เฉพาะงานที่หายไปจริงๆ — งานที่ยังอยู่บนเซิร์ฟเวอร์จะไม่ถูกแตะเลย
+        ปลอดภัยที่สุด เพราะของบนเซิร์ฟเวอร์ใหม่กว่าในไฟล์สำรองเสมอ</span>
+      </span>
+    </label>
+    <button class="primary" id="btnRestore" disabled>กู้คืนข้อมูลขึ้นเซิร์ฟเวอร์</button>
+    <p class="sub" style="margin-top:10px">ถ้าไม่ติ๊ก งานที่ id ตรงกันจะถูกเขียนทับด้วยของในไฟล์สำรอง</p>
+  </div>
+
+  <div class="card">
+    <h2>บันทึกการทำงาน</h2>
+    <pre id="log">พร้อมแล้ว — กรอกข้อมูลด้านบนได้เลย</pre>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var backup = null, token = null;
+
+  function log(msg, cls) {
+    var t = new Date().toLocaleTimeString('th-TH');
+    var line = '[' + t + '] ' + msg;
+    var el = $('log');
+    el.innerHTML += '\n' + (cls ? '<span class="' + cls + '">' + esc(line) + '</span>' : esc(line));
+    el.scrollTop = el.scrollHeight;
+  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function cfg() {
+    return {
+      url: ($('url').value || '').trim().replace(/\/+$/, ''),
+      key: ($('key').value || '').trim(),
+      email: ($('email').value || '').trim(),
+      pass: $('pass').value || ''
+    };
+  }
+
+  // จำค่าไว้ในเครื่อง จะได้ไม่ต้องพิมพ์ซ้ำ (ไม่เก็บรหัสผ่าน)
+  ['url','key','email'].forEach(function (k) {
+    var v = localStorage.getItem('pawdy.restore.' + k);
+    if (v) $(k).value = v;
+    $(k).addEventListener('change', function () { localStorage.setItem('pawdy.restore.' + k, $(k).value); });
+  });
+
+  function signIn() {
+    var c = cfg();
+    if (!c.url || !c.key || !c.email || !c.pass) throw new Error('กรอกให้ครบทั้ง 4 ช่องก่อน');
+    return fetch(c.url + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { apikey: c.key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: c.email, password: c.pass })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) {
+        if (!r.ok || !r.j.access_token) throw new Error('เข้าสู่ระบบไม่สำเร็จ — ' + (r.j.error_description || r.j.msg || r.j.error || 'เช็คอีเมล/รหัสผ่าน'));
+        token = r.j.access_token;
+        return token;
+      });
+  }
+
+  function api(path, opts) {
+    var c = cfg();
+    opts = opts || {};
+    opts.headers = Object.assign({
+      apikey: c.key,
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    }, opts.headers || {});
+    return fetch(c.url + '/rest/v1/' + path, opts).then(function (r) {
+      return r.text().then(function (t) {
+        if (!r.ok) throw new Error('(' + r.status + ') ' + t.slice(0, 300));
+        return t ? JSON.parse(t) : null;
+      });
+    });
+  }
+
+  $('btnCheck').onclick = function () {
+    $('btnCheck').disabled = true;
+    log('กำลังเข้าสู่ระบบ…');
+    signIn()
+      .then(function () { log('เข้าสู่ระบบสำเร็จ ✓', 'ok'); return api('tasks?select=id'); })
+      .then(function (rows) {
+        log('บนเซิร์ฟเวอร์ตอนนี้มีงาน ' + rows.length + ' ชิ้น');
+        return api('meta?select=key,doc');
+      })
+      .then(function (meta) {
+        (meta || []).forEach(function (m) {
+          var n = Array.isArray(m.doc) ? m.doc.length : (m.doc ? 1 : 0);
+          log('  meta.' + m.key + ' = ' + n + ' รายการ');
+        });
+        log('ตรวจเสร็จแล้ว', 'ok');
+      })
+      .catch(function (e) { log('ผิดพลาด: ' + e.message, 'bad'); })
+      .then(function () { $('btnCheck').disabled = false; });
+  };
+
+  // ---------- อ่านไฟล์สำรอง ----------
+  function loadFile(f) {
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var d = JSON.parse(fr.result);
+        backup = {
+          tasks: d.tasks || [],
+          spaces: d.spaces || null, fields: d.fields || null, config: d.config || null,
+          docs: d.docs || null, planner: d.planner || null, links: d.links || null
+        };
+        showPreview(f.name);
+        log('อ่านไฟล์ ' + f.name + ' สำเร็จ ✓', 'ok');
+        $('btnRestore').disabled = false;
+      } catch (e) {
+        log('ไฟล์นี้อ่านไม่ออก — ต้องเป็น JSON: ' + e.message, 'bad');
+      }
+    };
+    fr.readAsText(f);
+  }
+
+  function showPreview(name) {
+    var rows = [
+      ['ไฟล์', name],
+      ['สำรองเมื่อ', backup.at || '—'],
+      ['งาน (tasks)', backup.tasks.length],
+      ['Links', (backup.links || []).length],
+      ['เอกสาร (docs)', (backup.docs || []).length],
+      ['Planner', (backup.planner || []).length],
+      ['Spaces / lists', (backup.spaces || []).length],
+      ['ฟิลด์เสริม', (backup.fields || []).length]
+    ];
+    $('preview').innerHTML = rows.map(function (r) {
+      return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+    $('preview').style.display = '';
+  }
+
+  $('drop').onclick = function () { $('file').click(); };
+  $('file').onchange = function (e) { if (e.target.files[0]) loadFile(e.target.files[0]); };
+  ['dragenter','dragover'].forEach(function (ev) {
+    $('drop').addEventListener(ev, function (e) { e.preventDefault(); $('drop').classList.add('on'); });
+  });
+  ['dragleave','drop'].forEach(function (ev) {
+    $('drop').addEventListener(ev, function (e) { e.preventDefault(); $('drop').classList.remove('on'); });
+  });
+  $('drop').addEventListener('drop', function (e) {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  // ---------- กู้คืน ----------
+  $('btnRestore').onclick = function () {
+    if (!backup) return;
+    if (!confirm('เริ่มกู้คืนจากไฟล์ (' + backup.tasks.length + ' ชิ้นในไฟล์)?\n\n' +
+        ($('skipExisting').checked ? 'โหมดปลอดภัย: งานที่ยังอยู่บนเซิร์ฟเวอร์จะไม่ถูกแตะ\n\n' : '⚠ จะเขียนทับงานที่ id ตรงกันด้วย\n\n') +
+        'ทุกคนในทีมปิดแท็บเว็บแล้วใช่ไหม?')) return;
+    $('btnRestore').disabled = true;
+    var c = cfg();
+    var nowIso = new Date().toISOString();
+
+    log('เริ่มกู้คืน…');
+    var toRestore = backup.tasks;
+
+    signIn().then(function () {
+      log('เข้าสู่ระบบสำเร็จ ✓', 'ok');
+      // ดูก่อนว่าบนเซิร์ฟเวอร์มีงานอะไรอยู่แล้วบ้าง
+      return api('tasks?select=id');
+    }).then(function (serverRows) {
+      var have = {};
+      (serverRows || []).forEach(function (r) { have[r.id] = true; });
+      log('บนเซิร์ฟเวอร์มีงานอยู่แล้ว ' + (serverRows || []).length + ' ชิ้น');
+
+      if ($('skipExisting').checked) {
+        var before = toRestore.length;
+        var skipped = toRestore.filter(function (t) { return have[t.id]; });
+        toRestore = toRestore.filter(function (t) { return !have[t.id]; });
+        if (skipped.length) {
+          log('ข้ามงานที่ยังอยู่บนเซิร์ฟเวอร์ ' + skipped.length + ' ชิ้น (ไม่แตะ):');
+          skipped.forEach(function (t) { log('    · ' + t.id + '  ' + (t.name || '')); });
+        }
+        log('จะกู้คืนจริง ' + toRestore.length + ' ชิ้น (จากไฟล์ ' + before + ')');
+      }
+
+      if (!toRestore.length) { log('ไม่มีงานที่ต้องกู้คืน', 'ok'); return; }
+
+      var chunks = [], size = 40;
+      for (var i = 0; i < toRestore.length; i += size) chunks.push(toRestore.slice(i, i + size));
+
+      var p = Promise.resolve();
+      chunks.forEach(function (ck, i) {
+        p = p.then(function () {
+          var body = ck.map(function (t) {
+            return { id: t.id, doc: t, updated_by: c.email, updated_at: nowIso };
+          });
+          return api('tasks?on_conflict=id', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(body)
+          }).then(function () { log('  งาน ' + (i * size + ck.length) + ' / ' + toRestore.length); });
+        });
+      });
+
+      return p;
+    }).then(function () {
+      log('กู้คืนงานครบแล้ว ✓', 'ok');
+      var metaKeys = ['spaces','fields','config','docs','planner','links'];
+      var body = [];
+      metaKeys.forEach(function (k) {
+        var v = backup[k];
+        if (!v) return;
+        // ไม่เขียนทับด้วยของว่าง และถ้าติ๊ก "ข้ามของที่มีอยู่" จะเขียนเฉพาะ key ที่ไฟล์สำรองมีของจริง
+        if (Array.isArray(v) && !v.length) { log('ข้าม meta.' + k + ' — ในไฟล์สำรองว่างเปล่า'); return; }
+        body.push({ key: k, doc: v, updated_by: cfg().email });
+      });
+      if (!body.length) { log('ไม่มี meta ที่ต้องกู้คืน'); return null; }
+      return api('meta?on_conflict=key', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(body)
+      }).then(function () { log('กู้คืน ' + body.map(function (b) { return b.key; }).join(', ') + ' แล้ว ✓', 'ok'); });
+    }).then(function () {
+      log('───────────────────────');
+      log('เสร็จเรียบร้อย — เปิดเว็บ Pawdy Workspace ใหม่ได้เลย', 'ok');
+    }).catch(function (e) {
+      log('ผิดพลาด: ' + e.message, 'bad');
+      $('btnRestore').disabled = false;
+    });
+  };
+})();
+</script>
+</body></html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="th"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pawdy · Gradient Text — ตัวอย่าง</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0f1115; --surface:#191c23; --surface2:#15181e; --border:#2b303b;
+    --text:#e7e9ee; --muted:#98a0af; --label:#8a92a2;
+    --pawdy:#99ca3f; --indigo:#4f46e5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);padding:32px 24px 60px;
+       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Sarabun',Tahoma,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+  h1{font-size:20px;margin:0}
+  .sub{font-size:13px;color:var(--muted);margin:0;line-height:1.6}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px}
+  .card h3{margin:0 0 4px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--label)}
+  .card p.note{margin:0 0 16px;font-size:12px;color:var(--muted)}
+
+  /* ============================================================
+     Gradient Text — CSS ล้วน ไม่มี dependency
+     หลักการ: ไล่สีเป็นพื้นหลัง → ตัดให้เห็นเฉพาะในตัวอักษร → เลื่อนพื้นหลัง
+     ============================================================ */
+  .gt{
+    background-image:linear-gradient(90deg,
+      var(--g1,#99ca3f), var(--g2,#3ad1c2), var(--g3,#4f46e5), var(--g2,#3ad1c2), var(--g1,#99ca3f));
+    background-size:300% 100%;
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:transparent;
+    animation:gtFlow var(--gt-speed,16s) linear infinite;
+  }
+  @keyframes gtFlow{ to{ background-position:-300% 0; } }
+
+  /* เคารพคนที่ตั้งเครื่องให้ลดแอนิเมชัน */
+  @media (prefers-reduced-motion: reduce){ .gt{ animation:none; background-position:0 0; } }
+
+  /* กรอบเรืองแสงรอบข้อความ (ตัวเลือกเสริม) */
+  .gt-box{
+    position:relative;display:inline-flex;align-items:center;gap:9px;
+    padding:9px 16px;border-radius:999px;background:var(--surface2);
+    font-weight:700;overflow:hidden;
+  }
+  .gt-box::before{
+    content:'';position:absolute;inset:0;padding:1.4px;border-radius:inherit;
+    background:linear-gradient(90deg,#99ca3f,#3ad1c2,#4f46e5,#3ad1c2,#99ca3f);
+    background-size:300% 100%;animation:gtFlow var(--gt-speed,16s) linear infinite;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
+  }
+
+  /* ---------- ตัวอย่างที่ 1: แถบเมนูซ้าย ---------- */
+  .side{width:236px;background:#14161c;border:1px solid #23262f;border-radius:12px;padding:0 0 12px}
+  .side-head{display:flex;align-items:center;gap:9px;padding:13px 14px;border-bottom:1px solid #23262f}
+  .side-head img{height:28px}
+  .side-head b{font-size:12.5px;display:block;line-height:1.25}
+  .side-head span{font-size:10.5px;color:#6c7280}
+  .side-item{display:flex;align-items:center;gap:9px;padding:7px 14px;font-size:12.5px;color:#cbd2de}
+  .side-item.on{background:#1d202a}
+
+  /* ---------- ตัวอย่างที่ 2: หัวหน้าจอ ---------- */
+  .topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;
+          background:var(--surface);border:1px solid var(--border);border-radius:12px}
+  .topbar .crumb{font-size:11.5px;color:var(--muted)}
+  .topbar h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.3px}
+
+  /* ---------- ตัวอย่างที่ 3: ตัวเลข Dashboard ---------- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .kpi{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 15px}
+  .kpi .n{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1.1;
+          font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+  .kpi .l{font-size:11px;color:var(--label);margin-top:3px}
+
+  /* ---------- ตัวอย่างที่ 4: หัวข้อในการ์ดงาน ---------- */
+  .sec{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .sec .ic{width:18px;text-align:center;color:var(--muted);font-size:13px}
+  .sec .t{font-size:12.5px;font-weight:700}
+  .fake-line{height:9px;border-radius:5px;background:#22262f;margin:7px 0}
+  .fake-line.s{width:62%}
+
+  /* ---------- แผงปรับ ---------- */
+  .panel{display:flex;flex-wrap:wrap;align-items:center;gap:14px;font-size:12px}
+  .panel label{color:#c6ccd7}
+  .panel input[type=range]{accent-color:var(--pawdy);width:140px;vertical-align:middle}
+  .panel button{border:1px solid #2b303b;background:transparent;color:#c6ccd7;border-radius:8px;
+                padding:6px 12px;font-size:11.5px;cursor:pointer}
+  .panel button:hover{border-color:var(--pawdy);color:var(--pawdy)}
+  .row2{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div>
+    <h1><span class="gt">Gradient Text</span> — ตัวอย่างบน Pawdy Workspace</h1>
+    <p class="sub">CSS ล้วน ไม่มี WebGL ไม่มี dependency · ไม่กินแบต · ใช้ได้ทุกเบราว์เซอร์<br>
+       ลองปรับความเร็วกับชุดสีดูได้ แล้วบอกผมว่าชอบแบบไหน จะเอาไปฝังใน index.html ให้</p>
+  </div>
+
+  <div class="card">
+    <h3>ปรับค่า</h3>
+    <div class="panel">
+      <label>ความเร็ว <span id="v">16.0</span> วิ/รอบ</label>
+      <input type="range" id="spd" min="2" max="30" step="0.5" value="16">
+      <button data-p="pawdy">Pawdy</button>
+      <button data-p="warm">อุ่น</button>
+      <button data-p="indigo">ม่วง</button>
+      <button data-p="mono">เขียวล้วน</button>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="card" style="flex:0 0 auto">
+      <h3>1 · แถบเมนูซ้าย</h3>
+      <p class="note">ใส่ที่คำว่า Workspace</p>
+      <div class="side">
+        <div class="side-head">
+          <img id="logo" alt="Pawdy">
+          <div><b class="gt">Workspace</b><span>4 members · shared</span></div>
+        </div>
+        <div class="side-item on">☰ Everything</div>
+        <div class="side-item">◎ งานของฉัน</div>
+        <div class="side-item">◷ วันนี้</div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;min-width:300px">
+      <h3>2 · หัวหน้าจอ</h3>
+      <p class="note">ใส่ที่ชื่อ list ที่กำลังเปิด</p>
+      <div class="topbar">
+        <span class="crumb">Content /</span>
+        <h2 class="gt">Official</h2>
+        <span class="crumb">3 tasks</span>
+      </div>
+      <div style="height:14px"></div>
+      <h3>ป้ายแบบมีกรอบเรืองแสง</h3>
+      <p class="note">ใช้กับปุ่มหรือป้ายพิเศษ เช่นโหมด AI</p>
+      <span class="gt-box"><span class="gt">✦ Pawdy AI</span></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>3 · ตัวเลขในหน้า Dashboard</h3>
+    <p class="note">ใส่เฉพาะตัวเลขเด่นๆ</p>
+    <div class="kpis">
+      <div class="kpi"><div class="n gt">46</div><div class="l">งานทั้งหมด</div></div>
+      <div class="kpi"><div class="n gt">32</div><div class="l">กำลังทำ</div></div>
+      <div class="kpi"><div class="n gt">11</div><div class="l">Links</div></div>
+      <div class="kpi"><div class="n gt">98%</div><div class="l">ส่งตรงเวลา</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>4 · หัวข้อในการ์ดงาน</h3>
+    <p class="note">ระวัง — ในหน้าที่ข้อมูลแน่นๆ ใส่เยอะจะรกและอ่านยาก</p>
+    <div class="sec"><span class="ic">▤</span><span class="t gt">Description</span></div>
+    <div class="fake-line"></div><div class="fake-line s"></div>
+    <div style="height:12px"></div>
+    <div class="sec"><span class="ic">☑</span><span class="t gt">Checklist</span></div>
+    <div class="fake-line"></div>
+  </div>
+
+  <div class="card">
+    <h3>โค้ดที่จะเอาไปใช้</h3>
+    <p class="note">แค่นี้จริงๆ — เติมใน &lt;style&gt; แล้วใส่ class="gt" ที่ข้อความไหนก็ได้</p>
+    <pre style="margin:0;background:#0f1115;border:1px solid var(--border);border-radius:9px;
+                padding:13px 15px;font-size:11.5px;line-height:1.65;overflow:auto;color:#d7dbe3">.gt{
+  background-image:linear-gradient(90deg,#99ca3f,#3ad1c2,#4f46e5,#3ad1c2,#99ca3f);
+  background-size:300% 100%;
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:gtFlow 16s linear infinite;
+}
+@keyframes gtFlow{ to{ background-position:-300% 0; } }
+@media (prefers-reduced-motion:reduce){ .gt{ animation:none } }</pre>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var P = {
+    pawdy:  ['#99ca3f','#3ad1c2','#4f46e5'],
+    warm:   ['#f59e0b','#f43f5e','#a855f7'],
+    indigo: ['#4f46e5','#8b5cf6','#ec4899'],
+    mono:   ['#6aa11f','#99ca3f','#c9ea7a']
+  };
+  function apply(k){
+    var c = P[k], css = 'linear-gradient(90deg,'+c[0]+','+c[1]+','+c[2]+','+c[1]+','+c[0]+')';
+    document.querySelectorAll('.gt').forEach(function(el){ el.style.backgroundImage = css; });
+    document.querySelectorAll('.gt-box').forEach(function(el){
+      el.style.setProperty('--box-grad', css);
+    });
+    var st = document.getElementById('boxStyle') || (function(){
+      var s = document.createElement('style'); s.id='boxStyle'; document.head.appendChild(s); return s;
+    })();
+    st.textContent = '.gt-box::before{background-image:'+css+'}';
+  }
+  document.querySelectorAll('[data-p]').forEach(function(b){
+    b.addEventListener('click', function(){ apply(b.dataset.p); });
+  });
+  var spd = document.getElementById('spd'), v = document.getElementById('v');
+  spd.addEventListener('input', function(){
+    v.textContent = (+spd.value).toFixed(1);
+    document.documentElement.style.setProperty('--gt-speed', spd.value + 's');
+  });
+  apply('pawdy');
+})();
+</script>
+<script>document.getElementById('logo').src = 'data:image/png;base64,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';</script>
+</body></html>
