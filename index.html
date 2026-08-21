@@ -3759,6 +3759,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* ---------- โหมดมือถือ ---------- */
   [data-root~="mobile"] [data-mobile-only] { display: grid !important; }
+  /* จอเล็ก: ช่องค้นด้านบนยืดเต็มบรรทัด อ่านง่ายกว่าย่อจนพิมพ์ไม่ได้ */
+  [data-root~="mobile"] [data-topsearch] { flex: 1 1 100% !important; max-width: none !important; order: 9; }
   [data-root~="mobile"][data-root~="nav"] [data-sidebar] { animation: pw-slide-left .2s cubic-bezier(.2,.8,.2,1); }
   @keyframes pw-slide-left { from { transform: translateX(-100%); } to { transform: none; } }
 
@@ -4003,6 +4005,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <h1 data-listtitle style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.2px;">{{ listTitle }}</h1>
         </sc-if>
         <span style="font-size: 11.5px; color: var(--pw-muted); font-family: 'IBM Plex Mono', monospace;">{{ filteredCount }} tasks</span>
+
+        <!-- ค้นหาในหน้าที่กำลังเปิดอยู่ -->
+        <div data-topsearch class="pw-star" style="{{ topSearchWrapStyle }}">
+          <span style="color: var(--pw-muted2); font-size: 12px; flex: 0 0 auto;">⌕</span>
+          <input ref="{{ topSearchRef }}" data-sync="{{ topSearchValue }}" value="{{ topSearchValue }}" sc-camel-on-change="{{ onTopSearch }}" sc-camel-on-key-down="{{ onTopSearchKey }}" placeholder="{{ topSearchPlaceholder }}" title="พิมพ์อะไรก็ได้ — ค้นเฉพาะในหน้าที่เปิดอยู่ · Esc ล้าง" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--pw-text); font-size: 12px;">
+          <sc-if value="{{ topSearchOn }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 10.5px; color: #4f46e5; font-weight: 600; font-family: 'IBM Plex Mono', monospace; flex: 0 0 auto;">{{ topSearchHits }}</span>
+          </sc-if>
+          <sc-if value="{{ topSearchOn }}" hint-placeholder-val="{{ false }}">
+            <button sc-camel-on-click="{{ onTopSearchClear }}" title="ล้างคำค้น" style="flex: 0 0 auto; background: transparent; border: 0; color: var(--pw-muted2); font-size: 13px; line-height: 1; cursor: pointer; padding: 0 2px;" style-hover="color: #dc2626;">×</button>
+          </sc-if>
+        </div>
 
         <button data-mobile-only sc-camel-on-click="{{ onToggleListSheet }}" title="เลือก space / list" style="display: none; align-items: center; gap: 6px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-text2); border-radius: 8px; padding: 6px 11px; font-size: 12.5px; cursor: pointer; max-width: 62vw;">
           <span style="opacity: 0.6; font-size: 11px;">▤</span>
@@ -4619,10 +4633,53 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
 
               <sc-if value="{{ group.composerOpen }}" hint-placeholder-val="{{ false }}">
-                <div data-panel style="display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
-                  <input ref="{{ group.composerRef }}" data-sync="{{ group.composerText }}" value="{{ group.composerText }}" sc-camel-on-change="{{ group.onComposerText }}" sc-camel-on-key-down="{{ group.onComposerKey }}" placeholder="พิมพ์ชื่องาน แล้วกด Enter — พิมพ์ต่อได้เรื่อยๆ · Esc ปิด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
-                  <button sc-camel-on-click="{{ group.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #4338ca;">เพิ่ม</button>
-                  <button sc-camel-on-click="{{ group.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 5px;" style-hover="color: var(--pw-text);">×</button>
+                <div data-panel style="display: flex; flex-direction: column; gap: 8px; padding: 9px 12px 11px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
+                  <div style="display: flex; align-items: center; gap: 7px;">
+                    <input ref="{{ group.composerRef }}" data-sync="{{ group.composerText }}" value="{{ group.composerText }}" sc-camel-on-change="{{ group.onComposerText }}" sc-camel-on-key-down="{{ group.onComposerKey }}" placeholder="พิมพ์ชื่องาน แล้วกด Enter — พิมพ์ต่อได้เรื่อยๆ · Esc ปิด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
+                    <button sc-camel-on-click="{{ group.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #4338ca;">เพิ่ม</button>
+                    <button sc-camel-on-click="{{ group.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 5px;" style-hover="color: var(--pw-text);">×</button>
+                  </div>
+
+                  <!-- เลือกฟิลด์ไว้ล่วงหน้า ค่าจะติดไปกับทุกงานที่พิมพ์เพิ่มในรอบนี้ -->
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <sc-if value="{{ quickAdd.showStatus }}" hint-placeholder-val="{{ true }}">
+                      <sc-raw-select ref="{{ quickAdd.status.valueRef }}" value="{{ quickAdd.status.value }}" sc-camel-on-change="{{ quickAdd.status.onPick }}" style="{{ quickAdd.status.style }}">
+                        <sc-for list="{{ quickAdd.status.options }}" as="o" hint-placeholder-count="4"><option value="{{ o.v }}">{{ o.label }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+                    <sc-if value="{{ quickAdd.showAssignee }}" hint-placeholder-val="{{ true }}">
+                      <sc-raw-select ref="{{ quickAdd.assignee.valueRef }}" value="{{ quickAdd.assignee.value }}" sc-camel-on-change="{{ quickAdd.assignee.onPick }}" style="{{ quickAdd.assignee.style }}">
+                        <sc-for list="{{ quickAdd.assignee.options }}" as="o2" hint-placeholder-count="4"><option value="{{ o2.v }}">{{ o2.label }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+                    <sc-if value="{{ quickAdd.showPriority }}" hint-placeholder-val="{{ true }}">
+                      <sc-raw-select ref="{{ quickAdd.priority.valueRef }}" value="{{ quickAdd.priority.value }}" sc-camel-on-change="{{ quickAdd.priority.onPick }}" style="{{ quickAdd.priority.style }}">
+                        <sc-for list="{{ quickAdd.priority.options }}" as="o3" hint-placeholder-count="4"><option value="{{ o3.v }}">{{ o3.label }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+                    <sc-if value="{{ quickAdd.showList }}" hint-placeholder-val="{{ false }}">
+                      <sc-raw-select ref="{{ quickAdd.list.valueRef }}" value="{{ quickAdd.list.value }}" sc-camel-on-change="{{ quickAdd.list.onPick }}" style="{{ quickAdd.list.style }}">
+                        <sc-for list="{{ quickAdd.list.options }}" as="o4" hint-placeholder-count="4"><option value="{{ o4.v }}">{{ o4.label }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+                    <sc-if value="{{ quickAdd.showChannel }}" hint-placeholder-val="{{ true }}">
+                      <sc-raw-select ref="{{ quickAdd.channel.valueRef }}" value="{{ quickAdd.channel.value }}" sc-camel-on-change="{{ quickAdd.channel.onPick }}" style="{{ quickAdd.channel.style }}">
+                        <sc-for list="{{ quickAdd.channel.options }}" as="o5" hint-placeholder-count="4"><option value="{{ o5.v }}">{{ o5.label }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-if>
+
+                    <sc-for list="{{ quickAdd.customs }}" as="qc" hint-placeholder-count="2">
+                      <sc-raw-select ref="{{ qc.valueRef }}" value="{{ qc.value }}" sc-camel-on-change="{{ qc.onPick }}" style="{{ qc.style }}">
+                        <sc-for list="{{ qc.options }}" as="o6" hint-placeholder-count="4"><option value="{{ o6.v }}">{{ o6.label }}</option></sc-for>
+                      </sc-raw-select>
+                    </sc-for>
+
+                    <input type="date" ref="{{ quickAdd.dueRef }}" value="{{ quickAdd.due }}" sc-camel-on-change="{{ quickAdd.onDue }}" title="วันครบกำหนด" style="{{ quickAdd.dueStyle }}">
+
+                    <sc-if value="{{ quickAdd.dirty }}" hint-placeholder-val="{{ false }}">
+                      <button sc-camel-on-click="{{ quickAdd.onClear }}" title="ล้างค่าที่เลือกไว้ทั้งหมด" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 11px; cursor: pointer; padding: 3px 7px; text-decoration: underline;" style-hover="color: #dc2626;">ล้างค่า</button>
+                    </sc-if>
+                  </div>
                 </div>
               </sc-if>
 
@@ -7057,16 +7114,28 @@ class Component extends DCLogic {
     const status = groupField === 'status' ? key : (this.statuses()[0] || {}).k;
     let maxPos = 0;
     this.state.tasks.forEach(function (t) { if (t.status === status && (t.pos || 0) > maxPos) maxPos = t.pos || 0; });
+    // ค่าที่ผู้ใช้เลือกไว้ในแถบเพิ่มงาน ชนะค่าเริ่มต้น แต่แพ้ค่าที่กลุ่มบังคับ
+    const qa = this.qaDraft();
+    const pick = function (fromGroup, fromQa, fallback) {
+      if (fromGroup !== undefined && fromGroup !== null) return fromGroup;
+      if (fromQa !== undefined && fromQa !== null && fromQa !== '') return fromQa;
+      return fallback;
+    };
     const t = {
       id: 'T' + Math.floor(Math.random() * 90000 + 10000),
-      list: list, name: name, status: status,
-      assignee: groupField === 'assignee' ? key : 'Unassigned',
-      start: TODAY, due: d(7),
-      priority: groupField === 'priority' ? key : 'Normal',
+      list: groupField === 'list' ? list : pick(null, qa.list, list),
+      name: name,
+      status: groupField === 'status' ? status : pick(null, qa.status, status),
+      assignee: groupField === 'assignee' ? key : pick(null, qa.assignee, 'Unassigned'),
+      assignees: [groupField === 'assignee' ? key : pick(null, qa.assignee, 'Unassigned')],
+      start: TODAY,
+      due: pick(null, qa.due, d(7)),
+      priority: groupField === 'priority' ? key : pick(null, qa.priority, 'Normal'),
       tags: [],
-      channel: groupField === 'channel' ? key : '—',
+      channel: groupField === 'channel' ? key : (qa.channel ? [qa.channel] : '—'),
       platform: '—',
       cost: 0, qty: 1, pos: maxPos + 1000,
+      custom: Object.assign({}, qa.custom || {}),
       subtasks: [], comments: [], attachments: [], desc: ''
     };
     this._focusRowComposer = true;
@@ -8492,6 +8561,12 @@ class Component extends DCLogic {
     else all[mk][name] = Math.round(n);
     this.saveCfg({ flCap: all });
   }
+  qaDraft() { return this.state.qaDraft || {}; }
+  qaSet(patch) {
+    this.setState({ qaDraft: Object.assign({}, this.qaDraft(), patch || {}) });
+  }
+  qaClear() { this.setState({ qaDraft: {} }); }
+
   flRoles() {
     const v = this.cfg().flRoleList;
     return (v && v.length) ? v : ['Graphic', 'Editor'];
@@ -9467,6 +9542,35 @@ class Component extends DCLogic {
 
   isTrash() { return this.state.list === '__trash'; }
 
+  /* ค้นหาแบบพิมพ์อิสระ — ทุกคำที่พิมพ์ต้องเจอในงานชิ้นนั้น (คนละช่องกันก็ได้)
+     ครอบ: ชื่อ, รหัสงาน, list, สถานะ, ความสำคัญ, คนทำ, แท็ก, ช่องทาง, แพลตฟอร์ม,
+           รายละเอียด, ชื่อ subtask, คอมเมนต์ และทุกฟิลด์ที่สร้างเอง */
+  taskHaystack(t) {
+    if (t.__hayS === t.__stamp && t.__hay) return t.__hay;
+    const bits = [t.id, t.name, t.list, t.status, t.priority, t.desc, t.due, t.start];
+    bits.push(this.assigneesOf(t).join(' '));
+    bits.push((t.tags || []).join(' '));
+    bits.push([].concat(t.channel || []).join(' '));
+    bits.push([].concat(t.platform || []).join(' '));
+    (t.subtasks || []).forEach(function (x) { bits.push(x && x.name); });
+    (t.comments || []).forEach(function (c) { bits.push(c && c.text); bits.push(c && c.author); });
+    const cus = t.custom || {};
+    Object.keys(cus).forEach(function (k) {
+      const v = cus[k];
+      if (v === null || v === undefined) return;
+      if (Array.isArray(v)) bits.push(v.join(' '));
+      else if (typeof v === 'object') bits.push([v.from, v.to].join(' '));
+      else bits.push(v);
+    });
+    return bits.filter(Boolean).join(' \u0001 ').toLowerCase();
+  }
+  matchQuery(t, q) {
+    const hay = this.taskHaystack(t);
+    const words = String(q).toLowerCase().split(/\s+/).filter(Boolean);
+    for (let i = 0; i < words.length; i++) { if (hay.indexOf(words[i]) < 0) return false; }
+    return true;
+  }
+
   visibleTasks() {
     const s = this.state;
     const q = s.query.trim().toLowerCase();
@@ -9487,7 +9591,7 @@ class Component extends DCLogic {
       else if (s.list !== '__all' && t.list !== s.list) return false;
       if (hideDone && t.status === doneKey) return false;
       if (!q) return true;
-      return (t.name + ' ' + self.assigneesOf(t).join(' ') + ' ' + (t.tags || []).join(' ') + ' ' + t.channel + ' ' + t.platform).toLowerCase().indexOf(q) >= 0;
+      return self.matchQuery(t, q);
     });
   }
 
@@ -11172,6 +11276,45 @@ class Component extends DCLogic {
         (s.list === '__all' && self.filt().due === 'overdue' ? 'background:rgba(220,38,38,.15);color:#fca5a5;font-weight:600;' : 'background:transparent;color:#cbd2de;'),
       query: s.query,
       queryRef: self.syncRef(s.query),
+      topSearchValue: (function () { return self.isLinks() ? (s.linkQuery || '') : (s.query || ''); })(),
+      topSearchRef: self.syncRef(self.isLinks() ? (s.linkQuery || '') : (s.query || '')),
+      topSearchOn: !!(self.isLinks() ? s.linkQuery : s.query),
+      topSearchWrapStyle: 'display:flex;align-items:center;gap:7px;background:var(--pw-surface);border:1px solid ' +
+        ((self.isLinks() ? s.linkQuery : s.query) ? '#4f46e5' : 'var(--pw-border)') +
+        ';border-radius:8px;padding:5px 9px;min-width:200px;max-width:290px;flex:0 1 260px;' +
+        ((self.isLinks() ? s.linkQuery : s.query) ? 'box-shadow:0 0 0 2px rgba(79,70,229,.12);' : ''),
+      topSearchPlaceholder: 'ค้นใน ' + (self.isLinks() ? 'Links' : self.isDocs() ? 'เอกสาร' : self.isPlanner() ? 'Planner'
+        : self.isTrash() ? 'ถังขยะ' : self.isArchive() ? 'Archive'
+        : ({ table: 'Table', board: 'Board', calendar: 'Calendar', timeline: 'Timeline', gantt: 'Gantt', dashboard: 'Dashboard', freelance: 'Freelance' }[s.view] || 'หน้านี้')) + '…',
+      onTopSearch: function (e) {
+        const v = e.target.value;
+        if (self.isLinks()) self.setState({ linkQuery: v }); else self.setState({ query: v });
+      },
+      onTopSearchKey: function (e) {
+        if (e.key === 'Escape') { if (self.isLinks()) self.setState({ linkQuery: '' }); else self.setState({ query: '' }); }
+      },
+      topSearchHits: (function () {
+        const words = String((self.isLinks() ? s.linkQuery : s.query) || '').toLowerCase().split(/\s+/).filter(Boolean);
+        if (!words.length) return '';
+        if (self.isLinks()) {
+          const n = (s.links || []).filter(function (l) {
+            const hay = [l.title, l.url, l.note, l.by, l.cat, (l.tags || []).join(' ')].filter(Boolean).join(' ').toLowerCase();
+            return words.every(function (w) { return hay.indexOf(w) >= 0; });
+          }).length;
+          return n + ' รายการ';
+        }
+        if (s.view === 'freelance') {
+          const n = self.flNames().filter(function (nm) {
+            const hay = String(nm).toLowerCase();
+            return words.every(function (w) { return hay.indexOf(w) >= 0; });
+          }).length;
+          return n + ' คน';
+        }
+        return visible.length + ' งาน';
+      })(),
+      onTopSearchClear: function () {
+        if (self.isLinks()) self.setState({ linkQuery: '', linkCat: null }); else self.setState({ query: '' });
+      },
       onQuery: function (e) { self.setState({ query: e.target.value }); },
       onAllTasks: function () { self.setState({ list: '__all' }, () => self.persist()); },
       onMyTasks: function () { self.openSystemView('mine'); },
@@ -11347,6 +11490,65 @@ class Component extends DCLogic {
           c: 'width:' + (54 + (i * 11) % 40) + 'px;'
         };
       }),
+      quickAdd: (function () {
+        const qa = self.qaDraft();
+        const opt = function (v, label) { return { v: v, label: label === undefined ? v : label }; };
+        const allLists = [];
+        (s.spaces || []).forEach(function (sp) { (sp.lists || []).forEach(function (l) { allLists.push(l); }); });
+        const selStyle = 'border:1px solid var(--pw-border);border-radius:6px;padding:4px 22px 4px 8px;background:var(--pw-surface);color:var(--pw-text2);font-size:11.5px;cursor:pointer;max-width:150px;';
+        const setStyle = function (on) {
+          return on ? selStyle.replace('var(--pw-border)', '#4f46e5').replace('var(--pw-text2)', '#4f46e5') : selStyle;
+        };
+        const mk = function (key, label, options, cur) {
+          return {
+            label: label,
+            options: [opt('', label + ': ทั้งหมด')].concat(options),
+            value: cur || '',
+            valueRef: self.syncRef(cur || ''),
+            style: setStyle(!!cur),
+            onPick: function (e) { const o = {}; o[key] = e.target.value; self.qaSet(o); }
+          };
+        };
+        const customs = (s.fields || []).filter(function (f) { return f.type === 'select' && (f.options || []).length; })
+          .map(function (f) {
+            const cur = ((qa.custom || {})[f.id] || [])[0] || '';
+            return {
+              label: f.label,
+              options: [opt('', f.label + ': ยังไม่เลือก')].concat((f.options || []).map(function (o) { return opt(o); })),
+              value: cur,
+              valueRef: self.syncRef(cur),
+              style: setStyle(!!cur),
+              onPick: function (e) {
+                const v = e.target.value;
+                const cus = Object.assign({}, qa.custom || {});
+                if (v) cus[f.id] = [v]; else delete cus[f.id];
+                self.qaSet({ custom: cus });
+              }
+            };
+          });
+        const dirty = !!(qa.status || qa.assignee || qa.priority || qa.list || qa.channel || qa.due ||
+                         (qa.custom && Object.keys(qa.custom).length));
+        return {
+          status:   mk('status', 'สถานะ', self.statuses().map(function (x) { return opt(x.k); }), qa.status),
+          assignee: mk('assignee', 'ผู้รับผิดชอบ', (s.members || []).map(function (m) { return opt(m.n); }), qa.assignee),
+          priority: mk('priority', 'ความสำคัญ', self.priorities().map(function (x) { return opt(x.k); }), qa.priority),
+          list:     mk('list', 'List', allLists.map(function (l) { return opt(l); }), qa.list),
+          channel:  mk('channel', 'Channel', self.channels().map(function (c) { return opt(c); }), qa.channel),
+          due: qa.due || '',
+          dueRef: self.syncRef(qa.due || ''),
+          dueStyle: 'border:1px solid ' + (qa.due ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:6px;padding:4px 8px;background:var(--pw-surface);color:' + (qa.due ? '#4f46e5' : 'var(--pw-text2)') + ';font-size:11.5px;cursor:pointer;',
+          onDue: function (e) { self.qaSet({ due: e.target.value }); },
+          customs: customs,
+          hasCustoms: customs.length > 0,
+          dirty: dirty,
+          onClear: function () { self.qaClear(); },
+          showStatus: groupBy !== 'Status',
+          showAssignee: groupBy !== 'Assignee',
+          showPriority: groupBy !== 'Priority',
+          showChannel: groupBy !== 'Channel',
+          showList: !spaceName && s.list === '__all'
+        };
+      })(),
       isTable: s.view === 'table' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
       isBoard: s.view === 'board' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
@@ -11356,7 +11558,12 @@ class Component extends DCLogic {
       freelance: (function () {
         const mk = self.flMonthKey();
         const fld = self.flField();
-        const names = self.flNames();
+        const qWords = String(s.query || '').toLowerCase().split(/\s+/).filter(Boolean);
+        const names = self.flNames().filter(function (nm) {
+          if (!qWords.length) return true;                 // ช่องค้นด้านบนกรองรายชื่อในหน้านี้ด้วย
+          const hay = String(nm).toLowerCase();
+          return qWords.every(function (w) { return hay.indexOf(w) >= 0; });
+        });
         const counts = {}, samples = {}, unknown = {};
         let noDate = 0, totalTagged = 0;
         (s.tasks || []).forEach(function (t) {
