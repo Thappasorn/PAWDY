@@ -4629,59 +4629,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <span style="{{ group.chipStyle }}">{{ group.status }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2); font-family: 'IBM Plex Mono', monospace;">{{ group.count }}</span>
                 <span style="font-size: 11px; color: var(--pw-muted2);">{{ group.costLabel }}</span>
-                <button sc-camel-on-click="{{ group.onAdd }}" style="background: transparent; border: 0; color: var(--pw-muted2); cursor: pointer; font-size: 11.5px; padding: 2px 6px; border-radius: 4px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+ Add task</button>
+                <button sc-camel-on-click="{{ group.onAdd }}" class="pw-star" style="background: transparent; border: 0; color: var(--pw-text2); cursor: pointer; font-size: 11.5px; padding: 4px 11px; border-radius: 999px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+ Add task</button>
               </div>
-
-              <sc-if value="{{ group.composerOpen }}" hint-placeholder-val="{{ false }}">
-                <div data-panel style="display: flex; flex-direction: column; gap: 8px; padding: 9px 12px 11px; border-bottom: 1px solid var(--pw-line); background: var(--pw-surface2);">
-                  <div style="display: flex; align-items: center; gap: 7px;">
-                    <input ref="{{ group.composerRef }}" data-sync="{{ group.composerText }}" value="{{ group.composerText }}" sc-camel-on-change="{{ group.onComposerText }}" sc-camel-on-key-down="{{ group.onComposerKey }}" placeholder="พิมพ์ชื่องาน แล้วกด Enter — พิมพ์ต่อได้เรื่อยๆ · Esc ปิด" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12.5px; outline: 0; background: var(--pw-surface); color: var(--pw-text);" style-focus="border-color: #4f46e5;">
-                    <button sc-camel-on-click="{{ group.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #4338ca;">เพิ่ม</button>
-                    <button sc-camel-on-click="{{ group.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 5px;" style-hover="color: var(--pw-text);">×</button>
-                  </div>
-
-                  <!-- เลือกฟิลด์ไว้ล่วงหน้า ค่าจะติดไปกับทุกงานที่พิมพ์เพิ่มในรอบนี้ -->
-                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                    <sc-if value="{{ quickAdd.showStatus }}" hint-placeholder-val="{{ true }}">
-                      <sc-raw-select ref="{{ quickAdd.status.valueRef }}" value="{{ quickAdd.status.value }}" sc-camel-on-change="{{ quickAdd.status.onPick }}" style="{{ quickAdd.status.style }}">
-                        <sc-for list="{{ quickAdd.status.options }}" as="o" hint-placeholder-count="4"><option value="{{ o.v }}">{{ o.label }}</option></sc-for>
-                      </sc-raw-select>
-                    </sc-if>
-                    <sc-if value="{{ quickAdd.showAssignee }}" hint-placeholder-val="{{ true }}">
-                      <sc-raw-select ref="{{ quickAdd.assignee.valueRef }}" value="{{ quickAdd.assignee.value }}" sc-camel-on-change="{{ quickAdd.assignee.onPick }}" style="{{ quickAdd.assignee.style }}">
-                        <sc-for list="{{ quickAdd.assignee.options }}" as="o2" hint-placeholder-count="4"><option value="{{ o2.v }}">{{ o2.label }}</option></sc-for>
-                      </sc-raw-select>
-                    </sc-if>
-                    <sc-if value="{{ quickAdd.showPriority }}" hint-placeholder-val="{{ true }}">
-                      <sc-raw-select ref="{{ quickAdd.priority.valueRef }}" value="{{ quickAdd.priority.value }}" sc-camel-on-change="{{ quickAdd.priority.onPick }}" style="{{ quickAdd.priority.style }}">
-                        <sc-for list="{{ quickAdd.priority.options }}" as="o3" hint-placeholder-count="4"><option value="{{ o3.v }}">{{ o3.label }}</option></sc-for>
-                      </sc-raw-select>
-                    </sc-if>
-                    <sc-if value="{{ quickAdd.showList }}" hint-placeholder-val="{{ false }}">
-                      <sc-raw-select ref="{{ quickAdd.list.valueRef }}" value="{{ quickAdd.list.value }}" sc-camel-on-change="{{ quickAdd.list.onPick }}" style="{{ quickAdd.list.style }}">
-                        <sc-for list="{{ quickAdd.list.options }}" as="o4" hint-placeholder-count="4"><option value="{{ o4.v }}">{{ o4.label }}</option></sc-for>
-                      </sc-raw-select>
-                    </sc-if>
-                    <sc-if value="{{ quickAdd.showChannel }}" hint-placeholder-val="{{ true }}">
-                      <sc-raw-select ref="{{ quickAdd.channel.valueRef }}" value="{{ quickAdd.channel.value }}" sc-camel-on-change="{{ quickAdd.channel.onPick }}" style="{{ quickAdd.channel.style }}">
-                        <sc-for list="{{ quickAdd.channel.options }}" as="o5" hint-placeholder-count="4"><option value="{{ o5.v }}">{{ o5.label }}</option></sc-for>
-                      </sc-raw-select>
-                    </sc-if>
-
-                    <sc-for list="{{ quickAdd.customs }}" as="qc" hint-placeholder-count="2">
-                      <sc-raw-select ref="{{ qc.valueRef }}" value="{{ qc.value }}" sc-camel-on-change="{{ qc.onPick }}" style="{{ qc.style }}">
-                        <sc-for list="{{ qc.options }}" as="o6" hint-placeholder-count="4"><option value="{{ o6.v }}">{{ o6.label }}</option></sc-for>
-                      </sc-raw-select>
-                    </sc-for>
-
-                    <input type="date" ref="{{ quickAdd.dueRef }}" value="{{ quickAdd.due }}" sc-camel-on-change="{{ quickAdd.onDue }}" title="วันครบกำหนด" style="{{ quickAdd.dueStyle }}">
-
-                    <sc-if value="{{ quickAdd.dirty }}" hint-placeholder-val="{{ false }}">
-                      <button sc-camel-on-click="{{ quickAdd.onClear }}" title="ล้างค่าที่เลือกไว้ทั้งหมด" style="background: transparent; border: 0; color: var(--pw-muted2); font-size: 11px; cursor: pointer; padding: 3px 7px; text-decoration: underline;" style-hover="color: #dc2626;">ล้างค่า</button>
-                    </sc-if>
-                  </div>
-                </div>
-              </sc-if>
 
               <sc-if value="{{ group.expanded }}" hint-placeholder-val="{{ true }}">
               <sc-for list="{{ group.tasks }}" as="row" hint-placeholder-count="5">
@@ -7097,6 +7046,39 @@ class Component extends DCLogic {
     this.setState({ rowComposer: key, rowComposerText: '' });
   }
   closeRowComposer() { this.setState({ rowComposer: null, rowComposerText: '' }); }
+  /* + Add task = ได้แถวจริงในตารางทันที ทุกช่องแก้ตรงนั้นได้เลย
+     (ไม่ใช้แผงเลือกฟิลด์แยก เพราะกรอกในแถวเร็วกว่าและเห็นคอลัมน์จริง) */
+  addRowInline(groupField, key) {
+    this.mark('เพิ่มงาน');
+    let list = groupField === 'list' ? key : this.state.list;
+    const scope = this.scopeLists();
+    if (groupField !== 'list') {
+      if (scope) list = scope[0] || 'Tasks';
+      if (list === '__all' || list === '__trash' || (list || '').indexOf('__space:') === 0) {
+        const all = [];
+        this.state.spaces.forEach(function (sp) { sp.lists.forEach(function (l) { all.push(l); }); });
+        list = all[0] || 'Tasks';
+      }
+    }
+    const status = groupField === 'status' ? key : (this.statuses()[0] || {}).k;
+    let maxPos = 0;
+    this.state.tasks.forEach(function (t) { if (t.status === status && (t.pos || 0) > maxPos) maxPos = t.pos || 0; });
+    const id = 'T' + Math.floor(Math.random() * 90000 + 10000);
+    const who = groupField === 'assignee' ? key : 'Unassigned';
+    const t = {
+      id: id, list: list, name: '', status: status,
+      assignee: who, assignees: [who],
+      start: TODAY, due: d(7),
+      priority: groupField === 'priority' ? key : 'Normal',
+      tags: [], channel: groupField === 'channel' ? key : '—', platform: '—',
+      cost: 0, qty: 1, pos: maxPos + 1000, custom: {},
+      subtasks: [], comments: [], attachments: [], desc: ''
+    };
+    this._focusRowName = id;
+    if (this.isGroupCollapsed(key)) this.toggleGroup(key);   // กลุ่มพับอยู่ ต้องกางก่อนไม่งั้นแถวใหม่ไม่โผล่
+    this.setState(function (s) { return { tasks: s.tasks.concat([t]) }; }, () => this.persist());
+  }
+
   addQuick(groupField, key) {
     const name = (this.state.rowComposerText || '').trim();
     if (!name) { this.closeRowComposer(); return; }
@@ -9766,7 +9748,14 @@ class Component extends DCLogic {
       avatarStyle: this.avatar(t.assignee, 20),
       tagChips: this.tagChips(t.tags),
       tagText: (t.tags || []).join(', '),
-      nameRef: this.syncRef(t.name),
+      nameRef: (function (self, task) {
+        const val = String(task.name === undefined || task.name === null ? '' : task.name);
+        return function (el) {
+          if (!el) return;
+          if (el.value !== val) el.value = val;
+          if (self._focusRowName === task.id) { self._focusRowName = null; try { el.focus(); } catch (e) {} }
+        };
+      })(this, t),
       nameInputStyle: 'width:min(100%,' + Math.max(72, Math.min(360, 28 + String(t.name || '').length * 8)) + 'px);flex:0 1 auto;min-width:72px;background:transparent;border:0;outline:0;font-size:12.5px;font-weight:500;padding:3px 4px;border-radius:4px;text-overflow:ellipsis;',
       statusRef: this.syncRef(t.status),
       assigneeRef: this.syncRef(t.assignee),
@@ -9913,8 +9902,17 @@ class Component extends DCLogic {
       },
       onName: function (e) { self.patch(t.id, 'name', e.target.value); },
       onNameKey: function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-        if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur(); }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const gf = { Status: 'status', Assignee: 'assignee', Priority: 'priority', Channel: 'channel' }[self.props.groupBy || 'Status'] || 'status';
+          if (String(t.name || '').trim()) self.addRowInline(gf, t[gf]);   // มีชื่อแล้ว → เปิดแถวใหม่ต่อ
+          else e.currentTarget.blur();
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (!String(t.name || '').trim()) self.removeTask(t.id);          // แถวเปล่า + Esc = ยกเลิกทิ้ง
+          else e.currentTarget.blur();
+        }
       },
       onNameBlur: function () {},
       onStatus: function (e) { self.patch(t.id, 'status', e.target.value); },
@@ -10303,7 +10301,7 @@ class Component extends DCLogic {
         },
         onComposerAdd: function () { self.addQuick(groupField, key); },
         onComposerClose: function () { self.closeRowComposer(); },
-        onAdd: function () { self.openRowComposer(key); },
+        onAdd: function () { self.addRowInline(groupField, key); },
         // ปล่อยงานตรงหัวกลุ่ม/ท้ายกลุ่ม = ย้ายมาต่อท้ายกลุ่มนี้
         onDragOverGroup: function (e) { e.preventDefault(); },
         onDropGroup: function (e) {
