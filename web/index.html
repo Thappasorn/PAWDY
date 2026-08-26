@@ -3489,6 +3489,34 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 </script>
 
 <noscript><div style="font:14px system-ui;padding:24px">This page needs JavaScript enabled.</div></noscript>
+<style id="pw-perf-boost">
+/* ── PAWDY perf boost (safe, non-structural) ─────────────────────────
+   Lets the browser skip layout+paint for rows/cards that are scrolled
+   off-screen. contain-intrinsic-size reserves height so the scrollbar
+   stays accurate and there is no jump. Falls back to no-op on old browsers. */
+@supports (content-visibility: auto) {
+  [data-task-row],
+  [data-subtask-row],
+  [data-tlrow] {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 40px;
+  }
+  [data-card] {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 96px;
+  }
+}
+/* Isolate each row/card's paint & layout so a change in one doesn't
+   force the whole list to re-layout. */
+[data-task-row],
+[data-subtask-row],
+[data-tlrow],
+[data-card] {
+  contain: layout paint style;
+}
+/* Promote horizontal board scroll container to its own layer for smoother scroll. */
+[data-boardwrap] { will-change: scroll-position; }
+</style>
 </head>
 <body>
 <x-dc>
