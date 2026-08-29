@@ -5158,6 +5158,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <span style="font-size: 11px; color: #4f46e5;">กำลังดึงข้อมูล…</span>
                   </sc-if>
                   <span style="font-size: 11px; color: var(--pw-muted2);">{{ sheetVM.updatedLabel }}</span>
+                  <sc-if value="{{ sheetVM.calendar.on }}" hint-placeholder-val="{{ false }}">
+                    <span style="display: inline-flex; gap: 4px;">
+                      <button sc-camel-on-click="{{ sheetVM.onModeCal }}" title="แสดงเป็นปฏิทินเหมือนใน Sheet" style="{{ sheetVM.modeCalStyle }}">▦ ปฏิทิน</button>
+                      <button sc-camel-on-click="{{ sheetVM.onModeTable }}" title="แสดงเป็นตารางดิบ" style="{{ sheetVM.modeTableStyle }}">▤ ตาราง</button>
+                    </span>
+                  </sc-if>
                   <button sc-camel-on-click="{{ sheetVM.onRefresh }}" title="ดึงข้อมูลใหม่เดี๋ยวนี้" style="border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); border-radius: 8px; padding: 4px 11px; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">↻ รีเฟรช</button>
                 </span>
               </div>
@@ -5166,6 +5172,35 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <div style="background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.3); border-radius: 9px; padding: 9px 12px; font-size: 11.5px; color: #f87171;">ดึงข้อมูลไม่สำเร็จ — {{ sheetVM.error }}</div>
               </sc-if>
 
+              <sc-if value="{{ sheetVM.showCalendar }}" hint-placeholder-val="{{ false }}">
+                <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface); padding: 9px;">
+                  <div style="display: flex; flex-direction: column; gap: 7px;">
+                    <sc-for list="{{ sheetVM.calendar.rows }}" as="cw" hint-placeholder-count="5">
+                      <div style="{{ sheetVM.calendar.gridStyle }}">
+                        <sc-for list="{{ cw.cells }}" as="cd" hint-placeholder-count="8">
+                          <div title="{{ cd.full }}" style="{{ cd.style }}">
+                            <sc-if value="{{ cd.hasDay }}" hint-placeholder-val="{{ true }}">
+                              <span style="{{ cd.dayStyle }}">{{ cd.day }}</span>
+                            </sc-if>
+                            <sc-if value="{{ cd.hasText }}" hint-placeholder-val="{{ true }}">
+                              <span style="font-size: 11px; line-height: 1.45; color: var(--pw-text2); overflow: hidden;">{{ cd.text }}</span>
+                            </sc-if>
+                            <sc-if value="{{ cd.hasLinks }}" hint-placeholder-val="{{ false }}">
+                              <span style="display: flex; flex-direction: column; gap: 2px; margin-top: auto;">
+                                <sc-for list="{{ cd.links }}" as="cl" hint-placeholder-count="2">
+                                  <a href="{{ cl.href }}" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#4f46e5;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" style-hover="text-decoration:underline;">{{ cl.label }}</a>
+                                </sc-for>
+                              </span>
+                            </sc-if>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ sheetVM.showTable }}" hint-placeholder-val="{{ true }}">
               <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface);">
                 <div style="{{ sheetVM.headStyle }}">
                   <sc-for list="{{ sheetVM.headCells }}" as="sh" hint-placeholder-count="6">
@@ -5187,6 +5222,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   </div>
                 </sc-for>
               </div>
+              </sc-if>
 
               <sc-if value="{{ sheetVM.hasMore }}" hint-placeholder-val="{{ false }}">
                 <span style="font-size: 11px; color: var(--pw-muted2);">{{ sheetVM.shown }}</span>
@@ -11820,7 +11856,7 @@ class Component extends DCLogic {
         const body = rows.length > 1 ? rows.slice(1) : [];
         const when = data && data.at ? new Date(data.at) : null;
         const pad = function (n) { return (n < 10 ? '0' : '') + n; };
-        return {
+        const vmOut = {
           configured: !!(api.url && api.token),
           notConfigured: !(api.url && api.token),
           loading: !!s.sheetLoading,
@@ -11862,13 +11898,75 @@ class Component extends DCLogic {
               })
             };
           }),
+          calendar: (function () {
+            /* แท็บแบบ "2026" วางเป็นปฏิทินอยู่แล้วใน Sheet — 1 แถว = 1 สัปดาห์, 1 ช่อง = 1 วัน
+               ในช่องมีบรรทัดแรกเป็นวัน (6JAN) ตามด้วยชื่องานและลิงก์ */
+            const dayRe = /^\s*(\d{1,2})\s*([A-Za-zก-๙\.]{3,})\s*$/;
+            let hits = 0;
+            rows.forEach(function (r) {
+              (r || []).forEach(function (c) {
+                const first = String(c == null ? '' : c).split('\n')[0].trim();
+                if (dayRe.test(first)) hits++;
+              });
+            });
+            const on = hits >= 5;
+            if (!on) return { on: false, rows: [] };
+            const cols = rows.reduce(function (m, r) { return Math.max(m, (r || []).length); }, 0);
+            return {
+              on: true,
+              gridStyle: 'display:grid;grid-template-columns:repeat(' + Math.max(1, cols) + ',minmax(150px,1fr));gap:7px;min-width:max-content;',
+              rows: rows.map(function (r) {
+                return {
+                  cells: (function () {
+                    const out = [];
+                    for (let i = 0; i < cols; i++) {
+                      const raw = String((r || [])[i] == null ? '' : (r || [])[i]);
+                      const lines = raw.split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
+                      let day = '';
+                      if (lines.length && dayRe.test(lines[0])) day = lines.shift();
+                      const links = [], texts = [];
+                      lines.forEach(function (l) {
+                        const u = self.urlOf(l);
+                        if (u) links.push({ href: u, label: '↗ ' + self.linkLabelOf(l) });
+                        else texts.push(l);
+                      });
+                      const bodyText = texts.join(' · ');
+                      out.push({
+                        day: day, hasDay: !!day,
+                        text: bodyText.length > 150 ? bodyText.slice(0, 150) + '…' : bodyText,
+                        full: raw,
+                        hasText: !!bodyText,
+                        links: links.slice(0, 4),
+                        hasLinks: links.length > 0,
+                        style: 'border:1px solid ' + (day ? 'var(--pw-border)' : 'transparent') +
+                               ';border-radius:9px;padding:7px 8px;min-height:64px;display:flex;flex-direction:column;gap:4px;background:' +
+                               (day ? 'var(--pw-surface2)' : 'transparent') + ';overflow:hidden;',
+                        dayStyle: 'font-size:10.5px;font-weight:700;letter-spacing:.03em;color:#4f46e5;font-family:\'IBM Plex Mono\',monospace;'
+                      });
+                    }
+                    return out;
+                  })()
+                };
+              })
+            };
+          })(),
+          showCalendar: false,   // เติมค่าจริงหลังคำนวณ calendar ด้านล่าง
+          showTable: true,
           rowCount: String(body.length),
           shown: body.length > 300 ? ('แสดง 300 แถวแรกจาก ' + body.length) : '',
           hasMore: body.length > 300,
           isEmpty: !!cur && body.length === 0,
+
           onRefresh: function () { self.loadSheet(true); },
+          onModeTable: function () { self.setState({ sheetMode: 'table' }); },
+          onModeCal: function () { self.setState({ sheetMode: 'cal' }); },
+          modeTableStyle: 'border:1px solid ' + (s.sheetMode === 'table' ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.sheetMode === 'table' ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (s.sheetMode === 'table' ? '#4f46e5' : 'var(--pw-muted)') + ';border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;',
+          modeCalStyle: 'border:1px solid ' + (s.sheetMode !== 'table' ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.sheetMode !== 'table' ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (s.sheetMode !== 'table' ? '#4f46e5' : 'var(--pw-muted)') + ';border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;',
           sheetHref: api.url ? '' : ''
         };
+        vmOut.showCalendar = !!(vmOut.calendar && vmOut.calendar.on) && s.sheetMode !== 'table';
+        vmOut.showTable = !vmOut.showCalendar;
+        return vmOut;
       })(),
       isFreelance: s.view === 'freelance' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       freelance: (function () {
