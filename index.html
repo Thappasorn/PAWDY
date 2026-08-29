@@ -4217,9 +4217,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           </sc-for>
 
           <sc-for list="{{ savedTabs }}" as="sv" hint-placeholder-count="2">
-            <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="คลิกขวาเพื่อเปลี่ยนชื่อ / บันทึกทับ / ลบ" class="{{ sv.cls }}" style="{{ sv.style }}">
-              <span style="opacity: 0.75; font-size: 11px;">{{ sv.icon }}</span>{{ sv.label }}
-            </button>
+            <sc-if value="{{ sv.notEditing }}" hint-placeholder-val="{{ true }}">
+              <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-double-click="{{ sv.onRename }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="ดับเบิลคลิกเพื่อเปลี่ยนชื่อ · คลิกขวาเพื่อบันทึกทับ / ลบ" class="{{ sv.cls }}" style="{{ sv.style }}">
+                <span style="opacity: 0.75; font-size: 11px;">{{ sv.icon }}</span>{{ sv.label }}
+              </button>
+            </sc-if>
+            <sc-if value="{{ sv.editing }}" hint-placeholder-val="{{ false }}">
+              <input ref="{{ sv.inputRef }}" value="{{ sv.text }}" sc-camel-on-change="{{ sv.onText }}" sc-camel-on-key-down="{{ sv.onKey }}" sc-camel-on-blur="{{ sv.onBlur }}" style="{{ sv.inputStyle }}">
+            </sc-if>
           </sc-for>
 
           <button sc-camel-on-click="{{ onAddView }}" title="บันทึกมุมมองนี้ไว้เป็นแท็บ (เก็บชนิด + ตัวกรองที่ตั้งไว้)" style="display: flex; align-items: center; gap: 5px; background: transparent; border: 1px dashed var(--pw-border); border-radius: 7px; color: var(--pw-muted); font-size: 12px; padding: 4px 10px; margin-left: 6px; cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">+ View</button>
@@ -6475,6 +6480,7 @@ class Component extends DCLogic {
       fieldBuilderOptions: '',
       calMobileMode: (ui.calMobileMode === 'month' ? 'month' : 'agenda'),
       collapsedGroups: (ui.collapsedGroups && typeof ui.collapsedGroups === 'object') ? ui.collapsedGroups : {},
+      viewRename: null,         // {id, text} ตอนกำลังแก้ชื่อแท็บ view
       viewPicker: false,        // panel เลือกชนิดมุมมองตอนกด + View
       viewPickerQuery: '',
       viewPickerName: '',
@@ -7736,6 +7742,28 @@ class Component extends DCLogic {
     if (v.list) patch.list = v.list;
     this.setState(patch, () => this.persist());
   }
+  /* ---- เปลี่ยนชื่อ view ตรงแท็บเลย (ดับเบิลคลิก) — แตะแค่ชื่อ ข้อมูล/ลิงก์/ตัวกรองอยู่ครบ ---- */
+  startViewRename(id) {
+    const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
+    if (!v) return;
+    this._focusRename = true;
+    this.setState({ viewRename: { id: id, text: v.name || '' }, viewMenu: null });
+  }
+  commitViewRename() {
+    const r = this.state.viewRename;
+    if (!r) return;
+    const v = this.savedViews().filter(function (x) { return x.id === r.id; })[0];
+    const name = String(r.text || '').trim();
+    this.setState({ viewRename: null });
+    if (!v || !name || name === v.name) return;
+    this.mark('เปลี่ยนชื่อมุมมอง');
+    this.saveCfg({
+      views: this.savedViews().map(function (x) {
+        return x.id === r.id ? Object.assign({}, x, { name: name }) : x;   // เก็บ src/filters/type เดิมไว้ทั้งหมด
+      })
+    });
+  }
+
   renameSavedView(id) {
     const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
     if (!v) return;
@@ -10721,16 +10749,35 @@ class Component extends DCLogic {
     });
 
     // แท็บมุมมองที่ทีมบันทึกไว้
+    const renaming = s.viewRename || null;
     const savedTabs = this.savedViews().map(function (v) {
       const active = s.customView === v.id;
       const icon = ({ table: '▦', board: '▥', calendar: '▤', timeline: '▬', gantt: '⊟', dashboard: '◕', freelance: '◍', sheet: '▤' })[v.type] || '▦';
+      const editing = !!renaming && renaming.id === v.id;
       return {
         label: v.name, icon: icon,
+        editing: editing, notEditing: !editing,
+        text: editing ? renaming.text : v.name,
+        inputRef: function (el) {
+          if (!el || !editing) return;
+          if (el.value !== renaming.text) el.value = renaming.text;
+          if (self._focusRename) { self._focusRename = false; try { el.focus(); el.select(); } catch (e) {} }
+        },
+        onText: function (e) { self.setState({ viewRename: { id: v.id, text: e.target.value } }); },
+        onKey: function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); self.commitViewRename(); }
+          if (e.key === 'Escape') { e.preventDefault(); self.setState({ viewRename: null }); }
+        },
+        onBlur: function () { self.commitViewRename(); },
+        inputStyle: 'width:' + Math.max(70, Math.min(220, String(editing ? renaming.text : v.name).length * 8 + 26)) + 'px;' +
+          'border:1px solid #4f46e5;border-radius:7px;background:var(--pw-surface);color:var(--pw-text);' +
+          'font-size:12.5px;padding:4px 8px;outline:0;',
         cls: active ? 'pw-tab-on' : '',
         style: 'display:flex;align-items:center;gap:6px;border:0;border-bottom:2px solid transparent;' +
           (active ? 'font-weight:700;' : 'background:transparent;color:var(--pw-muted);font-weight:500;') +
           'font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
         onSelect: function () { self.openSavedView(v.id); },
+        onRename: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.startViewRename(v.id); },
         onContext: function (e) { self.openViewMenu(e, v.id); }
       };
     });
@@ -11609,7 +11656,7 @@ class Component extends DCLogic {
                  'box-shadow:0 18px 44px rgba(8,10,14,0.34);z-index:80;padding:7px;display:flex;flex-direction:column;gap:2px;',
           onClose: function () { self.closeViewMenu(); },
           items: [
-            { icon: '✎', label: 'เปลี่ยนชื่อ', style: item, onPick: function () { self.closeViewMenu(); self.renameSavedView(v.id); } },
+            { icon: '✎', label: 'เปลี่ยนชื่อ', style: item, onPick: function () { self.closeViewMenu(); self.startViewRename(v.id); } },
             { icon: '⤓', label: 'บันทึกทับด้วยค่าปัจจุบัน', style: item, onPick: function () { self.closeViewMenu(); self.updateSavedView(v.id); } },
             { icon: '🗑', label: 'ลบมุมมองนี้', style: item + 'color:#dc2626;', onPick: function () { self.closeViewMenu(); self.removeSavedView(v.id); } }
           ]
