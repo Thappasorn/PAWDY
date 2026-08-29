@@ -5194,29 +5194,41 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </sc-if>
 
               <sc-if value="{{ sheetVM.showCalendar }}" hint-placeholder-val="{{ false }}">
-                <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface); padding: 9px;">
-                    <div style="{{ sheetVM.zoomStyle }}display: flex; flex-direction: column; gap: 7px;">
-                    <sc-for list="{{ sheetVM.calendar.rows }}" as="cw" hint-placeholder-count="5">
-                      <div style="{{ sheetVM.calendar.gridStyle }}">
-                        <sc-for list="{{ cw.cells }}" as="cd" hint-placeholder-count="8">
-                          <div title="{{ cd.full }}" style="{{ cd.style }}">
-                            <sc-if value="{{ cd.hasDay }}" hint-placeholder-val="{{ true }}">
-                              <span style="{{ cd.dayStyle }}">{{ cd.day }}</span>
-                            </sc-if>
-                            <sc-if value="{{ cd.hasText }}" hint-placeholder-val="{{ true }}">
-                              <span style="font-size: 11px; line-height: 1.45; color: var(--pw-text2); overflow: hidden;">{{ cd.text }}</span>
-                            </sc-if>
-                            <sc-if value="{{ cd.hasLinks }}" hint-placeholder-val="{{ false }}">
-                              <span style="display: flex; flex-direction: column; gap: 2px; margin-top: auto;">
-                                <sc-for list="{{ cd.links }}" as="cl" hint-placeholder-count="2">
-                                  <a href="{{ cl.href }}" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#4f46e5;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" style-hover="text-decoration:underline;">{{ cl.label }}</a>
-                                </sc-for>
-                              </span>
-                            </sc-if>
-                          </div>
-                        </sc-for>
-                      </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <button sc-camel-on-click="{{ sheetVM.calendar.onPrev }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">‹</button>
+                  <span style="font-size: 13.5px; font-weight: 600; min-width: 116px;">{{ sheetVM.calendar.label }}</span>
+                  <button sc-camel-on-click="{{ sheetVM.calendar.onNext }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">›</button>
+                  <span style="display: inline-flex; gap: 4px; flex-wrap: wrap;">
+                    <sc-for list="{{ sheetVM.calendar.monthChips }}" as="cmn" hint-placeholder-count="6">
+                      <button sc-camel-on-click="{{ cmn.onPick }}" style="{{ cmn.style }}">{{ cmn.label }}</button>
                     </sc-for>
+                  </span>
+                </div>
+                <div style="flex: 1; min-height: 0; overflow: auto;">
+                  <div style="{{ sheetVM.zoomStyle }}">
+                    <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 10px; overflow: hidden;">
+                      <sc-for list="{{ sheetVM.calendar.weekdays }}" as="swd" hint-placeholder-count="7">
+                        <div style="padding: 7px 9px; font-size: 10.5px; letter-spacing: 0.06em; color: var(--pw-label); font-weight: 600; border-bottom: 1px solid var(--pw-border); background: var(--pw-surface2);">{{ swd }}</div>
+                      </sc-for>
+                      <sc-for list="{{ sheetVM.calendar.days }}" as="cd" hint-placeholder-count="42">
+                        <div style="{{ cd.style }}">
+                          <span style="{{ cd.numStyle }}">{{ cd.num }}</span>
+                          <sc-for list="{{ cd.items }}" as="ci" hint-placeholder-count="2">
+                            <span title="{{ ci.full }}" style="{{ ci.style }}">{{ ci.text }}</span>
+                          </sc-for>
+                          <sc-if value="{{ cd.hasLinks }}" hint-placeholder-val="{{ false }}">
+                            <span style="display: flex; flex-direction: column; gap: 2px;">
+                              <sc-for list="{{ cd.links }}" as="cl" hint-placeholder-count="2">
+                                <a href="{{ cl.href }}" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#4f46e5;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" style-hover="text-decoration:underline;">{{ cl.label }}</a>
+                              </sc-for>
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ cd.hasMore }}" hint-placeholder-val="{{ false }}">
+                            <span style="font-size: 9.5px; color: var(--pw-muted2);">{{ cd.more }}</span>
+                          </sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
                   </div>
                 </div>
               </sc-if>
@@ -12133,62 +12145,114 @@ class Component extends DCLogic {
           onHeadDown: function () { self.setSheetHeadRow(cur ? cur.name : '', headRow + 1); },
           onHeadAuto: function () { self.setSheetHeadRow(cur ? cur.name : '', null); },
           calendar: (function () {
-            /* แท็บแบบ "2026" วางเป็นปฏิทินอยู่แล้วใน Sheet — 1 แถว = 1 สัปดาห์, 1 ช่อง = 1 วัน
-               ในช่องมีบรรทัดแรกเป็นวัน (6JAN) ตามด้วยชื่องานและลิงก์ */
-            const dayRe = /^\s*(\d{1,2})\s*([A-Za-zก-๙\.]{3,})\s*$/;
+            /* แท็บแบบ "2026" ใน Sheet วางเป็นปฏิทินอยู่แล้ว — อ่านวันจากบรรทัดแรกของแต่ละช่อง
+               (6JAN / 1 MAR / APR1) แล้ววาดใหม่เป็นปฏิทินรายเดือน หน้าตาเดียวกับ view Calendar */
+            const MON = { JAN:0, FEB:1, MAR:2, APR:3, MAY:4, JUN:5, JUL:6, AUG:7, SEP:8, OCT:9, NOV:10, DEC:11 };
+            const MON_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                            'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+            const year = (function () {
+              const m = String(cur ? cur.name : '').match(/(20\d{2})/);
+              return m ? parseInt(m[1], 10) : new Date().getFullYear();
+            })();
+            const parseDay = function (line) {
+              const t = String(line || '').trim().toUpperCase().replace(/\./g, '');
+              let m = t.match(/^(\d{1,2})\s*([A-Z]{3,})$/);
+              if (m && MON[m[2].slice(0, 3)] !== undefined) return { d: parseInt(m[1], 10), mo: MON[m[2].slice(0, 3)] };
+              m = t.match(/^([A-Z]{3,})\s*(\d{1,2})$/);
+              if (m && MON[m[1].slice(0, 3)] !== undefined) return { d: parseInt(m[2], 10), mo: MON[m[1].slice(0, 3)] };
+              return null;
+            };
+
+            const byKey = {};
             let hits = 0;
             rows.forEach(function (r) {
               (r || []).forEach(function (c) {
-                const first = String(c == null ? '' : c).split('\n')[0].trim();
-                if (dayRe.test(first)) hits++;
+                const lines = String(c == null ? '' : c).split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
+                if (!lines.length) return;
+                const p = parseDay(lines[0]);
+                if (!p) return;
+                hits++;
+                const key = p.mo + '-' + p.d;
+                if (!byKey[key]) byKey[key] = { texts: [], links: [] };
+                lines.slice(1).forEach(function (l) {
+                  const u = self.urlOf(l);
+                  if (u) byKey[key].links.push({ href: u, label: '↗ ' + self.linkLabelOf(l) });
+                  else byKey[key].texts.push(l);
+                });
               });
             });
-            const on = hits >= 5;
-            if (!on) return { on: false, rows: [] };
-            let cols = 0;
-            rows.forEach(function (r) {
-              (r || []).forEach(function (c, i) { if (String(c == null ? '' : c).trim()) cols = Math.max(cols, i + 1); });
-            });
-            /* แถวที่ไม่มีอะไรเลย ตัดทิ้ง จะได้ไม่มีช่องว่างโล่งๆ คั่นกลาง */
-            const calRows = rows.filter(function (r) {
-              return (r || []).some(function (c) { return String(c == null ? '' : c).trim(); });
-            });
+            if (hits < 5) return { on: false, months: [], days: [], monthChips: [], hasDays: false };
+
+            const has = {};
+            Object.keys(byKey).forEach(function (k) { has[parseInt(k.split('-')[0], 10)] = true; });
+            const months = Object.keys(has).map(Number).sort(function (a, b) { return a - b; });
+            let pick = s.sheetCalMon;
+            if (pick === undefined || pick === null || months.indexOf(pick) < 0) pick = months[0];
+
+            const today = new Date();
+            const todayKey = today.getFullYear() + '-' + today.getMonth() + '-' + today.getDate();
+
+            const first = new Date(year, pick, 1);
+            first.setDate(1 - ((first.getDay() + 6) % 7));            // เริ่มสัปดาห์วันจันทร์
+            const days = [];
+            for (let i = 0; i < 42; i++) {
+              const dt = new Date(first);
+              dt.setDate(dt.getDate() + i);
+              const inMonth = dt.getMonth() === pick;
+              const isToday = (dt.getFullYear() + '-' + dt.getMonth() + '-' + dt.getDate()) === todayKey;
+              const hit = inMonth ? byKey[dt.getMonth() + '-' + dt.getDate()] : null;
+              const texts = (hit && hit.texts) || [];
+              const links = (hit && hit.links) || [];
+              days.push({
+                num: String(dt.getDate()),
+                inMonth: inMonth,
+                items: texts.slice(0, 4).map(function (t) {
+                  return {
+                    text: t.length > 70 ? t.slice(0, 70) + '…' : t,
+                    full: t,
+                    style: 'font-size:10.5px;padding:2px 6px;border-radius:4px;background:var(--pw-accent-soft);' +
+                           'color:#4f46e5;border-left:2px solid #4f46e5;overflow:hidden;text-overflow:ellipsis;' +
+                           'white-space:nowrap;font-weight:500;'
+                  };
+                }),
+                links: links.slice(0, 3),
+                hasLinks: links.length > 0,
+                more: texts.length > 4 ? ('+' + (texts.length - 4)) : '',
+                hasMore: texts.length > 4,
+                style: 'min-height:104px;padding:6px 7px;display:flex;flex-direction:column;gap:3px;' +
+                       'border-bottom:1px solid var(--pw-line);border-right:1px solid var(--pw-line);background:' +
+                       (inMonth ? 'var(--pw-surface)' : 'var(--pw-surface2)') + ';overflow:hidden;',
+                numStyle: isToday
+                  ? 'width:19px;height:19px;border-radius:50%;background:#4f46e5;color:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:600;font-family:\'IBM Plex Mono\',monospace;'
+                  : 'font-size:11px;color:' + (inMonth ? 'var(--pw-muted)' : 'var(--pw-faint)') + ';font-family:\'IBM Plex Mono\',monospace;'
+              });
+            }
+
             return {
               on: true,
-              gridStyle: 'display:grid;grid-template-columns:repeat(' + Math.max(1, cols) + ',minmax(150px,1fr));gap:6px;min-width:max-content;',
-              rows: calRows.map(function (r) {
+              hasDays: true,
+              label: MON_TH[pick] + ' ' + year,
+              weekdays: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'],
+              days: days,
+              monthChips: months.map(function (m) {
+                const onM = m === pick;
                 return {
-                  cells: (function () {
-                    const out = [];
-                    for (let i = 0; i < cols; i++) {
-                      const raw = String((r || [])[i] == null ? '' : (r || [])[i]);
-                      const lines = raw.split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
-                      let day = '';
-                      if (lines.length && dayRe.test(lines[0])) day = lines.shift();
-                      const links = [], texts = [];
-                      lines.forEach(function (l) {
-                        const u = self.urlOf(l);
-                        if (u) links.push({ href: u, label: '↗ ' + self.linkLabelOf(l) });
-                        else texts.push(l);
-                      });
-                      const bodyText = texts.join(' · ');
-                      out.push({
-                        day: day, hasDay: !!day,
-                        text: bodyText.length > 150 ? bodyText.slice(0, 150) + '…' : bodyText,
-                        full: raw,
-                        hasText: !!bodyText,
-                        links: links.slice(0, 4),
-                        hasLinks: links.length > 0,
-                        style: 'border:1px solid ' + (day ? 'var(--pw-border)' : 'transparent') +
-                               ';border-radius:9px;padding:7px 8px;min-height:64px;display:flex;flex-direction:column;gap:4px;background:' +
-                               (day ? 'var(--pw-surface2)' : 'transparent') + ';overflow:hidden;',
-                        dayStyle: 'font-size:10.5px;font-weight:700;letter-spacing:.03em;color:#4f46e5;font-family:\'IBM Plex Mono\',monospace;'
-                      });
-                    }
-                    return out;
-                  })()
+                  label: MON_TH[m].slice(0, 3),
+                  style: 'border:1px solid ' + (onM ? 'transparent' : 'var(--pw-border)') + ';background:' +
+                         (onM ? '#4f46e5' : 'transparent') + ';color:' + (onM ? '#fff' : 'var(--pw-muted)') +
+                         ';border-radius:999px;padding:4px 11px;font-size:11px;font-weight:' + (onM ? '700' : '500') +
+                         ';cursor:pointer;white-space:nowrap;',
+                  onPick: function () { self.setState({ sheetCalMon: m }); }
                 };
-              })
+              }),
+              onPrev: function () {
+                const i = months.indexOf(pick);
+                self.setState({ sheetCalMon: months[Math.max(0, i - 1)] });
+              },
+              onNext: function () {
+                const i = months.indexOf(pick);
+                self.setState({ sheetCalMon: months[Math.min(months.length - 1, i + 1)] });
+              }
             };
           })(),
           showCalendar: false,   // เติมค่าจริงหลังคำนวณ calendar ด้านล่าง
