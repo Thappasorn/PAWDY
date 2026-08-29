@@ -5140,10 +5140,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; height: 100%;">
 
           <sc-if value="{{ sheetVM.notConfigured }}" hint-placeholder-val="{{ true }}">
-            <div style="background: var(--pw-surface); border: 1px dashed var(--pw-border); border-radius: 12px; padding: 26px 22px; display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;">
+            <div style="background: var(--pw-surface); border: 1px dashed var(--pw-border); border-radius: 12px; padding: 26px 22px; display: flex; flex-direction: column; align-items: center; gap: 11px; text-align: center;">
               <span style="font-size: 26px; opacity: .5;">▤</span>
-              <span style="font-size: 13.5px; font-weight: 600;">ยังไม่ได้เชื่อม Google Sheet</span>
-              <span style="font-size: 12px; color: var(--pw-muted); line-height: 1.6; max-width: 460px;">หน้านี้ดึงทุกแท็บจาก Google Sheet มาแสดงรวมกันไว้ที่เดียว<br>ต้องติดตั้งตัวอ่านใน Apps Script แล้วใส่ URL กับ token ในตั้งค่าก่อน</span>
+              <span style="font-size: 13.5px; font-weight: 600;">วางลิงก์ Google Sheet ลงตรงนี้ได้เลย</span>
+              <span style="font-size: 12px; color: var(--pw-muted); line-height: 1.6; max-width: 470px;">ก๊อปลิงก์จากแถบที่อยู่ของ Google Sheet มาวาง แล้วกด เชื่อม — ระบบจะดึงทุกแท็บมาเอง</span>
+              <span style="display: flex; gap: 7px; width: 100%; max-width: 560px;">
+                <input type="text" value="{{ sheetLink }}" sc-camel-on-change="{{ onSheetLink }}" sc-camel-on-key-down="{{ onSheetLinkKey }}" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface2); color: var(--pw-text); font-size: 12px; padding: 9px 12px; outline: 0;" style-focus="border-color: #4f46e5;">
+                <button sc-camel-on-click="{{ onSheetLinkGo }}" class="pw-star" style="border: 1px solid transparent; background: var(--pw-surface2); color: var(--pw-text); border-radius: 9px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">เชื่อม</button>
+              </span>
+              <sc-if value="{{ sheetVM.hasError }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 11.5px; color: #f87171;">{{ sheetVM.error }}</span>
+              </sc-if>
             </div>
           </sc-if>
 
@@ -5170,6 +5177,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <button sc-camel-on-click="{{ sheetVM.onZoomReset }}" title="กลับไป 100%" style="min-width: 44px; border: 0; background: transparent; color: var(--pw-text2); cursor: pointer; font-size: 11px; font-family: 'IBM Plex Mono', monospace; border-radius: 6px; padding: 0 4px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ sheetVM.zoom }}</button>
                     <button sc-camel-on-click="{{ sheetVM.onZoomIn }}" title="ขยาย" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 14px; line-height: 1; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+</button>
                   </span>
+                  <sc-if value="{{ sheetVM.showTable }}" hint-placeholder-val="{{ true }}">
+                    <span style="display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--pw-border); border-radius: 8px; padding: 2px;" title="ถ้าหัวตารางไม่ตรง กดเลื่อนขึ้น-ลงได้">
+                      <button sc-camel-on-click="{{ sheetVM.onHeadUp }}" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 11px; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">▲</button>
+                      <button sc-camel-on-click="{{ sheetVM.onHeadAuto }}" title="ให้ระบบเดาเอง" style="border: 0; background: transparent; color: var(--pw-text2); cursor: pointer; font-size: 10.5px; border-radius: 6px; padding: 0 5px; white-space: nowrap;" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ sheetVM.headPickLabel }}</button>
+                      <button sc-camel-on-click="{{ sheetVM.onHeadDown }}" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 11px; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">▼</button>
+                    </span>
+                  </sc-if>
+                  <button sc-camel-on-click="{{ sheetVM.onChangeLink }}" title="เปลี่ยนไปดูชีตอื่น" style="border: 1px solid var(--pw-border); background: transparent; color: var(--pw-muted); border-radius: 8px; padding: 4px 11px; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">⇆ เปลี่ยนชีต</button>
                   <button sc-camel-on-click="{{ sheetVM.onRefresh }}" title="ดึงข้อมูลใหม่เดี๋ยวนี้" style="border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); border-radius: 8px; padding: 4px 11px; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">↻ รีเฟรช</button>
                 </span>
               </div>
@@ -5208,18 +5223,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-if value="{{ sheetVM.showTable }}" hint-placeholder-val="{{ true }}">
               <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface);">
-                <div style="{{ sheetVM.zoomStyle }}">
+                <div style="{{ sheetVM.zoomStyle }}{{ sheetVM.gridWidth }}">
                 <div style="{{ sheetVM.headStyle }}">
+                  <span style="{{ sheetVM.gutHeadStyle }}">#</span>
                   <sc-for list="{{ sheetVM.headCells }}" as="sh" hint-placeholder-count="6">
-                    <span style="{{ sh.style }}">{{ sh.label }}</span>
+                    <span title="{{ sh.full }}" style="{{ sh.style }}">{{ sh.label }}</span>
                   </sc-for>
                 </div>
                 <sc-for list="{{ sheetVM.bodyRows }}" as="sr" hint-placeholder-count="8">
                   <div style="{{ sr.style }}">
+                    <span style="{{ sr.gutStyle }}">{{ sr.num }}</span>
                     <sc-for list="{{ sr.cells }}" as="sc2" hint-placeholder-count="6">
                       <span title="{{ sc2.full }}" style="{{ sc2.style }}">
                         <sc-if value="{{ sc2.isLink }}" hint-placeholder-val="{{ false }}">
-                          <a href="{{ sc2.href }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:none;" style-hover="text-decoration:underline;">{{ sc2.text }} ↗</a>
+                          <a href="{{ sc2.href }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:none;" style-hover="text-decoration:underline;">↗ {{ sc2.label }}</a>
                         </sc-if>
                         <sc-if value="{{ sc2.isText }}" hint-placeholder-val="{{ true }}">
                           <span>{{ sc2.text }}</span>
@@ -8758,9 +8775,58 @@ class Component extends DCLogic {
     this.setSheetZoom(STEPS[Math.max(0, Math.min(STEPS.length - 1, i + dir))]);
   }
 
+  /* ---- แถวหัวตารางของแต่ละแท็บ (null = ให้ระบบเดาเอง) ---- */
+  sheetHeadMap() {
+    if (this._sheetHead) return this._sheetHead;
+    let m = {};
+    try { m = JSON.parse(localStorage.getItem('pawdy.sheetHead') || '{}') || {}; } catch (e) { m = {}; }
+    this._sheetHead = m;
+    return m;
+  }
+  sheetHeadOverride(tab) {
+    const m = this.sheetHeadMap();
+    const v = m[tab];
+    return (v === null || v === undefined || v === '') ? null : (parseInt(v, 10) || 0);
+  }
+  setSheetHeadRow(tab, idx) {
+    const m = Object.assign({}, this.sheetHeadMap());
+    if (idx === null || idx < 0) delete m[tab]; else m[tab] = idx;
+    this._sheetHead = m;
+    try { localStorage.setItem('pawdy.sheetHead', JSON.stringify(m)); } catch (e) {}
+    this.setState({ sheetHeadV: (this.state.sheetHeadV || 0) + 1 });
+  }
+
+  /* ---- เชื่อม Google Sheet แบบง่าย: วางลิงก์ชีตอย่างเดียวพอ ---- */
+  sheetIdFrom(link) {
+    const s = String(link || '').trim();
+    const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]{20,})/) || s.match(/^([a-zA-Z0-9-_]{25,})$/);
+    return m ? m[1] : '';
+  }
+  connectSheetLink(link) {
+    const id = this.sheetIdFrom(link);
+    if (!id) { this.setState({ sheetError: 'ลิงก์ไม่ถูกต้อง — ก๊อปลิงก์จากแถบที่อยู่ของ Google Sheet มาวางได้เลย' }); return; }
+    const cur = this.cfg().sheetApi || {};
+    const api = {
+      url: String(cur.url || this.constructor.SHEET_EXEC || '') || 'https://script.google.com/macros/s/AKfycbwZ7xV-1G11kI3YDsdIb6WTy9E6r5HNCj6-yGGGl0pS_LZzPc4PHkub-wAz0O0Updx1/exec',
+      token: String(cur.token || '') || 'read-1de87a7b5680253333274193',
+      id: id
+    };
+    const self = this;
+    this.saveCfg({ sheetApi: api });
+    this.setState({ sheetError: '', sheetData: null, sheetTab: '', sheetLink: '', sheetEditLink: false }, function () {
+      setTimeout(function () { self.loadSheet(true); }, 250);
+    });
+  }
+  onSheetLink(e) { this.setState({ sheetLink: e.target.value }); }
+  onSheetLinkGo() { this.connectSheetLink(this.state.sheetLink); }
+  onSheetLinkKey(e) { if (e.key === 'Enter') this.connectSheetLink(this.state.sheetLink); }
+  sheetDocHref() {
+    const id = (this.cfg().sheetApi || {}).id || '';
+    return id ? ('https://docs.google.com/spreadsheets/d/' + id + '/edit') : '';
+  }
   sheetApi() {
     const c = this.cfg().sheetApi || {};
-    return { url: String(c.url || ''), token: String(c.token || '') };
+    return { url: String(c.url || ''), token: String(c.token || ''), id: String(c.id || '') };
   }
   sheetReady() { const a = this.sheetApi(); return !!(a.url && a.token); }
   sheetCache() { return this.state.sheetData || null; }
@@ -8773,7 +8839,7 @@ class Component extends DCLogic {
     this._sheetBusy = true;
     this.setState({ sheetLoading: true, sheetError: '' });
     const self = this;
-    const url = api.url + (api.url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(api.token) + '&t=' + Date.now();
+    const url = api.url + (api.url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(api.token) + (api.id ? '&id=' + encodeURIComponent(api.id) : '') + '&t=' + Date.now();
     fetch(url, { method: 'GET' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -8781,6 +8847,7 @@ class Component extends DCLogic {
         if (!j || j.ok === false) throw new Error((j && j.error) || 'ดึงข้อมูลไม่สำเร็จ');
         const data = { at: Date.now(), tabs: j.tabs || [] };
         try { localStorage.setItem('pawdy.sheet', JSON.stringify(data)); } catch (e) {}
+        self.checkSheetChanged(data);
         self.setState(function (st) {
           return { sheetData: data, sheetLoading: false, sheetError: '',
                    sheetTab: st.sheetTab || ((data.tabs[0] || {}).name || '') };
@@ -8790,6 +8857,48 @@ class Component extends DCLogic {
         self._sheetBusy = false;
         self.setState({ sheetLoading: false, sheetError: String(e && e.message || e) });
       });
+  }
+
+
+  /* ---- Google Sheet เปลี่ยน = เด้งกระดิ่งในเว็บให้เจ้าของเครื่องเอง ----
+     (อีเมลหาทุกคนใช้ตัวเฝ้าใน Apps Script แยกต่างหาก จะได้เตือนแม้ไม่มีใครเปิดเว็บ) */
+  sheetSig(data) {
+    const sig = {};
+    ((data && data.tabs) || []).forEach(function (t) {
+      let h = 5381;
+      const raw = JSON.stringify(t.rows || []);
+      for (let i = 0; i < raw.length; i++) h = ((h * 33) ^ raw.charCodeAt(i)) >>> 0;
+      sig[t.name] = h;
+    });
+    return sig;
+  }
+  checkSheetChanged(data) {
+    const now = this.sheetSig(data);
+    let prev = null;
+    try { prev = JSON.parse(localStorage.getItem('pawdy.sheetSig') || 'null'); } catch (e) { prev = null; }
+    try { localStorage.setItem('pawdy.sheetSig', JSON.stringify(now)); } catch (e) {}
+    if (!prev) return;                                    // ครั้งแรกยังไม่รู้ว่าอะไรเปลี่ยน
+    const changed = Object.keys(now).filter(function (k) { return prev[k] !== undefined && prev[k] !== now[k]; });
+    const added = Object.keys(now).filter(function (k) { return prev[k] === undefined; });
+    if (!changed.length && !added.length) return;
+    if (Date.now() - (this._sheetNotifAt || 0) < 120000) return;   // กันเด้งรัวถ้าคนกำลังพิมพ์อยู่ในชีต
+    this._sheetNotifAt = Date.now();
+    const me = this.me() || {};
+    const list = changed.concat(added.map(function (k) { return k + ' (แท็บใหม่)'; })).slice(0, 4).join(', ');
+    const n = {
+      id: 'N' + Date.now() + Math.floor(Math.random() * 900),
+      to: me.email, toName: me.n || me.email,
+      subject: 'Google Sheet มีการอัปเดต',
+      line: list, detail: 'กดเข้าหน้า Sheet เพื่อดูข้อมูลล่าสุด',
+      taskId: null, kind: 'sheet', at: Date.now(), read: false
+    };
+    try { window.PawdySync.notify(n); } catch (e) {}
+    this.setState({ toast: n });
+    clearTimeout(this._toastTimer);
+    const self = this;
+    this._toastTimer = setTimeout(function () {
+      self.setState(function (st) { return st.toast && st.toast.id === n.id ? { toast: null } : {}; });
+    }, 5000);
   }
 
   /* Google Sheet ไม่ push ข้อมูลมาเอง — ใกล้ real time ที่สุดคือถามซ้ำเป็นระยะ */
@@ -11908,19 +12017,63 @@ class Component extends DCLogic {
       isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       isSheet: s.view === 'sheet' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
+      sheetLink: s.sheetLink || '',
+      onSheetLink: function (e) { self.onSheetLink(e); },
+      onSheetLinkGo: function () { self.onSheetLinkGo(); },
+      onSheetLinkKey: function (e) { self.onSheetLinkKey(e); },
       sheetVM: (function () {
         const api = self.sheetApi();
         const data = s.sheetData || null;
         const tabs = (data && data.tabs) || [];
         const cur = tabs.filter(function (t) { return t.name === s.sheetTab; })[0] || tabs[0] || null;
         const rows = (cur && cur.rows) || [];
-        const head = rows.length ? rows[0] : [];
-        const body = rows.length > 1 ? rows.slice(1) : [];
+        /* ---- หาแถวที่เป็น "หัวตาราง" จริงๆ (ชีตหลายอันมีบรรทัดชื่อเรื่องอยู่ข้างบน) ---- */
+        const nonEmpty = function (r) {
+          let n = 0;
+          (r || []).forEach(function (c) { if (String(c == null ? '' : c).trim()) n++; });
+          return n;
+        };
+        const autoHeadRow = (function () {
+          const look = Math.min(rows.length, 10);
+          for (let i = 0; i < look; i++) { if (nonEmpty(rows[i]) >= 4) return i; }
+          return 0;
+        })();
+        const headRow = (function () {
+          const ov = self.sheetHeadOverride(cur ? cur.name : '');
+          return ov === null ? autoHeadRow : Math.max(0, Math.min(ov, Math.max(0, rows.length - 1)));
+        })();
+        const head = rows.length ? (rows[headRow] || []) : [];
+        const body = rows.length > headRow + 1 ? rows.slice(headRow + 1) : [];
         const when = data && data.at ? new Date(data.at) : null;
         const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        /* ---- วางตารางแบบ Google Sheet: ทุกแถวกว้างเท่ากันเป๊ะ, มีเลขแถว, ตรึงหัวตาราง+คอลัมน์แรก ---- */
+        const G = (function () {
+          const GUT = 42;
+          const sample = body.slice(0, 300);
+          const txt = function (v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); };
+          let nCol = head.length;
+          sample.forEach(function (r) { nCol = Math.max(nCol, (r || []).length); });
+          /* คอลัมน์ที่ว่างทั้งแถบ ตัดทิ้ง จะได้ไม่ต้องเลื่อนจอผ่านช่องเปล่าเป็นสิบๆ ช่อง */
+          const cols = [], w = [];
+          for (let c = 0; c < nCol; c++) {
+            let used = !!txt(head[c]), len = txt(head[c]).length;
+            for (let i = 0; i < sample.length; i++) {
+              const v = txt((sample[i] || [])[c]);
+              if (v) { used = true; if (v.length > len) len = v.length; }
+            }
+            if (used) { cols.push(c); w.push(Math.round(Math.max(80, Math.min(310, 26 + Math.min(len, 44) * 7.4)))); }
+          }
+          if (!cols.length) { cols.push(0); w.push(150); }
+          let total = GUT;
+          w.forEach(function (x) { total += x; });
+          return { GUT: GUT, cols: cols, w: w, total: total, txt: txt };
+        })();
+        const CELL = 'padding:0 8px;height:27px;line-height:27px;font-size:11.5px;box-sizing:border-box;' +
+                     'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--pw-line);';
         const vmOut = {
-          configured: !!(api.url && api.token),
-          notConfigured: !(api.url && api.token),
+          configured: !!(api.url && api.token) && !s.sheetEditLink,
+          notConfigured: !(api.url && api.token) || !!s.sheetEditLink,
+          onChangeLink: function () { self.setState({ sheetEditLink: true, sheetLink: self.sheetDocHref() }); },
           loading: !!s.sheetLoading,
           error: s.sheetError || '',
           hasError: !!s.sheetError,
@@ -11937,29 +12090,48 @@ class Component extends DCLogic {
           }),
           hasTabs: tabs.length > 0,
           tabName: cur ? cur.name : '',
-          headStyle: 'display:grid;grid-template-columns:repeat(' + Math.max(1, head.length) +
-                     ',minmax(120px,1fr));min-width:max-content;position:sticky;top:0;z-index:1;background:var(--pw-surface2);border-bottom:1px solid var(--pw-border);',
-          headCells: head.map(function (c, i) {
-            return { label: String(c === null || c === undefined ? '' : c) || ('คอลัมน์ ' + (i + 1)),
-                     style: 'padding:8px 10px;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--pw-label);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' };
+          gridWidth: 'width:' + G.total + 'px;min-width:100%;',
+          headStyle: 'display:flex;width:' + G.total + 'px;position:sticky;top:0;z-index:3;' +
+                     'background:var(--pw-surface2);border-bottom:1px solid var(--pw-border);',
+          gutHeadStyle: 'flex:0 0 ' + G.GUT + 'px;width:' + G.GUT + 'px;' + CELL +
+                        'position:sticky;left:0;z-index:4;background:var(--pw-surface2);text-align:center;' +
+                        'color:var(--pw-muted2);font-size:10px;padding:0;',
+          headCells: G.cols.map(function (c, k) {
+            const label = G.txt(head[c]) || ('คอลัมน์ ' + (c + 1));
+            return {
+              label: label,
+              full: label,
+              style: 'flex:0 0 ' + G.w[k] + 'px;width:' + G.w[k] + 'px;' + CELL +
+                     'font-weight:700;color:var(--pw-text);' +
+                     (k === 0 ? 'position:sticky;left:' + G.GUT + 'px;z-index:4;background:var(--pw-surface2);' : '')
+            };
           }),
           bodyRows: body.slice(0, 300).map(function (r, ri) {
+            const bg = 'var(--pw-surface)';
             return {
-              style: 'display:grid;grid-template-columns:repeat(' + Math.max(1, head.length) +
-                     ',minmax(120px,1fr));min-width:max-content;border-bottom:1px solid var(--pw-line);background:' +
-                     (ri % 2 ? 'var(--pw-surface2)' : 'transparent') + ';',
-              cells: (head.length ? head : r).map(function (_, ci) {
-                const v = r[ci] === null || r[ci] === undefined ? '' : String(r[ci]);
+              num: String(headRow + 2 + ri),
+              style: 'display:flex;width:' + G.total + 'px;border-bottom:1px solid var(--pw-line);background:' + bg + ';',
+              gutStyle: 'flex:0 0 ' + G.GUT + 'px;width:' + G.GUT + 'px;' + CELL +
+                        'position:sticky;left:0;z-index:2;background:var(--pw-surface2);text-align:center;' +
+                        'color:var(--pw-muted2);font-size:10px;padding:0;font-family:\'IBM Plex Mono\',monospace;',
+              cells: G.cols.map(function (c, k) {
+                const v = String((r || [])[c] == null ? '' : (r || [])[c]).replace(/\s+/g, ' ').trim();
                 const u = self.urlOf(v);
                 return {
-                  text: v.length > 90 ? v.slice(0, 90) + '…' : v,
+                  text: v,
                   full: v,
                   isLink: !!u, isText: !u, href: u,
-                  style: 'padding:7px 10px;font-size:11.5px;color:var(--pw-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+                  label: u ? self.linkLabelOf(v) : v,
+                  style: 'flex:0 0 ' + G.w[k] + 'px;width:' + G.w[k] + 'px;' + CELL + 'color:var(--pw-text2);' +
+                         (k === 0 ? 'position:sticky;left:' + G.GUT + 'px;z-index:2;background:' + bg + ';font-weight:600;color:var(--pw-text);' : '')
                 };
               })
             };
           }),
+          headPickLabel: 'หัวตาราง: แถว ' + (headRow + 1),
+          onHeadUp: function () { self.setSheetHeadRow(cur ? cur.name : '', headRow - 1); },
+          onHeadDown: function () { self.setSheetHeadRow(cur ? cur.name : '', headRow + 1); },
+          onHeadAuto: function () { self.setSheetHeadRow(cur ? cur.name : '', null); },
           calendar: (function () {
             /* แท็บแบบ "2026" วางเป็นปฏิทินอยู่แล้วใน Sheet — 1 แถว = 1 สัปดาห์, 1 ช่อง = 1 วัน
                ในช่องมีบรรทัดแรกเป็นวัน (6JAN) ตามด้วยชื่องานและลิงก์ */
@@ -11973,11 +12145,18 @@ class Component extends DCLogic {
             });
             const on = hits >= 5;
             if (!on) return { on: false, rows: [] };
-            const cols = rows.reduce(function (m, r) { return Math.max(m, (r || []).length); }, 0);
+            let cols = 0;
+            rows.forEach(function (r) {
+              (r || []).forEach(function (c, i) { if (String(c == null ? '' : c).trim()) cols = Math.max(cols, i + 1); });
+            });
+            /* แถวที่ไม่มีอะไรเลย ตัดทิ้ง จะได้ไม่มีช่องว่างโล่งๆ คั่นกลาง */
+            const calRows = rows.filter(function (r) {
+              return (r || []).some(function (c) { return String(c == null ? '' : c).trim(); });
+            });
             return {
               on: true,
-              gridStyle: 'display:grid;grid-template-columns:repeat(' + Math.max(1, cols) + ',minmax(150px,1fr));gap:7px;min-width:max-content;',
-              rows: rows.map(function (r) {
+              gridStyle: 'display:grid;grid-template-columns:repeat(' + Math.max(1, cols) + ',minmax(150px,1fr));gap:6px;min-width:max-content;',
+              rows: calRows.map(function (r) {
                 return {
                   cells: (function () {
                     const out = [];
