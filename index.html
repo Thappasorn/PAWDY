@@ -3538,6 +3538,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   .pw-tab-on > span { opacity: 1 !important; }
 
   @keyframes pwGtFlow { to { background-position: -250% 0; } }
+  @keyframes pwToastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
   /* ---------- Spotlight Card: แสงนุ่มตามเคอร์เซอร์ ---------- */
   .pw-spot { position: relative; }
@@ -5164,6 +5165,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       <button sc-camel-on-click="{{ sheetVM.onModeTable }}" title="แสดงเป็นตารางดิบ" style="{{ sheetVM.modeTableStyle }}">▤ ตาราง</button>
                     </span>
                   </sc-if>
+                  <span style="display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--pw-border); border-radius: 8px; padding: 2px;">
+                    <button sc-camel-on-click="{{ sheetVM.onZoomOut }}" title="ย่อ" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 14px; line-height: 1; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">−</button>
+                    <button sc-camel-on-click="{{ sheetVM.onZoomReset }}" title="กลับไป 100%" style="min-width: 44px; border: 0; background: transparent; color: var(--pw-text2); cursor: pointer; font-size: 11px; font-family: 'IBM Plex Mono', monospace; border-radius: 6px; padding: 0 4px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ sheetVM.zoom }}</button>
+                    <button sc-camel-on-click="{{ sheetVM.onZoomIn }}" title="ขยาย" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 14px; line-height: 1; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+</button>
+                  </span>
                   <button sc-camel-on-click="{{ sheetVM.onRefresh }}" title="ดึงข้อมูลใหม่เดี๋ยวนี้" style="border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); border-radius: 8px; padding: 4px 11px; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">↻ รีเฟรช</button>
                 </span>
               </div>
@@ -5174,7 +5180,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-if value="{{ sheetVM.showCalendar }}" hint-placeholder-val="{{ false }}">
                 <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface); padding: 9px;">
-                  <div style="display: flex; flex-direction: column; gap: 7px;">
+                    <div style="{{ sheetVM.zoomStyle }}display: flex; flex-direction: column; gap: 7px;">
                     <sc-for list="{{ sheetVM.calendar.rows }}" as="cw" hint-placeholder-count="5">
                       <div style="{{ sheetVM.calendar.gridStyle }}">
                         <sc-for list="{{ cw.cells }}" as="cd" hint-placeholder-count="8">
@@ -5202,6 +5208,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
               <sc-if value="{{ sheetVM.showTable }}" hint-placeholder-val="{{ true }}">
               <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface);">
+                <div style="{{ sheetVM.zoomStyle }}">
                 <div style="{{ sheetVM.headStyle }}">
                   <sc-for list="{{ sheetVM.headCells }}" as="sh" hint-placeholder-count="6">
                     <span style="{{ sh.style }}">{{ sh.label }}</span>
@@ -5221,6 +5228,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     </sc-for>
                   </div>
                 </sc-for>
+                </div>
               </div>
               </sc-if>
 
@@ -6237,12 +6245,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   </sc-if>
 
   <sc-if value="{{ toastOpen }}" hint-placeholder-val="{{ false }}">
-    <div data-toast style="position: fixed; bottom: 18px; right: 18px; z-index: 60; display: flex; align-items: flex-start; gap: 10px; background: #14161c; color: var(--pw-border); border: 1px solid #2a2e3b; border-radius: 10px; padding: 11px 13px; max-width: 340px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);">
-      <span style="width: 24px; height: 24px; flex: 0 0 24px; border-radius: 6px; background: #4f46e5; color: #fff; display: grid; place-items: center; font-size: 12px;">✉</span>
+    <div data-toast style="{{ toast.boxStyle }}">
+      <span style="{{ toast.iconStyle }}">{{ toast.icon }}</span>
       <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
-        <span style="font-size: 11.5px; font-weight: 600; color: #fff;">Email sent to {{ toast.to }}</span>
-        <span style="font-size: 11.5px; color: #a7adba; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ toast.subject }}</span>
-        <span style="font-size: 11.5px; color: #a5b4fc; font-weight: 500;">{{ toast.line }}</span>
+        <sc-if value="{{ toast.isMail }}" hint-placeholder-val="{{ true }}">
+          <span style="font-size: 11.5px; font-weight: 600; color: #fff;">Email sent to {{ toast.to }}</span>
+          <span style="font-size: 11.5px; color: #a7adba; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ toast.subject }}</span>
+        </sc-if>
+        <span style="font-size: 12px; color: #e7e9ee; font-weight: 600; line-height: 1.45;">{{ toast.line }}</span>
       </div>
       <button sc-camel-on-click="{{ onDismissToast }}" style="background: transparent; border: 0; color: #5d636f; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 0 0 4px;" style-hover="color: #fff;">×</button>
     </div>
@@ -6588,13 +6598,21 @@ class Component extends DCLogic {
     this.applySnap(entry.snap, entry.scope);
     this.flashToast('ทำซ้ำแล้ว: ' + entry.label);
   }
-  flashToast(line) {
+  flashToast(line, ms) {
     const n = { id: 'U' + Date.now(), to: '', toName: '', subject: '', line: line, at: Date.now(), read: true, plain: true };
+    const life = ms || 3200;
     this.setState({ toast: n });
     clearTimeout(this._toastTimer);
+    clearTimeout(this._toastFade);
+    // จางลงก่อนค่อยหาย จะได้ไม่หายวับแบบกระตุก
+    this._toastFade = setTimeout(() => {
+      this.setState(function (s) {
+        return (s.toast && s.toast.id === n.id) ? { toast: Object.assign({}, s.toast, { fading: true }) } : {};
+      });
+    }, life - 450);
     this._toastTimer = setTimeout(() => {
       this.setState(function (s) { return s.toast && s.toast.id === n.id ? { toast: null } : {}; });
-    }, 2600);
+    }, life);
   }
 
   patch(id, field, value) {
@@ -6604,6 +6622,12 @@ class Component extends DCLogic {
       tags: 'แก้ tags', cost: 'แก้งบ', qty: 'แก้จำนวน', channel: 'เปลี่ยน channel', platform: 'เปลี่ยน platform' })[field] || 'แก้ไขงาน');
     if (field === 'status' || field === 'priority') this.firePulse(id);
     const doneKey = this.doneKey();
+    // เพิ่งกดเป็น Done (ไม่ใช่กดซ้ำของที่ Done อยู่แล้ว) → เตือนให้ไปลง Sheet
+    if (field === 'status' && value === doneKey && prev && prev.status !== doneKey) {
+      // หน่วงนิดหนึ่ง ให้ toast ของระบบแจ้งเตือนอีเมลขึ้นก่อน แล้วค่อยทับด้วยข้อความเตือนนี้
+      const self0 = this;
+      setTimeout(function () { self0.flashToast('อย่าลืมลง Sheet ให้พี่ต่อง', 3600); }, 550);
+    }
     this.setState(function (s) {
       const tasks = s.tasks.map(function (t) {
         if (t.id !== id) return t;
@@ -8710,6 +8734,30 @@ class Component extends DCLogic {
      ตั้งค่าเก็บใน config (อยู่ในฐานข้อมูล) ไม่ได้ฝังใน index.html
      คนที่ไม่ได้ล็อกอินจึงอ่าน token ไม่ได้
      ================================================================== */
+  sheetZoom() {
+    const v = parseInt(this.state.sheetZoom, 10);
+    if (v >= 40 && v <= 200) return v;
+    let saved = 0;
+    try { saved = parseInt(localStorage.getItem('pawdy.sheetZoom'), 10); } catch (e) {}
+    return (saved >= 40 && saved <= 200) ? saved : 100;
+  }
+  setSheetZoom(v) {
+    const STEPS = [50, 67, 80, 90, 100, 110, 125, 150, 175, 200];
+    let next = Math.max(50, Math.min(200, v));
+    // ให้เด้งไปหยุดที่ระดับมาตรฐานใกล้สุด จะได้ไม่ได้เลขแปลกๆ
+    let best = STEPS[0];
+    STEPS.forEach(function (s) { if (Math.abs(s - next) < Math.abs(best - next)) best = s; });
+    try { localStorage.setItem('pawdy.sheetZoom', String(best)); } catch (e) {}
+    this.setState({ sheetZoom: best });
+  }
+  stepSheetZoom(dir) {
+    const STEPS = [50, 67, 80, 90, 100, 110, 125, 150, 175, 200];
+    const cur = this.sheetZoom();
+    let i = STEPS.indexOf(cur);
+    if (i < 0) i = STEPS.indexOf(100);
+    this.setSheetZoom(STEPS[Math.max(0, Math.min(STEPS.length - 1, i + dir))]);
+  }
+
   sheetApi() {
     const c = this.cfg().sheetApi || {};
     return { url: String(c.url || ''), token: String(c.token || '') };
@@ -9019,7 +9067,9 @@ class Component extends DCLogic {
     return a.indexOf(String(this.me().email || '').toLowerCase()) >= 0;
   }
   saveCfg(part) {
-    const base = Object.assign({
+    /* เริ่มจาก config เดิมทั้งก้อนก่อนเสมอ — ไม่งั้นค่าที่โค้ดตรงนี้ไม่รู้จัก (เช่น sheetApi)
+       จะถูกลบทิ้งทุกครั้งที่มีคนแก้ตั้งค่าอย่างอื่น */
+    const base = Object.assign({}, this.cfg(), {
       statuses: this.statuses(), priorities: this.priorities(),
       channels: this.channels(), platforms: this.platforms(),
       cols: this.cols(), colOrder: this.colOrder(), colWidths: (this.cfg().colWidths || {}),
@@ -9029,7 +9079,8 @@ class Component extends DCLogic {
       admins: this.adminList(),  // ว่างไว้ = ทุกคนแก้ตั้งค่าได้ จนกำหนด admin เองในแถบ ⚙
       flCap: (this.cfg().flCap || {}),  // แพ็คเกจฟรีแลนซ์ราย "คน+เดือน" — ห้ามลืม ไม่งั้น saveCfg ที่อื่นจะลบทิ้ง
       flRole: (this.cfg().flRole || {}),
-      flRoleList: this.flRoles()
+      flRoleList: this.flRoles(),
+      sheetApi: (this.cfg().sheetApi || null)
     }, part || {});
     this.setState({ config: base }, () => this.persist());
   }
@@ -11672,7 +11723,18 @@ class Component extends DCLogic {
       onClearNotif: function () { window.PawdySync.clearNotifs(); self.setState({ notifs: [], notifOpen: false }); },
       toastOpen: !!s.toast,
       toast: s.toast ? {
-        to: s.toast.to, subject: s.toast.subject, line: s.toast.line
+        to: s.toast.to, subject: s.toast.subject, line: s.toast.line,
+        plain: !!s.toast.plain, isMail: !s.toast.plain,
+        icon: s.toast.plain ? '▤' : '✉',
+        iconStyle: 'width:24px;height:24px;flex:0 0 24px;border-radius:6px;background:' +
+          (s.toast.plain ? '#99ca3f' : '#4f46e5') + ';color:' + (s.toast.plain ? '#12160f' : '#fff') +
+          ';display:grid;place-items:center;font-size:12px;',
+        boxStyle: 'position:fixed;bottom:18px;right:18px;z-index:60;display:flex;align-items:flex-start;gap:10px;' +
+          'background:#14161c;color:var(--pw-border);border:1px solid ' + (s.toast.plain ? 'rgba(153,202,63,.45)' : '#2a2e3b') +
+          ';border-radius:10px;padding:11px 13px;max-width:340px;box-shadow:0 12px 30px rgba(0,0,0,.28);' +
+          'transition:opacity .42s ease, transform .42s ease;' +
+          (s.toast.fading ? 'opacity:0;transform:translateY(8px);' : 'opacity:1;transform:none;') +
+          (s.toast.fading ? '' : 'animation:pwToastIn .28s cubic-bezier(.2,.7,.3,1);')
       } : {},
       onDismissToast: function () { self.setState({ toast: null }); },
       isArchive: self.isArchive(),
@@ -11957,6 +12019,11 @@ class Component extends DCLogic {
           hasMore: body.length > 300,
           isEmpty: !!cur && body.length === 0,
 
+          zoom: String(self.sheetZoom()) + '%',
+          zoomStyle: 'zoom:' + (self.sheetZoom() / 100) + ';',
+          onZoomIn: function () { self.stepSheetZoom(1); },
+          onZoomOut: function () { self.stepSheetZoom(-1); },
+          onZoomReset: function () { self.setSheetZoom(100); },
           onRefresh: function () { self.loadSheet(true); },
           onModeTable: function () { self.setState({ sheetMode: 'table' }); },
           onModeCal: function () { self.setState({ sheetMode: 'cal' }); },
