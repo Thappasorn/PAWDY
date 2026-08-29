@@ -5135,6 +5135,70 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
       </sc-if>
 
+      <sc-if value="{{ isSheet }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; height: 100%;">
+
+          <sc-if value="{{ sheetVM.notConfigured }}" hint-placeholder-val="{{ true }}">
+            <div style="background: var(--pw-surface); border: 1px dashed var(--pw-border); border-radius: 12px; padding: 26px 22px; display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;">
+              <span style="font-size: 26px; opacity: .5;">▤</span>
+              <span style="font-size: 13.5px; font-weight: 600;">ยังไม่ได้เชื่อม Google Sheet</span>
+              <span style="font-size: 12px; color: var(--pw-muted); line-height: 1.6; max-width: 460px;">หน้านี้ดึงทุกแท็บจาก Google Sheet มาแสดงรวมกันไว้ที่เดียว<br>ต้องติดตั้งตัวอ่านใน Apps Script แล้วใส่ URL กับ token ในตั้งค่าก่อน</span>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ sheetVM.configured }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 11px; min-height: 0; flex: 1;">
+
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <sc-for list="{{ sheetVM.tabChips }}" as="stb" hint-placeholder-count="4">
+                  <button sc-camel-on-click="{{ stb.onPick }}" style="{{ stb.style }}">{{ stb.label }}</button>
+                </sc-for>
+                <span style="margin-left: auto; display: flex; align-items: center; gap: 9px;">
+                  <sc-if value="{{ sheetVM.loading }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 11px; color: #4f46e5;">กำลังดึงข้อมูล…</span>
+                  </sc-if>
+                  <span style="font-size: 11px; color: var(--pw-muted2);">{{ sheetVM.updatedLabel }}</span>
+                  <button sc-camel-on-click="{{ sheetVM.onRefresh }}" title="ดึงข้อมูลใหม่เดี๋ยวนี้" style="border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); border-radius: 8px; padding: 4px 11px; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #4f46e5; color: #4f46e5;">↻ รีเฟรช</button>
+                </span>
+              </div>
+
+              <sc-if value="{{ sheetVM.hasError }}" hint-placeholder-val="{{ false }}">
+                <div style="background: rgba(220,38,38,.1); border: 1px solid rgba(220,38,38,.3); border-radius: 9px; padding: 9px 12px; font-size: 11.5px; color: #f87171;">ดึงข้อมูลไม่สำเร็จ — {{ sheetVM.error }}</div>
+              </sc-if>
+
+              <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface);">
+                <div style="{{ sheetVM.headStyle }}">
+                  <sc-for list="{{ sheetVM.headCells }}" as="sh" hint-placeholder-count="6">
+                    <span style="{{ sh.style }}">{{ sh.label }}</span>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ sheetVM.bodyRows }}" as="sr" hint-placeholder-count="8">
+                  <div style="{{ sr.style }}">
+                    <sc-for list="{{ sr.cells }}" as="sc2" hint-placeholder-count="6">
+                      <span title="{{ sc2.full }}" style="{{ sc2.style }}">
+                        <sc-if value="{{ sc2.isLink }}" hint-placeholder-val="{{ false }}">
+                          <a href="{{ sc2.href }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:none;" style-hover="text-decoration:underline;">{{ sc2.text }} ↗</a>
+                        </sc-if>
+                        <sc-if value="{{ sc2.isText }}" hint-placeholder-val="{{ true }}">
+                          <span>{{ sc2.text }}</span>
+                        </sc-if>
+                      </span>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ sheetVM.hasMore }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 11px; color: var(--pw-muted2);">{{ sheetVM.shown }}</span>
+              </sc-if>
+              <sc-if value="{{ sheetVM.isEmpty }}" hint-placeholder-val="{{ false }}">
+                <span style="font-size: 11.5px; color: var(--pw-muted);">แท็บนี้ยังไม่มีข้อมูล</span>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
       <sc-if value="{{ isFreelance }}" hint-placeholder-val="{{ false }}">
         <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 13px; overflow-y: auto;">
 
@@ -6807,7 +6871,7 @@ class Component extends DCLogic {
   static get ROUTE_PAGES() {
     return { __docs: 'docs', __planner: 'planner', __links: 'links', __trash: 'trash', __archive: 'archive' };
   }
-  routeViews() { return ['table', 'board', 'calendar', 'timeline', 'gantt', 'dashboard', 'freelance']; }
+  routeViews() { return ['table', 'board', 'calendar', 'timeline', 'gantt', 'dashboard', 'freelance', 'sheet']; }
 
   buildRoute(s) {
     const st = s || this.state;
@@ -6952,6 +7016,16 @@ class Component extends DCLogic {
   componentDidMount() {
     this.syncDom();
     const self = this;
+
+    // ข้อมูล Sheet ที่ดึงไว้รอบก่อน — โชว์ทันทีระหว่างรอของใหม่ จะได้ไม่เห็นหน้าว่าง
+    try {
+      const raw = localStorage.getItem('pawdy.sheet');
+      if (raw) {
+        const cached = JSON.parse(raw);
+        if (cached && cached.tabs) this.setState({ sheetData: cached, sheetTab: (cached.tabs[0] || {}).name || '' });
+      }
+    } catch (e) {}
+    if (this.state.view === 'sheet') setTimeout(function () { self.loadSheet(false); }, 200);
 
     // เปิดเว็บมาแล้วอยู่หน้า Dashboard พอดี ก็ให้ตัวเลขวิ่งตั้งแต่ครั้งแรก
     if (this.state.view === 'dashboard') setTimeout(function () { self.startCountUp(); }, 60);
@@ -8507,8 +8581,17 @@ class Component extends DCLogic {
     try { window.PawdyFx.split(el, now); } catch (e) {}
   }
 
-  componentDidUpdate() { this.syncDom(); this.syncRoute(); this.splitTitle(); }
+  componentDidUpdate() {
+    this.syncDom(); this.syncRoute(); this.splitTitle();
+    if (this.state.view === 'sheet' && this.sheetReady()) {
+      if (!this._sheetBusy) this.loadSheet(false);
+      this.startSheetPoll();
+    } else {
+      this.stopSheetPoll();
+    }
+  }
   componentWillUnmount() {
+    this.stopSheetPoll();
     if (this._onRoute) {
       window.removeEventListener('popstate', this._onRoute);
       window.removeEventListener('hashchange', this._onRoute);
@@ -8585,6 +8668,61 @@ class Component extends DCLogic {
     this.setState({ qaDraft: Object.assign({}, this.qaDraft(), patch || {}) });
   }
   qaClear() { this.setState({ qaDraft: {} }); }
+
+  /* ==================================================================
+     Google Sheet → หน้า Sheet ในเว็บ
+     ตั้งค่าเก็บใน config (อยู่ในฐานข้อมูล) ไม่ได้ฝังใน index.html
+     คนที่ไม่ได้ล็อกอินจึงอ่าน token ไม่ได้
+     ================================================================== */
+  sheetApi() {
+    const c = this.cfg().sheetApi || {};
+    return { url: String(c.url || ''), token: String(c.token || '') };
+  }
+  sheetReady() { const a = this.sheetApi(); return !!(a.url && a.token); }
+  sheetCache() { return this.state.sheetData || null; }
+  loadSheet(force) {
+    const api = this.sheetApi();
+    if (!api.url || !api.token) return;
+    if (this._sheetBusy) return;
+    const cache = this.sheetCache();
+    if (!force && cache && (Date.now() - (cache.at || 0) < 120000)) return;   // กันยิงซ้ำถี่ๆ
+    this._sheetBusy = true;
+    this.setState({ sheetLoading: true, sheetError: '' });
+    const self = this;
+    const url = api.url + (api.url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(api.token) + '&t=' + Date.now();
+    fetch(url, { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        self._sheetBusy = false;
+        if (!j || j.ok === false) throw new Error((j && j.error) || 'ดึงข้อมูลไม่สำเร็จ');
+        const data = { at: Date.now(), tabs: j.tabs || [] };
+        try { localStorage.setItem('pawdy.sheet', JSON.stringify(data)); } catch (e) {}
+        self.setState(function (st) {
+          return { sheetData: data, sheetLoading: false, sheetError: '',
+                   sheetTab: st.sheetTab || ((data.tabs[0] || {}).name || '') };
+        });
+      })
+      .catch(function (e) {
+        self._sheetBusy = false;
+        self.setState({ sheetLoading: false, sheetError: String(e && e.message || e) });
+      });
+  }
+
+  /* Google Sheet ไม่ push ข้อมูลมาเอง — ใกล้ real time ที่สุดคือถามซ้ำเป็นระยะ */
+  startSheetPoll() {
+    if (this._sheetTimer) return;
+    const self = this;
+    this._sheetTimer = setInterval(function () {
+      if (document.hidden) return;                  // ไม่ได้เปิดดูอยู่ ก็ไม่ต้องยิง
+      if (self.state.view !== 'sheet') return;
+      self.loadSheet(true);
+    }, 20000);
+  }
+  stopSheetPoll() {
+    if (!this._sheetTimer) return;
+    clearInterval(this._sheetTimer);
+    this._sheetTimer = null;
+  }
 
   flRoles() {
     const v = this.cfg().flRoleList;
@@ -10283,7 +10421,8 @@ class Component extends DCLogic {
       { k: 'timeline', label: 'Timeline', icon: '▬' },
       { k: 'gantt', label: 'Gantt', icon: '⊟' },
       { k: 'dashboard', label: 'Dashboard', icon: '◕' },
-      { k: 'freelance', label: 'Freelance', icon: '◍' }
+      { k: 'freelance', label: 'Freelance', icon: '◍' },
+      { k: 'sheet', label: 'Sheet', icon: '▤' }
     ].map(function (t) {
       const active = s.view === t.k && !s.customView;
       return {
@@ -10300,7 +10439,7 @@ class Component extends DCLogic {
     // แท็บมุมมองที่ทีมบันทึกไว้
     const savedTabs = this.savedViews().map(function (v) {
       const active = s.customView === v.id;
-      const icon = ({ table: '▦', board: '▥', calendar: '▤', timeline: '▬', gantt: '⊟', dashboard: '◕', freelance: '◍' })[v.type] || '▦';
+      const icon = ({ table: '▦', board: '▥', calendar: '▤', timeline: '▬', gantt: '⊟', dashboard: '◕', freelance: '◍', sheet: '▤' })[v.type] || '▦';
       return {
         label: v.name, icon: icon,
         cls: active ? 'pw-tab-on' : '',
@@ -11145,7 +11284,8 @@ class Component extends DCLogic {
           { k: 'timeline', label: 'Timeline', hint: 'ไทม์ไลน์ 9 สัปดาห์', icon: '▬' },
           { k: 'gantt', label: 'Gantt', hint: 'ผังเวลา ซูมได้', icon: '⊟' },
           { k: 'dashboard', label: 'Dashboard', hint: 'สรุปตัวเลข', icon: '◕' },
-          { k: 'freelance', label: 'Freelance', hint: 'ภาระงานฟรีแลนซ์', icon: '◍' }
+          { k: 'freelance', label: 'Freelance', hint: 'ภาระงานฟรีแลนซ์', icon: '◍' },
+          { k: 'sheet', label: 'Sheet', hint: 'ข้อมูลจาก Google Sheet', icon: '▤' }
         ].filter(function (x) {
           return !q || x.label.toLowerCase().indexOf(q) >= 0 || x.hint.indexOf(q) >= 0;
         });
@@ -11669,6 +11809,67 @@ class Component extends DCLogic {
       isCalendar: s.view === 'calendar' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks(),
       isTimeline: s.view === 'timeline' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       isDashboard: s.view === 'dashboard' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
+      isSheet: s.view === 'sheet' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
+      sheetVM: (function () {
+        const api = self.sheetApi();
+        const data = s.sheetData || null;
+        const tabs = (data && data.tabs) || [];
+        const cur = tabs.filter(function (t) { return t.name === s.sheetTab; })[0] || tabs[0] || null;
+        const rows = (cur && cur.rows) || [];
+        const head = rows.length ? rows[0] : [];
+        const body = rows.length > 1 ? rows.slice(1) : [];
+        const when = data && data.at ? new Date(data.at) : null;
+        const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        return {
+          configured: !!(api.url && api.token),
+          notConfigured: !(api.url && api.token),
+          loading: !!s.sheetLoading,
+          error: s.sheetError || '',
+          hasError: !!s.sheetError,
+          updatedLabel: when ? ('อัปเดตล่าสุด ' + pad(when.getHours()) + ':' + pad(when.getMinutes())) : '',
+          tabChips: tabs.map(function (t) {
+            const on = cur && t.name === cur.name;
+            return {
+              label: t.name + ' · ' + Math.max(0, (t.rows || []).length - 1),
+              style: 'display:inline-flex;align-items:center;gap:6px;border:1px solid ' + (on ? 'transparent' : 'var(--pw-border)') +
+                     ';background:' + (on ? '#4f46e5' : 'transparent') + ';color:' + (on ? '#fff' : 'var(--pw-muted)') +
+                     ';border-radius:999px;padding:5px 13px;font-size:11.5px;font-weight:' + (on ? '700' : '500') + ';cursor:pointer;white-space:nowrap;',
+              onPick: function () { self.setState({ sheetTab: t.name }); }
+            };
+          }),
+          hasTabs: tabs.length > 0,
+          tabName: cur ? cur.name : '',
+          headStyle: 'display:grid;grid-template-columns:repeat(' + Math.max(1, head.length) +
+                     ',minmax(120px,1fr));min-width:max-content;position:sticky;top:0;z-index:1;background:var(--pw-surface2);border-bottom:1px solid var(--pw-border);',
+          headCells: head.map(function (c, i) {
+            return { label: String(c === null || c === undefined ? '' : c) || ('คอลัมน์ ' + (i + 1)),
+                     style: 'padding:8px 10px;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--pw-label);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' };
+          }),
+          bodyRows: body.slice(0, 300).map(function (r, ri) {
+            return {
+              style: 'display:grid;grid-template-columns:repeat(' + Math.max(1, head.length) +
+                     ',minmax(120px,1fr));min-width:max-content;border-bottom:1px solid var(--pw-line);background:' +
+                     (ri % 2 ? 'var(--pw-surface2)' : 'transparent') + ';',
+              cells: (head.length ? head : r).map(function (_, ci) {
+                const v = r[ci] === null || r[ci] === undefined ? '' : String(r[ci]);
+                const u = self.urlOf(v);
+                return {
+                  text: v.length > 90 ? v.slice(0, 90) + '…' : v,
+                  full: v,
+                  isLink: !!u, isText: !u, href: u,
+                  style: 'padding:7px 10px;font-size:11.5px;color:var(--pw-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+                };
+              })
+            };
+          }),
+          rowCount: String(body.length),
+          shown: body.length > 300 ? ('แสดง 300 แถวแรกจาก ' + body.length) : '',
+          hasMore: body.length > 300,
+          isEmpty: !!cur && body.length === 0,
+          onRefresh: function () { self.loadSheet(true); },
+          sheetHref: api.url ? '' : ''
+        };
+      })(),
       isFreelance: s.view === 'freelance' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
       freelance: (function () {
         const mk = self.flMonthKey();
