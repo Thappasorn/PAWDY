@@ -8657,8 +8657,13 @@ class Component extends DCLogic {
     } catch (e) { return u; }
   }
 
+  /* ช่องคอมเมนต์หลัก — ผูกกับ t.comments (ข้อมูลเก่าทั้งหมดอยู่ตรงนี้)
+     ยึด f.thread เป็นหลัก จะได้เปลี่ยนชื่อคอลัมน์เป็นอะไรก็ได้โดยไม่เสียความเป็นกล่องคอมเมนต์ */
   isCommentField(f) {
-    const label = String((f && f.label) || '').trim().toLowerCase();
+    if (!f) return false;
+    if (f.thread === 'main') return true;
+    if (f.thread) return false;                       // ระบุไว้เป็นอย่างอื่นแล้ว
+    const label = String(f.label || '').trim().toLowerCase();
     return label === 'comment' || label === 'comments' || label === 'คอมเมนต์' || label === 'ความคิดเห็น';
   }
   /* คอลัมน์ Comment ช่องที่สองขึ้นไป — ตั้งชื่อขึ้นต้นด้วย comment / คอมเมนต์ ก็พอ
@@ -8666,6 +8671,8 @@ class Component extends DCLogic {
   isExtraCommentField(f) {
     if (!f || this.isCommentField(f)) return false;
     if (f.type !== 'text') return false;
+    if (f.thread === 'own') return true;              // ตั้งไว้ชัดเจน = เป็นกล่องคอมเมนต์ ไม่ว่าจะชื่ออะไร
+    if (f.thread) return false;
     return /^(comment|comments|คอมเมนต์|ความคิดเห็น)/i.test(String(f.label || '').trim());
   }
   isAnyCommentField(f) { return this.isCommentField(f) || this.isExtraCommentField(f); }
