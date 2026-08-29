@@ -5142,10 +5142,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <sc-if value="{{ sheetVM.notConfigured }}" hint-placeholder-val="{{ true }}">
             <div style="background: var(--pw-surface); border: 1px dashed var(--pw-border); border-radius: 12px; padding: 26px 22px; display: flex; flex-direction: column; align-items: center; gap: 11px; text-align: center;">
               <span style="font-size: 26px; opacity: .5;">▤</span>
-              <span style="font-size: 13.5px; font-weight: 600;">วางลิงก์ Google Sheet ลงตรงนี้ได้เลย</span>
-              <span style="font-size: 12px; color: var(--pw-muted); line-height: 1.6; max-width: 470px;">ก๊อปลิงก์จากแถบที่อยู่ของ Google Sheet มาวาง แล้วกด เชื่อม — ระบบจะดึงทุกแท็บมาเอง</span>
+              <span style="font-size: 13.5px; font-weight: 600;">วางลิงก์ Google Sheet หรือ Google Doc ลงตรงนี้ได้เลย</span>
+              <span style="font-size: 12px; color: var(--pw-muted); line-height: 1.6; max-width: 470px;">ก๊อปลิงก์จากแถบที่อยู่มาวาง แล้วกด เชื่อม — ระบบจะดึงข้อมูลมาเอง<br>แต่ละ view เก็บลิงก์ของตัวเอง กด + View สร้างหน้าใหม่แล้วต่อชีตคนละอันได้</span>
               <span style="display: flex; gap: 7px; width: 100%; max-width: 560px;">
-                <input type="text" value="{{ sheetLink }}" sc-camel-on-change="{{ onSheetLink }}" sc-camel-on-key-down="{{ onSheetLinkKey }}" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface2); color: var(--pw-text); font-size: 12px; padding: 9px 12px; outline: 0;" style-focus="border-color: #4f46e5;">
+                <input type="text" value="{{ sheetLink }}" sc-camel-on-change="{{ onSheetLink }}" sc-camel-on-key-down="{{ onSheetLinkKey }}" placeholder="https://docs.google.com/spreadsheets/d/... หรือ /document/d/..." style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface2); color: var(--pw-text); font-size: 12px; padding: 9px 12px; outline: 0;" style-focus="border-color: #4f46e5;">
                 <button sc-camel-on-click="{{ onSheetLinkGo }}" class="pw-star" style="border: 1px solid transparent; background: var(--pw-surface2); color: var(--pw-text); border-radius: 9px; padding: 9px 16px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">เชื่อม</button>
               </span>
               <sc-if value="{{ sheetVM.hasError }}" hint-placeholder-val="{{ false }}">
@@ -5177,7 +5177,24 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <button sc-camel-on-click="{{ sheetVM.onZoomReset }}" title="กลับไป 100%" style="min-width: 44px; border: 0; background: transparent; color: var(--pw-text2); cursor: pointer; font-size: 11px; font-family: 'IBM Plex Mono', monospace; border-radius: 6px; padding: 0 4px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ sheetVM.zoom }}</button>
                     <button sc-camel-on-click="{{ sheetVM.onZoomIn }}" title="ขยาย" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 14px; line-height: 1; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">+</button>
                   </span>
-                  <sc-if value="{{ sheetVM.showTable }}" hint-placeholder-val="{{ true }}">
+                  <sc-if value="{{ sheetVM.showDoc }}" hint-placeholder-val="{{ false }}">
+                <div style="flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--pw-border); border-radius: 10px; background: var(--pw-surface); padding: 22px 26px;">
+                  <div style="{{ sheetVM.zoomStyle }}max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 4px;">
+                    <sc-for list="{{ sheetVM.docLines }}" as="dl" hint-placeholder-count="12">
+                      <span style="{{ dl.style }}">
+                        <sc-if value="{{ dl.isLink }}" hint-placeholder-val="{{ false }}">
+                          <a href="{{ dl.href }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:none;" style-hover="text-decoration:underline;">↗ {{ dl.label }}</a>
+                        </sc-if>
+                        <sc-if value="{{ dl.isText }}" hint-placeholder-val="{{ true }}">
+                          <span>{{ dl.text }}</span>
+                        </sc-if>
+                      </span>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ sheetVM.showTable }}" hint-placeholder-val="{{ true }}">
                     <span style="display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--pw-border); border-radius: 8px; padding: 2px;" title="ถ้าหัวตารางไม่ตรง กดเลื่อนขึ้น-ลงได้">
                       <button sc-camel-on-click="{{ sheetVM.onHeadUp }}" style="width: 22px; height: 22px; border: 0; background: transparent; color: var(--pw-muted); cursor: pointer; font-size: 11px; border-radius: 6px;" style-hover="background: var(--pw-surface3); color: #4f46e5;">▲</button>
                       <button sc-camel-on-click="{{ sheetVM.onHeadAuto }}" title="ให้ระบบเดาเอง" style="border: 0; background: transparent; color: var(--pw-text2); cursor: pointer; font-size: 10.5px; border-radius: 6px; padding: 0 5px; white-space: nowrap;" style-hover="background: var(--pw-surface3); color: #4f46e5;">{{ sheetVM.headPickLabel }}</button>
@@ -7114,7 +7131,9 @@ class Component extends DCLogic {
       const raw = localStorage.getItem('pawdy.sheet');
       if (raw) {
         const cached = JSON.parse(raw);
-        if (cached && cached.tabs) this.setState({ sheetData: cached, sheetTab: (cached.tabs[0] || {}).name || '' });
+        if (cached && cached.tabs && cached.key === this.sheetSrcKey()) {
+          this.setState({ sheetData: cached, sheetTab: (cached.tabs[0] || {}).name || '' });
+        }
       }
     } catch (e) {}
     if (this.state.view === 'sheet') setTimeout(function () { self.loadSheet(false); }, 200);
@@ -8811,24 +8830,45 @@ class Component extends DCLogic {
     this.setState({ sheetHeadV: (this.state.sheetHeadV || 0) + 1 });
   }
 
-  /* ---- เชื่อม Google Sheet แบบง่าย: วางลิงก์ชีตอย่างเดียวพอ ---- */
+  /* ---- เชื่อม Google Sheet / Google Doc: วางลิงก์อย่างเดียวพอ ----
+     แต่ละ view ที่บันทึกไว้เก็บลิงก์ของตัวเอง (view.src) เปลี่ยนได้ตลอด ไม่ทับกัน */
   sheetIdFrom(link) {
     const s = String(link || '').trim();
-    const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]{20,})/) || s.match(/^([a-zA-Z0-9-_]{25,})$/);
+    const m = s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]{20,})/) ||
+              s.match(/\/document\/d\/([a-zA-Z0-9-_]{20,})/) ||
+              s.match(/^([a-zA-Z0-9-_]{25,})$/);
     return m ? m[1] : '';
+  }
+  sheetKindFrom(link) {
+    return /\/document\/d\//.test(String(link || '')) ? 'doc' : 'sheet';
   }
   connectSheetLink(link) {
     const id = this.sheetIdFrom(link);
-    if (!id) { this.setState({ sheetError: 'ลิงก์ไม่ถูกต้อง — ก๊อปลิงก์จากแถบที่อยู่ของ Google Sheet มาวางได้เลย' }); return; }
+    if (!id) {
+      this.setState({ sheetError: 'ลิงก์ไม่ถูกต้อง — ก๊อปลิงก์จากแถบที่อยู่ของ Google Sheet หรือ Google Doc มาวางได้เลย' });
+      return;
+    }
+    const kind = this.sheetKindFrom(link);
     const cur = this.cfg().sheetApi || {};
     const api = {
-      url: String(cur.url || this.constructor.SHEET_EXEC || '') || 'https://script.google.com/macros/s/AKfycbwZ7xV-1G11kI3YDsdIb6WTy9E6r5HNCj6-yGGGl0pS_LZzPc4PHkub-wAz0O0Updx1/exec',
-      token: String(cur.token || '') || 'read-1de87a7b5680253333274193',
-      id: id
+      url: String(cur.url || '') || 'https://script.google.com/macros/s/AKfycbwZ7xV-1G11kI3YDsdIb6WTy9E6r5HNCj6-yGGGl0pS_LZzPc4PHkub-wAz0O0Updx1/exec',
+      token: String(cur.token || '') || 'read-1de87a7b5680253333274193'
     };
     const self = this;
-    this.saveCfg({ sheetApi: api });
-    this.setState({ sheetError: '', sheetData: null, sheetTab: '', sheetLink: '', sheetEditLink: false }, function () {
+    const vid = this.state.customView;
+    const own = this.savedViews().filter(function (x) { return x.id === vid; })[0];
+    if (own) {
+      /* view ที่บันทึกไว้ → เก็บลิงก์ไว้กับ view นั้น */
+      this.saveCfg({
+        sheetApi: Object.assign({}, cur, api),
+        views: this.savedViews().map(function (x) {
+          return x.id === vid ? Object.assign({}, x, { src: { id: id, kind: kind } }) : x;
+        })
+      });
+    } else {
+      this.saveCfg({ sheetApi: Object.assign({}, api, { id: id, kind: kind }) });
+    }
+    this.setState({ sheetError: '', sheetData: null, sheetTab: '', sheetLink: '', sheetEditLink: false, sheetCalMon: null }, function () {
       setTimeout(function () { self.loadSheet(true); }, 250);
     });
   }
@@ -8836,36 +8876,69 @@ class Component extends DCLogic {
   onSheetLinkGo() { this.connectSheetLink(this.state.sheetLink); }
   onSheetLinkKey(e) { if (e.key === 'Enter') this.connectSheetLink(this.state.sheetLink); }
   sheetDocHref() {
+    const a = this.sheetApi();
+    if (!a.id) return '';
+    return a.kind === 'doc'
+      ? ('https://docs.google.com/document/d/' + a.id + '/edit')
+      : ('https://docs.google.com/spreadsheets/d/' + a.id + '/edit');
+  }
+  sheetDocHrefOld() {
     const id = (this.cfg().sheetApi || {}).id || '';
     return id ? ('https://docs.google.com/spreadsheets/d/' + id + '/edit') : '';
   }
   sheetApi() {
     const c = this.cfg().sheetApi || {};
-    return { url: String(c.url || ''), token: String(c.token || ''), id: String(c.id || '') };
+    const out = { url: String(c.url || ''), token: String(c.token || ''),
+                  id: String(c.id || ''), kind: String(c.kind || 'sheet') };
+    const vid = this.state.customView;
+    if (vid) {
+      const v = this.savedViews().filter(function (x) { return x.id === vid; })[0];
+      if (v && v.src && v.src.id) { out.id = String(v.src.id); out.kind = String(v.src.kind || 'sheet'); }
+    }
+    return out;
   }
-  sheetReady() { const a = this.sheetApi(); return !!(a.url && a.token); }
+  sheetSrcKey() { const a = this.sheetApi(); return a.kind + ':' + (a.id || 'บ้าน'); }
+  sheetOwnView() {
+    const vid = this.state.customView;
+    if (!vid) return null;
+    return this.savedViews().filter(function (x) { return x.id === vid; })[0] || null;
+  }
+  sheetNeedsLink() {
+    const v = this.sheetOwnView();
+    return !!v && !(v.src && v.src.id);          // view ที่บันทึกไว้ ต้องมีลิงก์ของตัวเองก่อน
+  }
+  sheetReady() {
+    const a = this.sheetApi();
+    return !!(a.url && a.token) && !this.sheetNeedsLink();
+  }
   sheetCache() { return this.state.sheetData || null; }
   loadSheet(force) {
     const api = this.sheetApi();
     if (!api.url || !api.token) return;
+    if (this.sheetNeedsLink()) return;
     if (this._sheetBusy) return;
+    const key = this.sheetSrcKey();
     const cache = this.sheetCache();
-    if (!force && cache && (Date.now() - (cache.at || 0) < 120000)) return;   // กันยิงซ้ำถี่ๆ
+    const sameSrc = cache && cache.key === key;
+    if (!force && sameSrc && (Date.now() - (cache.at || 0) < 120000)) return;   // กันยิงซ้ำถี่ๆ
     this._sheetBusy = true;
     this.setState({ sheetLoading: true, sheetError: '' });
     const self = this;
-    const url = api.url + (api.url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(api.token) + (api.id ? '&id=' + encodeURIComponent(api.id) : '') + '&t=' + Date.now();
+    const q = api.kind === 'doc' ? '&doc=' : '&id=';
+    const url = api.url + (api.url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(api.token) +
+                (api.id ? q + encodeURIComponent(api.id) : '') + '&t=' + Date.now();
     fetch(url, { method: 'GET' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         self._sheetBusy = false;
         if (!j || j.ok === false) throw new Error((j && j.error) || 'ดึงข้อมูลไม่สำเร็จ');
-        const data = { at: Date.now(), tabs: j.tabs || [] };
+        const data = { at: Date.now(), key: key, kind: api.kind, tabs: j.tabs || [] };
         try { localStorage.setItem('pawdy.sheet', JSON.stringify(data)); } catch (e) {}
         self.checkSheetChanged(data);
         self.setState(function (st) {
+          const keep = st.sheetData && st.sheetData.key === key;
           return { sheetData: data, sheetLoading: false, sheetError: '',
-                   sheetTab: st.sheetTab || ((data.tabs[0] || {}).name || '') };
+                   sheetTab: (keep && st.sheetTab) || ((data.tabs[0] || {}).name || '') };
         });
       })
       .catch(function (e) {
@@ -11496,7 +11569,7 @@ class Component extends DCLogic {
           { k: 'gantt', label: 'Gantt', hint: 'ผังเวลา ซูมได้', icon: '⊟' },
           { k: 'dashboard', label: 'Dashboard', hint: 'สรุปตัวเลข', icon: '◕' },
           { k: 'freelance', label: 'Freelance', hint: 'ภาระงานฟรีแลนซ์', icon: '◍' },
-          { k: 'sheet', label: 'Sheet', hint: 'ข้อมูลจาก Google Sheet', icon: '▤' }
+          { k: 'sheet', label: 'Sheet', hint: 'ต่อ Google Sheet / Google Doc (ใส่ลิงก์ของหน้านี้เอง)', icon: '▤' }
         ].filter(function (x) {
           return !q || x.label.toLowerCase().indexOf(q) >= 0 || x.hint.indexOf(q) >= 0;
         });
@@ -12038,7 +12111,9 @@ class Component extends DCLogic {
       onSheetLinkKey: function (e) { self.onSheetLinkKey(e); },
       sheetVM: (function () {
         const api = self.sheetApi();
-        const data = s.sheetData || null;
+        const srcKey = self.sheetSrcKey();
+        const data = (s.sheetData && s.sheetData.key === srcKey) ? s.sheetData : null;
+        const isDoc = api.kind === 'doc';
         const tabs = (data && data.tabs) || [];
         const cur = tabs.filter(function (t) { return t.name === s.sheetTab; })[0] || tabs[0] || null;
         const rows = (cur && cur.rows) || [];
@@ -12086,8 +12161,8 @@ class Component extends DCLogic {
         const CELL = 'padding:0 8px;height:27px;line-height:27px;font-size:11.5px;box-sizing:border-box;' +
                      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--pw-line);';
         const vmOut = {
-          configured: !!(api.url && api.token) && !s.sheetEditLink,
-          notConfigured: !(api.url && api.token) || !!s.sheetEditLink,
+          configured: self.sheetReady() && !s.sheetEditLink,
+          notConfigured: !self.sheetReady() || !!s.sheetEditLink,
           onChangeLink: function () { self.setState({ sheetEditLink: true, sheetLink: self.sheetDocHref() }); },
           loading: !!s.sheetLoading,
           error: s.sheetError || '',
@@ -12143,6 +12218,18 @@ class Component extends DCLogic {
               })
             };
           }),
+          isDoc: isDoc,
+          docLines: isDoc ? rows.map(function (r) {
+            const t = String((r || [])[0] == null ? '' : (r || [])[0]).trim();
+            const u = self.urlOf(t);
+            const big = t.length < 90 && /[:：]$/.test(t);
+            return {
+              text: t, isLink: !!u, isText: !u, href: u, label: u ? self.linkLabelOf(t) : t,
+              style: t ? ('font-size:' + (big ? '13.5px' : '12.5px') + ';line-height:1.75;color:var(--pw-text' +
+                     (big ? '' : '2') + ');font-weight:' + (big ? '700' : '400') + ';white-space:pre-wrap;')
+                       : 'height:8px;'
+            };
+          }) : [],
           headPickLabel: 'หัวตาราง: แถว ' + (headRow + 1),
           onHeadUp: function () { self.setSheetHeadRow(cur ? cur.name : '', headRow - 1); },
           onHeadDown: function () { self.setSheetHeadRow(cur ? cur.name : '', headRow + 1); },
@@ -12315,8 +12402,10 @@ class Component extends DCLogic {
           modeCalStyle: 'border:1px solid ' + (s.sheetMode !== 'table' ? '#4f46e5' : 'var(--pw-border)') + ';background:' + (s.sheetMode !== 'table' ? 'var(--pw-accent-soft)' : 'transparent') + ';color:' + (s.sheetMode !== 'table' ? '#4f46e5' : 'var(--pw-muted)') + ';border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;',
           sheetHref: api.url ? '' : ''
         };
-        vmOut.showCalendar = !!(vmOut.calendar && vmOut.calendar.on) && s.sheetMode !== 'table';
-        vmOut.showTable = !vmOut.showCalendar;
+        vmOut.showCalendar = !isDoc && !!(vmOut.calendar && vmOut.calendar.on) && s.sheetMode !== 'table';
+        vmOut.showTable = !isDoc && !vmOut.showCalendar;
+        vmOut.showDoc = isDoc;
+        vmOut.hasTabs = vmOut.hasTabs && !isDoc;
         return vmOut;
       })(),
       isFreelance: s.view === 'freelance' && !self.isTrash() && !self.isDocs() && !self.isPlanner() && !self.isLinks() && !self.isArchive(),
