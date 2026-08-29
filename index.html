@@ -5199,10 +5199,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <span style="font-size: 13.5px; font-weight: 600; min-width: 116px;">{{ sheetVM.calendar.label }}</span>
                   <button sc-camel-on-click="{{ sheetVM.calendar.onNext }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 6px; width: 26px; height: 26px; cursor: pointer; color: var(--pw-muted);" style-hover="border-color: #4f46e5; color: #4f46e5;">›</button>
                   <span style="display: inline-flex; gap: 4px; flex-wrap: wrap;">
-                    <sc-for list="{{ sheetVM.calendar.monthChips }}" as="cmn" hint-placeholder-count="6">
+                    <sc-for list="{{ sheetVM.calendar.monthChips }}" as="cmn" hint-placeholder-count="12">
                       <button sc-camel-on-click="{{ cmn.onPick }}" style="{{ cmn.style }}">{{ cmn.label }}</button>
                     </sc-for>
                   </span>
+                  <sc-if value="{{ sheetVM.calendar.emptyMonth }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 11px; color: var(--pw-muted2);">เดือนนี้ยังไม่มีข้อมูลในชีต</span>
+                  </sc-if>
                 </div>
                 <div style="flex: 1; min-height: 0; overflow: auto;">
                   <div style="{{ sheetVM.zoomStyle }}">
@@ -12163,31 +12166,72 @@ class Component extends DCLogic {
               return null;
             };
 
+            /* ช่องที่เขียนแค่ชื่อเดือน (เช่น "july") ไม่มีเลขวัน — เดินนับวันต่อจากช่องก่อนหน้าให้เอง
+               เพราะตารางในชีตวางเป็นสัปดาห์ 1 แถว = 7 วันเรียงซ้ายไปขวาอยู่แล้ว */
+            const parseMonthOnly = function (line) {
+              const t = String(line || '').trim().toUpperCase().replace(/[.\s]/g, '');
+              if (t.length < 3 || t.length > 12) return null;
+              const k = t.slice(0, 3);
+              return MON[k] !== undefined && /^[A-Z]+$/.test(t) ? MON[k] : null;
+            };
+
+            /* กว้างกี่คอลัมน์ที่เป็น "วัน" — คอลัมน์ท้ายๆ ที่เป็นโน้ตประจำสัปดาห์ไม่นับ */
+            let dayCols = 0;
+            rows.forEach(function (r) {
+              (r || []).forEach(function (c, i) {
+                const first = String(c == null ? '' : c).split(/\n+/)[0];
+                if (parseDay(first)) dayCols = Math.max(dayCols, i + 1);
+              });
+            });
+            if (dayCols < 1) dayCols = 7;
+
             const byKey = {};
             let hits = 0;
+            let cursor = null;
             rows.forEach(function (r) {
-              (r || []).forEach(function (c) {
-                const lines = String(c == null ? '' : c).split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
-                if (!lines.length) return;
-                const p = parseDay(lines[0]);
-                if (!p) return;
-                hits++;
-                const key = p.mo + '-' + p.d;
+              for (let i = 0; i < dayCols; i++) {
+                const lines = String((r || [])[i] == null ? '' : (r || [])[i])
+                  .split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
+                const first = lines.length ? lines[0] : '';
+                const p = parseDay(first);
+                const mo = p ? null : parseMonthOnly(first);
+                let dt = null;
+                if (p) {
+                  dt = new Date(year, p.mo, p.d);
+                } else if (cursor) {
+                  const nxt = new Date(cursor);
+                  nxt.setDate(nxt.getDate() + 1);
+                  dt = (mo !== null && nxt.getMonth() !== mo) ? new Date(year, mo, 1) : nxt;
+                }
+                if (!dt) continue;                       // ยังไม่เจอวันแรก = ยังไม่เริ่มปฏิทิน
+                cursor = dt;
+                if (p || mo !== null) hits++;
+                const body = (p || mo !== null) ? lines.slice(1) : lines;
+                if (!body.length) continue;
+                const key = dt.getMonth() + '-' + dt.getDate();
                 if (!byKey[key]) byKey[key] = { texts: [], links: [] };
-                lines.slice(1).forEach(function (l) {
+                body.forEach(function (l) {
                   const u = self.urlOf(l);
                   if (u) byKey[key].links.push({ href: u, label: '↗ ' + self.linkLabelOf(l) });
                   else byKey[key].texts.push(l);
                 });
-              });
+              }
             });
             if (hits < 5) return { on: false, months: [], days: [], monthChips: [], hasDays: false };
 
-            const has = {};
-            Object.keys(byKey).forEach(function (k) { has[parseInt(k.split('-')[0], 10)] = true; });
-            const months = Object.keys(has).map(Number).sort(function (a, b) { return a - b; });
+            /* นับงานของแต่ละเดือน แล้วโชว์ครบทั้ง 12 เดือนเสมอ — เดือนที่ยังไม่มีข้อมูลก็เปิดดูได้ */
+            const cnt = {};
+            Object.keys(byKey).forEach(function (k) {
+              const mo = parseInt(k.split('-')[0], 10);
+              cnt[mo] = (cnt[mo] || 0) + ((byKey[k].texts || []).length || 1);
+            });
+            const months = [0,1,2,3,4,5,6,7,8,9,10,11];
+            const filled = months.filter(function (m) { return cnt[m]; });
             let pick = s.sheetCalMon;
-            if (pick === undefined || pick === null || months.indexOf(pick) < 0) pick = months[0];
+            if (pick === undefined || pick === null || pick < 0 || pick > 11) {
+              const nowMo = new Date().getMonth();
+              pick = cnt[nowMo] ? nowMo : (filled.length ? filled[0] : nowMo);
+            }
 
             const today = new Date();
             const todayKey = today.getFullYear() + '-' + today.getMonth() + '-' + today.getDate();
@@ -12236,23 +12280,20 @@ class Component extends DCLogic {
               days: days,
               monthChips: months.map(function (m) {
                 const onM = m === pick;
+                const n = cnt[m] || 0;
                 return {
-                  label: MON_TH[m].slice(0, 3),
+                  label: MON_TH[m].slice(0, 3) + (n ? ' · ' + n : ''),
                   style: 'border:1px solid ' + (onM ? 'transparent' : 'var(--pw-border)') + ';background:' +
-                         (onM ? '#4f46e5' : 'transparent') + ';color:' + (onM ? '#fff' : 'var(--pw-muted)') +
-                         ';border-radius:999px;padding:4px 11px;font-size:11px;font-weight:' + (onM ? '700' : '500') +
+                         (onM ? '#4f46e5' : 'transparent') + ';color:' +
+                         (onM ? '#fff' : (n ? 'var(--pw-text2)' : 'var(--pw-faint)')) +
+                         ';border-radius:999px;padding:4px 10px;font-size:11px;font-weight:' + (onM ? '700' : '500') +
                          ';cursor:pointer;white-space:nowrap;',
                   onPick: function () { self.setState({ sheetCalMon: m }); }
                 };
               }),
-              onPrev: function () {
-                const i = months.indexOf(pick);
-                self.setState({ sheetCalMon: months[Math.max(0, i - 1)] });
-              },
-              onNext: function () {
-                const i = months.indexOf(pick);
-                self.setState({ sheetCalMon: months[Math.min(months.length - 1, i + 1)] });
-              }
+              emptyMonth: !(cnt[pick] || 0),
+              onPrev: function () { self.setState({ sheetCalMon: (pick + 11) % 12 }); },
+              onNext: function () { self.setState({ sheetCalMon: (pick + 1) % 12 }); }
             };
           })(),
           showCalendar: false,   // เติมค่าจริงหลังคำนวณ calendar ด้านล่าง
