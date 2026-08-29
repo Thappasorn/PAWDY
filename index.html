@@ -3489,34 +3489,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 </script>
 
 <noscript><div style="font:14px system-ui;padding:24px">This page needs JavaScript enabled.</div></noscript>
-<style id="pw-perf-boost">
-/* ── PAWDY perf boost (safe, non-structural) ─────────────────────────
-   Lets the browser skip layout+paint for rows/cards that are scrolled
-   off-screen. contain-intrinsic-size reserves height so the scrollbar
-   stays accurate and there is no jump. Falls back to no-op on old browsers. */
-@supports (content-visibility: auto) {
-  [data-task-row],
-  [data-subtask-row],
-  [data-tlrow] {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 40px;
-  }
-  [data-card] {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 96px;
-  }
-}
-/* Isolate each row/card's paint & layout so a change in one doesn't
-   force the whole list to re-layout. */
-[data-task-row],
-[data-subtask-row],
-[data-tlrow],
-[data-card] {
-  contain: layout paint style;
-}
-/* Promote horizontal board scroll container to its own layer for smoother scroll. */
-[data-boardwrap] { will-change: scroll-position; }
-</style>
 </head>
 <body>
 <x-dc>
@@ -4150,6 +4122,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <button sc-camel-on-click="{{ onInviteMember }}" title="Add a member by email" style="width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--pw-faint); background: var(--pw-surface); color: var(--pw-muted); margin-left: -6px; cursor: pointer; font-size: 13px; line-height: 1; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">+</button>
           </div>
           <div style="position: relative; display: flex; align-items: center;">
+          <sc-if value="{{ hasMentions }}" hint-placeholder-val="{{ true }}">
+            <div data-mentions style="display: flex; align-items: center; gap: 5px; margin-right: 2px;">
+              <span title="งานที่มีคนแท็กคุณล่าสุด" style="font-size: 11px; color: var(--pw-muted2); font-weight: 700;">@</span>
+              <sc-for list="{{ mentionChipsTop }}" as="mn" hint-placeholder-count="3">
+                <button sc-camel-on-click="{{ mn.onOpen }}" title="{{ mn.title }}" style="{{ mn.style }}" style-hover="border-color: #4f46e5; color: #4f46e5;">
+                  <span style="{{ mn.dotStyle }}"></span>
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ mn.name }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
             <button sc-camel-on-click="{{ onToggleNotif }}" title="การแจ้งเตือน" aria-label="เปิดการแจ้งเตือน" style="{{ notifBellStyle }}">✉
               <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
                 <span style="position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: #dc2626; color: #fff; font-size: 9.5px; font-weight: 700; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace;">{{ notifUnread }}</span>
@@ -4687,6 +4671,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                     <sc-if value="{{ cell.isInput }}" hint-placeholder-val="{{ false }}">
                       <input ref="{{ cell.valueRef }}" data-sync="{{ cell.value }}" type="{{ cell.inputType }}" value="{{ cell.value }}" placeholder="{{ cell.placeholder }}" sc-camel-on-change="{{ cell.onChange }}" sc-camel-on-click="{{ cell.onPick }}" style="{{ cell.style }}" style-focus="background: var(--pw-surface); box-shadow: 0 0 0 1.5px #4f46e5; border-radius: 4px; color: var(--pw-text);">
                     </sc-if>
+                    <sc-if value="{{ cell.isLink }}" hint-placeholder-val="{{ false }}">
+                      <a href="{{ cell.linkHref }}" target="_blank" rel="noopener noreferrer" title="{{ cell.linkTitle }}" sc-camel-on-click="{{ cell.onLinkClick }}" style="flex:0 0 auto;color:#4f46e5;text-decoration:none;font-size:11px;padding:0 3px;" style-hover="text-decoration:underline;">↗</a>
+                    </sc-if>
                     <sc-if value="{{ cell.isComment }}" hint-placeholder-val="{{ false }}">
                       <button sc-camel-on-click="{{ cell.onOpen }}" title="เปิดกล่อง Comment" aria-label="เปิดกล่อง Comment" style="{{ cell.style }}">💬 {{ cell.commentCount }}</button>
                     </sc-if>
@@ -4777,6 +4764,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                           <sc-if value="{{ scell.isInput }}" hint-placeholder-val="{{ false }}">
                             <input ref="{{ scell.valueRef }}" data-sync="{{ scell.value }}" type="{{ scell.inputType }}" value="{{ scell.value }}" placeholder="{{ scell.placeholder }}" sc-camel-on-change="{{ scell.onChange }}" sc-camel-on-click="{{ scell.onPick }}" style="{{ scell.style }}" style-focus="background:var(--pw-surface);box-shadow:0 0 0 1.5px #4f46e5;border-radius:4px;color:var(--pw-text);">
                           </sc-if>
+                          <sc-if value="{{ scell.isLink }}" hint-placeholder-val="{{ false }}">
+                            <a href="{{ scell.linkHref }}" target="_blank" rel="noopener noreferrer" title="{{ scell.linkTitle }}" sc-camel-on-click="{{ scell.onLinkClick }}" style="flex:0 0 auto;color:#4f46e5;text-decoration:none;font-size:11px;padding:0 3px;" style-hover="text-decoration:underline;">↗</a>
+                          </sc-if>
                           <sc-if value="{{ scell.isRange }}" hint-placeholder-val="{{ false }}">
                             <div style="display:flex;align-items:center;gap:3px;min-width:0;">
                               <input ref="{{ scell.fromRef }}" data-sync="{{ scell.fromValue }}" type="date" value="{{ scell.fromValue }}" sc-camel-on-click="{{ scell.onPick }}" sc-camel-on-change="{{ scell.onFrom }}" title="วันเริ่ม" style="{{ scell.style }}">
@@ -4811,6 +4801,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                           </sc-if>
                           <sc-if value="{{ dcell.isInput }}" hint-placeholder-val="{{ false }}">
                             <input ref="{{ dcell.valueRef }}" data-sync="{{ dcell.value }}" type="{{ dcell.inputType }}" value="{{ dcell.value }}" placeholder="{{ dcell.placeholder }}" sc-camel-on-change="{{ dcell.onChange }}" sc-camel-on-click="{{ dcell.onPick }}" style="{{ dcell.style }}" style-focus="background:var(--pw-surface2);box-shadow:0 0 0 1.5px #4f46e5;border-radius:4px;color:var(--pw-text);">
+                          </sc-if>
+                          <sc-if value="{{ dcell.isLink }}" hint-placeholder-val="{{ false }}">
+                            <a href="{{ dcell.linkHref }}" target="_blank" rel="noopener noreferrer" title="{{ dcell.linkTitle }}" sc-camel-on-click="{{ dcell.onLinkClick }}" style="flex:0 0 auto;color:#4f46e5;text-decoration:none;font-size:11px;padding:0 3px;" style-hover="text-decoration:underline;">↗</a>
                           </sc-if>
                           <sc-if value="{{ dcell.isRange }}" hint-placeholder-val="{{ false }}">
                             <div style="display:flex;align-items:center;gap:3px;min-width:0;">
@@ -5612,6 +5605,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       </sc-if>
                       <sc-if value="{{ cf.isInput }}" hint-placeholder-val="{{ true }}">
                         <input ref="{{ cf.valueRef }}" data-sync="{{ cf.value }}" type="{{ cf.inputType }}" value="{{ cf.value }}" sc-camel-on-click="{{ cf.onPick }}" sc-camel-on-change="{{ cf.onValue }}" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 6px; padding: 5px 8px; outline: 0;" style-focus="border-color: #4f46e5;">
+                      </sc-if>
+                      <sc-if value="{{ cf.isLink }}" hint-placeholder-val="{{ false }}">
+                        <a href="{{ cf.linkHref }}" target="_blank" rel="noopener noreferrer" title="{{ cf.linkTitle }}" style="flex: 0 0 auto; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--pw-border); color: #4f46e5; text-decoration: none; font-size: 12px; background: var(--pw-surface);" style-hover="border-color: #4f46e5; background: var(--pw-accent-soft);">↗</a>
                       </sc-if>
                       <sc-if value="{{ cf.isTimeline }}" hint-placeholder-val="{{ false }}">
                         <div style="display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0;">
@@ -7633,7 +7629,7 @@ class Component extends DCLogic {
     this.setState({
       selected: id, subFocus: null, detailMenu: false, detailFields: true,
       newComment: '', newSubtask: '',
-      commentComposer: null, commentComposerText: '', commentComposerPos: null
+      commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null
     });
   }
   // เปิดการ์ดงาน แล้วไฮไลต์ subtask ลำดับ i (ใช้ตอนกด subtask หรือเปิดจากลิงก์)
@@ -7642,7 +7638,7 @@ class Component extends DCLogic {
     this.setState({
       selected: id, subFocus: { id: id, i: i }, detailMenu: false, detailFields: true,
       newComment: '', newSubtask: '',
-      commentComposer: null, commentComposerText: '', commentComposerPos: null
+      commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null
     });
   }
   // แนบลิงก์/ไฟล์เข้างาน — ใช้ทั้งปุ่ม + Attach file และปุ่มลัดบนการ์ด
@@ -7702,7 +7698,7 @@ class Component extends DCLogic {
       this.setState({ subComposerText: '', subComposerDraft: parent ? this.makeSubtask(parent, '') : null });
     }
   }
-  openCommentComposer(id, e) {
+  openCommentComposer(id, e, fid) {
     this._focusRowComment = true;
     const target = e && e.currentTarget;
     const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
@@ -7710,15 +7706,15 @@ class Component extends DCLogic {
     const vh = Math.max(320, window.innerHeight || 768);
     const width = Math.min(440, vw - 24);
     const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
-    const height = task && (task.comments || []).length ? 286 : 126;
+    const height = task && this.commentsOf(task, fid).length ? 286 : 126;
     let left = rect ? rect.right - width : vw - width - 12;
     let top = rect ? rect.bottom + 8 : 72;
     left = Math.max(12, Math.min(left, vw - width - 12));
     if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 8);
-    this.setState({ commentComposer: id, commentComposerText: '', commentComposerPos: { left: left, top: top } });
+    this.setState({ commentComposer: id, commentField: fid || null, commentComposerText: '', commentComposerPos: { left: left, top: top } });
   }
   closeCommentComposer() {
-    this.setState({ commentComposer: null, commentComposerText: '', commentComposerPos: null });
+    this.setState({ commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null });
   }
   commentParts(text) {
     const value = String(text || '');
@@ -7742,10 +7738,16 @@ class Component extends DCLogic {
     if (!parts.length) parts.push({ isText: true, isLink: false, text: value, url: '' });
     return parts;
   }
-  deleteInlineComment(taskId, commentIndex) {
+  deleteInlineComment(taskId, commentIndex, fid) {
     this.mark('ลบคอมเมนต์');
     this.patchTask(taskId, function (t) {
-      t.comments = (t.comments || []).filter(function (_, i) { return i !== commentIndex; });
+      if (fid) {
+        const cur = Array.isArray((t.custom || {})[fid]) ? t.custom[fid] : [];
+        t.custom = Object.assign({}, t.custom || {});
+        t.custom[fid] = cur.filter(function (_, i) { return i !== commentIndex; });
+      } else {
+        t.comments = (t.comments || []).filter(function (_, i) { return i !== commentIndex; });
+      }
       return t;
     });
   }
@@ -7754,8 +7756,15 @@ class Component extends DCLogic {
     const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
     if (!v || !task) return;
     this.mark('เพิ่มคอมเมนต์');
+    const fid = this.state.commentField || null;
     this.patchTask(id, function (t) {
-      t.comments = (t.comments || []).concat([{ author: this.me().n, text: v, when: 'just now' }]);
+      const item = { author: this.me().n, text: v, when: 'just now' };
+      if (fid) {
+        t.custom = Object.assign({}, t.custom || {});
+        t.custom[fid] = (Array.isArray(t.custom[fid]) ? t.custom[fid] : []).concat([item]);
+      } else {
+        t.comments = (t.comments || []).concat([item]);
+      }
       return t;
     }.bind(this));
 
@@ -8631,9 +8640,40 @@ class Component extends DCLogic {
     const id = String(k).slice(3);
     return (this.state.fields || []).filter(function (f) { return f.id === id; })[0] || null;
   }
+  /* ค่าที่ "ทั้งช่องเป็นลิงก์" เท่านั้นถึงจะกดได้ — กันไม่ให้ข้อความปนลิงก์กลายเป็นปุ่มมั่ว */
+  urlOf(v) {
+    const s = String(v === null || v === undefined ? '' : v).trim();
+    if (!s || /\s/.test(s)) return '';
+    if (/^https?:\/\/\S+\.\S+/i.test(s)) return s;
+    if (/^www\.\S+\.\S+/i.test(s)) return 'https://' + s;
+    return '';
+  }
+  linkLabelOf(v) {
+    const u = this.urlOf(v);
+    if (!u) return '';
+    try {
+      const d = u.replace(/^https?:\/\//i, '').split('/')[0].replace(/^www\./i, '');
+      return d || u;
+    } catch (e) { return u; }
+  }
+
   isCommentField(f) {
     const label = String((f && f.label) || '').trim().toLowerCase();
     return label === 'comment' || label === 'comments' || label === 'คอมเมนต์' || label === 'ความคิดเห็น';
+  }
+  /* คอลัมน์ Comment ช่องที่สองขึ้นไป — ตั้งชื่อขึ้นต้นด้วย comment / คอมเมนต์ ก็พอ
+     เช่น "Comment ทีมลงสื่อ", "คอมเมนต์ลูกค้า" · แต่ละช่องเก็บเธรดของตัวเองแยกกัน */
+  isExtraCommentField(f) {
+    if (!f || this.isCommentField(f)) return false;
+    if (f.type !== 'text') return false;
+    return /^(comment|comments|คอมเมนต์|ความคิดเห็น)/i.test(String(f.label || '').trim());
+  }
+  isAnyCommentField(f) { return this.isCommentField(f) || this.isExtraCommentField(f); }
+  /* อ่านเธรดของช่องนั้น — ช่องหลักใช้ t.comments ของเดิม (ข้อมูลเก่าไม่หาย) */
+  commentsOf(t, fid) {
+    if (!fid) return t.comments || [];
+    const v = (t.custom || {})[fid];
+    return Array.isArray(v) ? v : [];
   }
   cdef(k) {
     const f = this.fieldOfKey(k);
@@ -9752,6 +9792,8 @@ class Component extends DCLogic {
       }
       return { key: k, isInput: true, inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
         value: String(raw || ''), valueRef: self.syncRef(String(raw || '')), placeholder: f.type === 'text' ? '—' : '',
+        isLink: !!self.urlOf(raw), linkHref: self.urlOf(raw), linkTitle: 'เปิด ' + self.urlOf(raw),
+        onLinkClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
         onChange: function (e) { setCustom(f.id, e.target.value); },
         onPick: function (e) { if (f.type === 'date') self.openPicker(e); }, style: sel + (f.type === 'number' ? 'text-align:right;font-family:\'IBM Plex Mono\',monospace;' : '') };
     };
@@ -9765,7 +9807,8 @@ class Component extends DCLogic {
     const pm = this.prioMeta(t.priority);
     const doneSubs = t.subtasks.filter(function (x) { return x.done; }).length;
     const pct = t.subtasks.length ? Math.round(doneSubs / t.subtasks.length * 100) : 0;
-    const allComments = t.comments || [];
+    const openField = (this.state.commentComposer === t.id) ? (this.state.commentField || null) : null;
+    const allComments = this.commentsOf(t, openField);
     const commentStartIndex = Math.max(0, allComments.length - 8);
     return {
       id: t.id, name: t.name, status: t.status, assignee: t.assignee, start: t.start, due: t.due,
@@ -9898,7 +9941,7 @@ class Component extends DCLogic {
       commentItems: allComments.slice(-8).map(function (c, visibleIndex) {
         const text = c.text || '';
         return { author: c.author || 'Unknown', text: text, parts: self.commentParts(text), when: c.when || '', initials: self.initials(c.author || 'Unknown'), avatarStyle: self.avatar(c.author || 'Unknown', 24),
-          onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.deleteInlineComment(t.id, commentStartIndex + visibleIndex); } };
+          onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.deleteInlineComment(t.id, commentStartIndex + visibleIndex, openField); } };
       }),
       commentComposerWrapStyle: (function () {
         const p = self.state.commentComposerPos || { left: 12, top: 72 };
@@ -10061,13 +10104,14 @@ class Component extends DCLogic {
         const cfCell = function (k) {
           const f = self.fieldOfKey(k);
           if (!f) return { key: k };
-          if (self.isCommentField(f)) {
-            const open = self.state.commentComposer === t.id;
+          if (self.isAnyCommentField(f)) {
+            const fid = self.isCommentField(f) ? null : f.id;
+            const open = self.state.commentComposer === t.id && (self.state.commentField || null) === fid;
             return {
-              key: k, isComment: true, commentCount: (t.comments || []).length,
+              key: k, isComment: true, commentCount: self.commentsOf(t, fid).length,
               onOpen: function (e) {
                 if (e && e.stopPropagation) e.stopPropagation();
-                if (open) self.closeCommentComposer(); else self.openCommentComposer(t.id, e);
+                if (open) self.closeCommentComposer(); else self.openCommentComposer(t.id, e, fid);
               },
               style: 'width:100%;height:28px;display:flex;align-items:center;justify-content:flex-start;border:1px solid ' +
                 (open ? '#4f46e5' : 'transparent') + ';border-radius:5px;background:' +
@@ -10104,6 +10148,10 @@ class Component extends DCLogic {
             inputType: f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text'),
             value: String(raw), valueRef: self.syncRef(String(raw)),
             placeholder: f.type === 'text' ? '—' : '',
+            isLink: !!self.urlOf(raw),
+            linkHref: self.urlOf(raw),
+            linkTitle: 'เปิด ' + self.urlOf(raw),
+            onLinkClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
             onChange: function (e) { self.setCustom(t.id, f.id, e.target.value); },
             onPick: function (e) { if (f.type === 'date') self.openPicker(e); },
             style: 'width:100%;background:transparent;border:0;outline:0;font-size:12px;color:var(--pw-text2);padding:3px 5px;border-radius:4px;' +
@@ -10263,6 +10311,7 @@ class Component extends DCLogic {
     const onlineNames = (s.online || []).map(function (x) { return x.name || x.email; });
     const spaceName = this.spaceSel();
     const scopeLists = this.scopeLists();
+    let mentionTop = [];
     const groupBy = this.props.groupBy || 'Status';
     let groupField = { Status: 'status', Assignee: 'assignee', Priority: 'priority', Channel: 'channel' }[groupBy] || 'status';
     let groupKeys = {
@@ -10804,6 +10853,9 @@ class Component extends DCLogic {
             toRef: self.syncRef(r.to),
             onFrom: function (e) { self.setTl(sel.id, f.id, { from: e.target.value }); },
             onTo: function (e) { self.setTl(sel.id, f.id, { to: e.target.value }); },
+            isLink: !!self.urlOf(val),
+            linkHref: self.urlOf(val),
+            linkTitle: 'เปิด ' + self.urlOf(val),
             onValue: function (e) { self.setCustom(sel.id, f.id, e.target.value); },
             onPick: function (e) { if (f.type === 'date') self.openPicker(e); },
             onDatePick: function (e) { self.openPicker(e); },
@@ -11372,6 +11424,36 @@ class Component extends DCLogic {
       }),
       onAddTask: function () { self.addTask('Backlog'); },
       emailsOn: self.props.emailNotifications !== false,
+      /* งานล่าสุดที่มีคนแท็กเรา — เอามาโชว์ชื่องานบนแถบบนเลย ไม่ต้องเปิดกระดิ่งดู */
+      mentionChipsTop: (mentionTop = (function () {
+        const seen = {}, out = [];
+        (s.notifs || []).forEach(function (n) {
+          if (out.length >= 3) return;
+          if (!/แท็ก|mention/i.test(String(n.line || '') + ' ' + String(n.detail || ''))) return;
+          const tid = n.taskId;
+          if (!tid || seen[tid]) return;                       // งานเดียวถูกแท็กหลายรอบ นับใบเดียว
+          const task = (s.tasks || []).filter(function (t) { return t.id === tid && !t.deleted; })[0];
+          if (!task) return;                                   // งานถูกลบไปแล้ว ไม่ต้องโชว์
+          seen[tid] = 1;
+          const mins = Math.floor((Date.now() - n.at) / 60000);
+          out.push({
+            name: task.name || '(ไม่มีชื่องาน)',
+            title: 'ถูกแท็กในงาน "' + (task.name || tid) + '" · ' +
+                   (mins < 1 ? 'เมื่อกี้' : (mins < 60 ? mins + ' นาทีที่แล้ว' : Math.floor(mins / 60) + ' ชม.ที่แล้ว')) +
+                   ' — กดเพื่อเปิดงาน',
+            unread: !n.read,
+            dotStyle: 'width:6px;height:6px;border-radius:50%;flex:0 0 6px;background:' + (n.read ? 'var(--pw-faint)' : '#4f46e5') + ';',
+            style: 'display:flex;align-items:center;gap:6px;max-width:150px;border:1px solid ' +
+                   (n.read ? 'var(--pw-border)' : 'rgba(79,70,229,.5)') + ';background:' +
+                   (n.read ? 'var(--pw-surface)' : 'var(--pw-accent-soft)') + ';color:' +
+                   (n.read ? 'var(--pw-text2)' : '#4f46e5') + ';border-radius:999px;padding:4px 11px;font-size:11.5px;font-weight:' +
+                   (n.read ? '500' : '600') + ';cursor:pointer;min-width:0;',
+            onOpen: function () { self.openTaskFromNotif(tid); }
+          });
+        });
+        return out;
+      })()),
+      hasMentions: mentionTop.length > 0,
       notifOpen: s.notifOpen,
       notifUnread: s.notifs.filter(function (n) { return !n.read; }).length,
       hasUnread: s.notifs.filter(function (n) { return !n.read; }).length > 0,
