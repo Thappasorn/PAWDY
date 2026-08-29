@@ -4211,9 +4211,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <sc-if value="{{ notTrash }}" hint-placeholder-val="{{ true }}">
         <div data-viewtabs style="display: flex; align-items: center; gap: 2px;">
           <sc-for list="{{ viewTabs }}" as="tab" hint-placeholder-count="5">
-            <button sc-camel-on-click="{{ tab.onSelect }}" class="{{ tab.cls }}" style="{{ tab.style }}">
-              <span style="opacity: 0.75; font-size: 11px;">{{ tab.icon }}</span>{{ tab.label }}
-            </button>
+            <sc-if value="{{ tab.notEditing }}" hint-placeholder-val="{{ true }}">
+              <span style="display: inline-flex; align-items: center;">
+                <button sc-camel-on-click="{{ tab.onSelect }}" sc-camel-on-double-click="{{ tab.onRename }}" class="{{ tab.cls }}" style="{{ tab.style }}">
+                  <span style="opacity: 0.75; font-size: 11px;">{{ tab.icon }}</span>{{ tab.label }}
+                </button>
+                <button sc-camel-on-click="{{ tab.onRename }}" title="เปลี่ยนชื่อแท็บนี้" style="{{ tab.pencilStyle }}" style-hover="background: var(--pw-surface3); color: #4f46e5;">✎</button>
+              </span>
+            </sc-if>
+            <sc-if value="{{ tab.editing }}" hint-placeholder-val="{{ false }}">
+              <input ref="{{ tab.inputRef }}" value="{{ tab.text }}" sc-camel-on-change="{{ tab.onText }}" sc-camel-on-key-down="{{ tab.onKey }}" sc-camel-on-blur="{{ tab.onBlur }}" style="{{ tab.inputStyle }}">
+            </sc-if>
           </sc-for>
 
           <sc-for list="{{ savedTabs }}" as="sv" hint-placeholder-count="2">
@@ -7745,19 +7753,59 @@ class Component extends DCLogic {
     if (v.list) patch.list = v.list;
     this.setState(patch, () => this.persist());
   }
-  /* ---- เปลี่ยนชื่อ view ตรงแท็บเลย (ดับเบิลคลิก) — แตะแค่ชื่อ ข้อมูล/ลิงก์/ตัวกรองอยู่ครบ ---- */
+  /* ---- เปลี่ยนชื่อแท็บ view ได้ทุกอัน (กดปุ่ม ✎ หรือดับเบิลคลิก) ----
+     แท็บมาตรฐานเก็บชื่อที่ตั้งเองไว้ใน config.viewLabels — เปลี่ยนแค่ชื่อที่แสดง
+     ตัว view ยังทำงานเหมือนเดิมทุกอย่าง ข้อมูลไม่ขยับ */
+  BUILTIN_VIEWS() {
+    return [
+      { k: 'table', label: 'Table', icon: '▦' },
+      { k: 'board', label: 'Board', icon: '▥' },
+      { k: 'calendar', label: 'Calendar', icon: '▤' },
+      { k: 'timeline', label: 'Timeline', icon: '▬' },
+      { k: 'gantt', label: 'Gantt', icon: '⊟' },
+      { k: 'dashboard', label: 'Dashboard', icon: '◕' },
+      { k: 'freelance', label: 'Freelance', icon: '◍' },
+      { k: 'sheet', label: 'Sheet', icon: '▤' }
+    ];
+  }
+  viewLabelDefault(k) {
+    const t = this.BUILTIN_VIEWS().filter(function (x) { return x.k === k; })[0];
+    return t ? t.label : k;
+  }
+  viewLabel(k) {
+    const map = this.cfg().viewLabels || {};
+    const v = String(map[k] || '').trim();
+    return v || this.viewLabelDefault(k);
+  }
   startViewRename(id) {
-    const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
-    if (!v) return;
+    let text = '';
+    if (String(id).charAt(0) === '#') {
+      text = this.viewLabel(String(id).slice(1));
+    } else {
+      const v = this.savedViews().filter(function (x) { return x.id === id; })[0];
+      if (!v) return;
+      text = v.name || '';
+    }
     this._focusRename = true;
-    this.setState({ viewRename: { id: id, text: v.name || '' }, viewMenu: null });
+    this.setState({ viewRename: { id: id, text: text }, viewMenu: null });
   }
   commitViewRename() {
     const r = this.state.viewRename;
     if (!r) return;
-    const v = this.savedViews().filter(function (x) { return x.id === r.id; })[0];
     const name = String(r.text || '').trim();
     this.setState({ viewRename: null });
+
+    if (String(r.id).charAt(0) === '#') {
+      const k = String(r.id).slice(1);
+      if (name === this.viewLabel(k)) return;
+      const map = Object.assign({}, this.cfg().viewLabels || {});
+      if (!name || name === this.viewLabelDefault(k)) delete map[k]; else map[k] = name;
+      this.mark('เปลี่ยนชื่อมุมมอง');
+      this.saveCfg({ viewLabels: map });
+      return;
+    }
+
+    const v = this.savedViews().filter(function (x) { return x.id === r.id; })[0];
     if (!v || !name || name === v.name) return;
     this.mark('เปลี่ยนชื่อมุมมอง');
     this.saveCfg({
@@ -10729,19 +10777,34 @@ class Component extends DCLogic {
     });
 
     // view tabs
-    const tabs = [
-      { k: 'table', label: 'Table', icon: '▦' },
-      { k: 'board', label: 'Board', icon: '▥' },
-      { k: 'calendar', label: 'Calendar', icon: '▤' },
-      { k: 'timeline', label: 'Timeline', icon: '▬' },
-      { k: 'gantt', label: 'Gantt', icon: '⊟' },
-      { k: 'dashboard', label: 'Dashboard', icon: '◕' },
-      { k: 'freelance', label: 'Freelance', icon: '◍' },
-      { k: 'sheet', label: 'Sheet', icon: '▤' }
-    ].map(function (t) {
+    const renaming = s.viewRename || null;
+    const tabs = self.BUILTIN_VIEWS().map(function (t) {
       const active = s.view === t.k && !s.customView;
+      const rid = '#' + t.k;
+      const editing = !!renaming && renaming.id === rid;
+      const label = self.viewLabel(t.k);
       return {
-        label: t.label, icon: t.icon,
+        label: label, icon: t.icon,
+        editing: editing, notEditing: !editing,
+        text: editing ? renaming.text : label,
+        inputRef: function (el) {
+          if (!el || !editing) return;
+          if (el.value !== renaming.text) el.value = renaming.text;
+          if (self._focusRename) { self._focusRename = false; try { el.focus(); el.select(); } catch (e) {} }
+        },
+        onText: function (e) { self.setState({ viewRename: { id: rid, text: e.target.value } }); },
+        onKey: function (e) {
+          if (e.key === 'Enter') { e.preventDefault(); self.commitViewRename(); }
+          if (e.key === 'Escape') { e.preventDefault(); self.setState({ viewRename: null }); }
+        },
+        onBlur: function () { self.commitViewRename(); },
+        onRename: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.startViewRename(rid); },
+        inputStyle: 'width:' + Math.max(70, Math.min(220, String(editing ? renaming.text : label).length * 8 + 26)) + 'px;' +
+          'border:1px solid #4f46e5;border-radius:7px;background:var(--pw-surface);color:var(--pw-text);' +
+          'font-size:12.5px;padding:4px 8px;outline:0;',
+        pencilStyle: 'display:grid;place-items:center;width:20px;height:20px;margin-left:-4px;margin-right:2px;' +
+          'border:0;border-radius:6px;background:transparent;color:' + (active ? '#4f46e5' : 'var(--pw-faint)') +
+          ';font-size:11px;line-height:1;cursor:pointer;padding:0;',
         cls: active ? 'pw-tab-on' : '',
         style: 'display:flex;align-items:center;gap:6px;border:0;border-bottom:2px solid transparent;' + (active ? 'font-weight:700;' : 'background:transparent;color:var(--pw-muted);font-weight:500;') + 'font-size:12.5px;padding:7px 11px 8px;cursor:pointer;white-space:nowrap;',
         onSelect: function () {
@@ -10752,7 +10815,6 @@ class Component extends DCLogic {
     });
 
     // แท็บมุมมองที่ทีมบันทึกไว้
-    const renaming = s.viewRename || null;
     const savedTabs = this.savedViews().map(function (v) {
       const active = s.customView === v.id;
       const icon = ({ table: '▦', board: '▥', calendar: '▤', timeline: '▬', gantt: '⊟', dashboard: '◕', freelance: '◍', sheet: '▤' })[v.type] || '▦';
