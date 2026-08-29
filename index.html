@@ -4218,9 +4218,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
           <sc-for list="{{ savedTabs }}" as="sv" hint-placeholder-count="2">
             <sc-if value="{{ sv.notEditing }}" hint-placeholder-val="{{ true }}">
-              <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-double-click="{{ sv.onRename }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="ดับเบิลคลิกเพื่อเปลี่ยนชื่อ · คลิกขวาเพื่อบันทึกทับ / ลบ" class="{{ sv.cls }}" style="{{ sv.style }}">
-                <span style="opacity: 0.75; font-size: 11px;">{{ sv.icon }}</span>{{ sv.label }}
-              </button>
+              <span style="display: inline-flex; align-items: center;">
+                <button sc-camel-on-click="{{ sv.onSelect }}" sc-camel-on-double-click="{{ sv.onRename }}" sc-camel-on-context-menu="{{ sv.onContext }}" title="คลิกขวาเพื่อบันทึกทับ / ลบ" class="{{ sv.cls }}" style="{{ sv.style }}">
+                  <span style="opacity: 0.75; font-size: 11px;">{{ sv.icon }}</span>{{ sv.label }}
+                </button>
+                <button sc-camel-on-click="{{ sv.onRename }}" title="เปลี่ยนชื่อมุมมองนี้" style="{{ sv.pencilStyle }}" style-hover="background: var(--pw-surface3); color: #4f46e5;">✎</button>
+              </span>
             </sc-if>
             <sc-if value="{{ sv.editing }}" hint-placeholder-val="{{ false }}">
               <input ref="{{ sv.inputRef }}" value="{{ sv.text }}" sc-camel-on-change="{{ sv.onText }}" sc-camel-on-key-down="{{ sv.onKey }}" sc-camel-on-blur="{{ sv.onBlur }}" style="{{ sv.inputStyle }}">
@@ -10769,6 +10772,9 @@ class Component extends DCLogic {
           if (e.key === 'Escape') { e.preventDefault(); self.setState({ viewRename: null }); }
         },
         onBlur: function () { self.commitViewRename(); },
+        pencilStyle: 'display:grid;place-items:center;width:20px;height:20px;margin-left:-4px;margin-right:2px;' +
+          'border:0;border-radius:6px;background:transparent;color:' + (active ? '#4f46e5' : 'var(--pw-faint)') +
+          ';font-size:11px;line-height:1;cursor:pointer;padding:0;',
         inputStyle: 'width:' + Math.max(70, Math.min(220, String(editing ? renaming.text : v.name).length * 8 + 26)) + 'px;' +
           'border:1px solid #4f46e5;border-radius:7px;background:var(--pw-surface);color:var(--pw-text);' +
           'font-size:12.5px;padding:4px 8px;outline:0;',
