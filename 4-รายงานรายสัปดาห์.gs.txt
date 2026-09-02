@@ -1,0 +1,328 @@
+/* ============================================================
+   Pawdy — รายงานสรุปรายสัปดาห์ ส่งอีเมลทุกวันศุกร์ 11:00 น.
+
+   วิธีติดตั้ง (ทำครั้งเดียว)
+   1) วางโค้ดนี้ต่อท้ายสคริปต์เดิมในโปรเจกต์ Apps Script ของชีต แล้วกดบันทึก
+   2) เช็ค Project Settings → Time zone ต้องเป็น (GMT+07:00) Bangkok
+      ไม่งั้น 11:00 จะเพี้ยนไปตามโซนของโปรเจกต์
+   3) เลือกฟังก์ชัน  setupWeeklyReport  แล้วกด Run หนึ่งครั้ง (กด Allow)
+   ถ้าอยากเลิกส่ง: Run ฟังก์ชัน  stopWeeklyReport
+   อยากดูหน้าตาอีเมลเลยไม่ต้องรอศุกร์: Run ฟังก์ชัน  testWeeklyReport
+   ============================================================ */
+
+/* ---- ส่งให้ใคร — ว่างไว้ = ใช้รายชื่อ MEMBERS ของตัวแจ้งเตือน Sheet ---- */
+var REPORT_TO = [];
+
+/* ---- สถานะที่นับว่า "เสร็จ" — ถ้าไปเปลี่ยนใน Settings ของเว็บ ต้องแก้ตรงนี้ตาม ---- */
+// ponytail: hardcode ไว้เพราะชีตไม่ได้เก็บ cfg().doneStatus — ถ้าอนาคตอยากให้ auto ต้องให้ doPost เซฟ meta.config ลง ScriptProperties
+var DONE_STATUS = 'Done';
+
+/* ---- แสดงงานในแต่ละหัวข้อมากสุดกี่รายการ (ที่เหลือสรุปเป็น "+N อื่นๆ") ---- */
+var MAX_PER_SECTION = 15;
+
+var TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
+                 'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+
+/* ==================== ตั้ง / เลิก ตัวส่ง ==================== */
+
+function setupWeeklyReport() {
+  stopWeeklyReport();
+  ScriptApp.newTrigger('weeklyReport')
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+    .atHour(11)
+    .nearMinute(0)
+    .create();
+  var msg = 'ตั้งรายงานรายสัปดาห์เรียบร้อย — ส่งทุกวันศุกร์ ~11:00 น.\n' +
+            '(Google การันตีแค่ช่วงเวลาใกล้ๆ อาจคลาดได้ราว 15 นาที)';
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { console.log(msg); }
+}
+
+function stopWeeklyReport() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'weeklyReport') ScriptApp.deleteTrigger(t);
+  });
+}
+
+function testWeeklyReport() { weeklyReport(); }
+
+
+/* ==================== ตัวหลัก ==================== */
+
+function weeklyReport() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET_NAME);
+  if (!sh || sh.getLastRow() < 2) { console.log('ยังไม่มีข้อมูลในแท็บ ' + SHEET_NAME); return; }
+
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var r = bucket_(rows, new Date());
+
+  var to = recipients_();
+  if (!to.length) { console.log('ไม่มีรายชื่อผู้รับ — ใส่อีเมลใน REPORT_TO หรือ MEMBERS'); return; }
+
+  var subject = '[Pawdy] รายงานสัปดาห์ ' + thaiDate_(r.weekStart) + '–' + thaiDate_(r.weekEnd);
+  var html = reportHtml_(r, ss.getUrl());
+  var text = reportText_(r);
+
+  to.forEach(function (addr) {
+    if (!addr || addr.indexOf('@') < 0) return;
+    try {
+      MailApp.sendEmail({ to: addr, subject: subject, htmlBody: html, body: text });
+    } catch (err) {
+      console.log('ส่งรายงานไม่สำเร็จ ' + addr + ' : ' + err);
+    }
+  });
+}
+
+function recipients_() {
+  if (REPORT_TO && REPORT_TO.length) return REPORT_TO;
+  if (typeof MEMBERS !== 'undefined' && MEMBERS && MEMBERS.length) return MEMBERS;
+  return [];
+}
+
+
+/* ==================== แยกงานเข้าตะกร้า (ตรรกะล้วน เทสต์ได้) ==================== */
+
+function bucket_(rows, now) {
+  var today   = dayStart_(now);
+  var monThis = mondayOf_(now);
+  var monNext = addDays_(monThis, 7);
+  var weekEndExcl = monNext;                    // อาทิตย์ 23:59 = จันทร์ถัดไป (ไม่นับ)
+  var nextEndExcl = addDays_(monThis, 14);
+
+  var out = {
+    weekStart: monThis,
+    weekEnd: addDays_(monThis, 6),
+    total: 0,
+    overdue: [], thisWeekLeft: [], doneThisWeek: [], nextWeek: [], posted: [],
+    noDueCount: 0,
+    byStatus: {},
+    byPerson: {}
+  };
+
+  rows.forEach(function (row) {
+    var task = readRow_(row);
+    if (!task.id || task.deleted) return;
+    out.total++;
+
+    out.byStatus[task.status || '(ไม่ระบุ)'] = (out.byStatus[task.status || '(ไม่ระบุ)'] || 0) + 1;
+
+    var slot = null;
+    if (!task.done && task.due && task.due < today)                                slot = 'overdue';
+    else if (!task.done && task.due && task.due >= today && task.due < weekEndExcl) slot = 'thisWeekLeft';
+    else if (task.done && task.due && task.due >= monThis && task.due < weekEndExcl) slot = 'doneThisWeek';
+    else if (!task.done && task.due && task.due >= monNext && task.due < nextEndExcl) slot = 'nextWeek';
+    else if (!task.done && !task.due) out.noDueCount++;
+
+    if (slot) out[slot].push(task);
+
+    if (task.postedAt && task.postedAt >= monThis && task.postedAt < weekEndExcl) out.posted.push(task);
+
+    task.people.forEach(function (p) {
+      var s = out.byPerson[p] || (out.byPerson[p] = { overdue: 0, left: 0, done: 0 });
+      if (slot === 'overdue')           s.overdue++;
+      else if (slot === 'thisWeekLeft') s.left++;
+      else if (slot === 'doneThisWeek') s.done++;
+    });
+  });
+
+  [out.overdue, out.thisWeekLeft, out.doneThisWeek, out.nextWeek, out.posted]
+    .forEach(function (a) { a.sort(byDue_); });
+
+  return out;
+}
+
+function readRow_(row) {
+  var status = String(row[3] || '').trim();
+  return {
+    id:       String(row[0] || '').trim(),
+    list:     String(row[1] || '').trim(),
+    name:     String(row[2] || '').trim() || '(ไม่มีชื่องาน)',
+    status:   status,
+    deleted:  status === '(ลบจากเว็บแล้ว)',
+    done:     status === DONE_STATUS,
+    people:   String(row[4] || '').split(/\s*,\s*/).filter(function (x) { return x && x !== 'Unassigned'; }),
+    priority: String(row[5] || '').trim(),
+    due:      asDate_(row[7]),
+    link:     String(row[17] || '').trim(),
+    postedAt: asDate_(row[18])
+  };
+}
+
+function byDue_(a, b) {
+  if (!a.due) return 1;
+  if (!b.due) return -1;
+  return a.due - b.due;
+}
+
+/* ---------- วันที่ ---------- */
+
+function dayStart_(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+function addDays_(d, n) { var t = new Date(d.getTime()); t.setDate(t.getDate() + n); return dayStart_(t); }
+
+function mondayOf_(d) {
+  var t = dayStart_(d);
+  return addDays_(t, -((t.getDay() + 6) % 7));    // อาทิตย์(0) → ถอย 6 วัน
+}
+
+/* ชีตอาจเก็บเป็น Date (สคริปต์เขียน) หรือข้อความ (คนพิมพ์เอง) — รับทั้งสองแบบ */
+function asDate_(v) {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : dayStart_(v);
+  var s = String(v).trim();
+  var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);          // dd/mm/yyyy ตามที่ตั้ง numberFormat ไว้
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return null;
+}
+
+function thaiDate_(d) { return d ? d.getDate() + ' ' + TH_MONTHS[d.getMonth()] : '—'; }
+
+
+/* ==================== อีเมล ==================== */
+
+function reportHtml_(r, sheetUrl) {
+  var web = 'https://pawdycontent.vercel.app';
+  var h = [];
+  h.push('<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Sarabun,Tahoma,sans-serif;' +
+         'max-width:640px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">');
+
+  h.push('<div style="padding:16px 20px;border-bottom:1px solid #f3f4f6">' +
+         '<span style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:7px;' +
+         'background:#4f46e5;color:#fff;font-weight:700;font-size:12px">PW</span>' +
+         '<span style="font-size:13px;font-weight:600;margin-left:8px">Pawdy Workspace</span></div>');
+
+  h.push('<div style="padding:20px">');
+  h.push('<p style="margin:0 0 2px;font-size:16px;font-weight:700">รายงานสัปดาห์ ' +
+         thaiDate_(r.weekStart) + ' – ' + thaiDate_(r.weekEnd) + '</p>');
+  h.push('<p style="margin:0 0 18px;font-size:12.5px;color:#6b7280">งานทั้งหมด ' + r.total + ' รายการ</p>');
+
+  h.push(cards_([
+    ['เลยกำหนด',        r.overdue.length,      '#dc2626'],
+    ['เหลือสัปดาห์นี้',  r.thisWeekLeft.length, '#d97706'],
+    ['เสร็จสัปดาห์นี้',  r.doneThisWeek.length, '#059669'],
+    ['ลงสื่อจริง',       r.posted.length,       '#4f46e5']
+  ]));
+
+  h.push(section_('⚠ เลยกำหนด — ต้องรีบ', r.overdue,      '#dc2626'));
+  h.push(section_('เหลือในสัปดาห์นี้',      r.thisWeekLeft, '#d97706'));
+  h.push(section_('เสร็จในสัปดาห์นี้',      r.doneThisWeek, '#059669'));
+  h.push(section_('ลงสื่อจริงสัปดาห์นี้',   r.posted,       '#4f46e5'));
+  h.push(section_('สัปดาห์หน้า',            r.nextWeek,     '#6b7280'));
+
+  if (r.noDueCount) {
+    h.push('<p style="margin:0 0 18px;font-size:12.5px;color:#6b7280">' +
+           'ยังไม่เสร็จและไม่ได้ใส่วันครบกำหนด <b>' + r.noDueCount + '</b> รายการ</p>');
+  }
+
+  h.push(personTable_(r.byPerson));
+  h.push(statusLine_(r.byStatus));
+
+  h.push('<div style="margin-top:22px">' +
+         '<a href="' + web + '" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;' +
+         'font-size:13px;font-weight:600;padding:10px 18px;border-radius:8px">เปิด Pawdy Workspace</a> ' +
+         '<a href="' + sheetUrl + '" style="display:inline-block;color:#4f46e5;text-decoration:none;' +
+         'font-size:13px;font-weight:600;padding:10px 14px">เปิดใน Google Sheet</a></div>');
+
+  h.push('<p style="margin:18px 0 0;font-size:11px;color:#9ca3af">อีเมลนี้ส่งอัตโนมัติทุกวันศุกร์ 11:00 น. จาก Pawdy Workspace</p>');
+  h.push('</div></div>');
+  return h.join('');
+}
+
+function cards_(items) {
+  var out = '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px"><tr>';
+  items.forEach(function (it) {
+    out += '<td style="padding:0 4px;width:25%">' +
+           '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px 6px;text-align:center">' +
+           '<div style="font-size:22px;font-weight:700;color:' + it[2] + '">' + it[1] + '</div>' +
+           '<div style="font-size:11px;color:#6b7280;margin-top:2px">' + it[0] + '</div></div></td>';
+  });
+  return out + '</tr></table>';
+}
+
+function section_(title, list, color) {
+  if (!list.length) return '';
+  var out = '<p style="margin:0 0 6px;font-size:13px;font-weight:700;color:' + color + '">' +
+            title + ' (' + list.length + ')</p>' +
+            '<div style="margin:0 0 18px;border-left:3px solid ' + color + ';padding-left:10px">';
+
+  list.slice(0, MAX_PER_SECTION).forEach(function (t) {
+    var meta = [t.list, t.people.join(', '), t.status].filter(Boolean).join(' · ');
+    var name = esc_(t.name);
+    out += '<div style="padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:13px">' +
+           (t.link ? '<a href="' + t.link + '" style="color:#111827;text-decoration:none;font-weight:600">' + name + '</a>'
+                   : '<span style="font-weight:600">' + name + '</span>') +
+           '<span style="color:#9ca3af"> — ' + thaiDate_(t.due) + '</span>' +
+           '<div style="font-size:11.5px;color:#6b7280">' + esc_(meta) + '</div></div>';
+  });
+
+  if (list.length > MAX_PER_SECTION) {
+    out += '<div style="padding:5px 0;font-size:12px;color:#9ca3af">+' +
+           (list.length - MAX_PER_SECTION) + ' อื่นๆ</div>';
+  }
+  return out + '</div>';
+}
+
+function personTable_(byPerson) {
+  var names = Object.keys(byPerson).sort(function (a, b) {
+    var x = byPerson[a], y = byPerson[b];
+    return (y.overdue + y.left + y.done) - (x.overdue + x.left + x.done);
+  });
+  if (!names.length) return '';
+
+  var out = '<p style="margin:0 0 6px;font-size:13px;font-weight:700">แยกตามคน</p>' +
+            '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 18px;font-size:12.5px;border-collapse:collapse">' +
+            '<tr style="color:#6b7280;font-size:11px;text-align:left">' +
+            '<th style="padding:4px 6px;font-weight:600">ชื่อ</th>' +
+            '<th style="padding:4px 6px;font-weight:600;text-align:center">เลยกำหนด</th>' +
+            '<th style="padding:4px 6px;font-weight:600;text-align:center">เหลือ</th>' +
+            '<th style="padding:4px 6px;font-weight:600;text-align:center">เสร็จ</th></tr>';
+
+  names.forEach(function (n) {
+    var s = byPerson[n];
+    out += '<tr style="border-top:1px solid #f3f4f6">' +
+           '<td style="padding:5px 6px">' + esc_(n) + '</td>' +
+           '<td style="padding:5px 6px;text-align:center;color:' + (s.overdue ? '#dc2626;font-weight:700' : '#9ca3af') + '">' + s.overdue + '</td>' +
+           '<td style="padding:5px 6px;text-align:center">' + s.left + '</td>' +
+           '<td style="padding:5px 6px;text-align:center;color:#059669">' + s.done + '</td></tr>';
+  });
+  return out + '</table>';
+}
+
+function statusLine_(byStatus) {
+  var keys = Object.keys(byStatus);
+  if (!keys.length) return '';
+  var parts = keys.sort(function (a, b) { return byStatus[b] - byStatus[a]; })
+    .map(function (k) { return esc_(k) + ' ' + byStatus[k]; });
+  return '<p style="margin:0;font-size:12px;color:#6b7280">ตามสถานะ: ' + parts.join('  ·  ') + '</p>';
+}
+
+function esc_(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* ฉบับข้อความล้วน สำหรับเมลไคลเอนต์ที่ไม่เปิด HTML */
+function reportText_(r) {
+  var L = ['รายงานสัปดาห์ ' + thaiDate_(r.weekStart) + ' - ' + thaiDate_(r.weekEnd),
+           'งานทั้งหมด ' + r.total + ' รายการ', ''];
+  var add = function (title, list) {
+    if (!list.length) return;
+    L.push(title + ' (' + list.length + ')');
+    list.slice(0, MAX_PER_SECTION).forEach(function (t) {
+      L.push('  - ' + t.name + ' [' + thaiDate_(t.due) + '] ' + t.people.join(', '));
+    });
+    if (list.length > MAX_PER_SECTION) L.push('  +' + (list.length - MAX_PER_SECTION) + ' อื่นๆ');
+    L.push('');
+  };
+  add('เลยกำหนด', r.overdue);
+  add('เหลือในสัปดาห์นี้', r.thisWeekLeft);
+  add('เสร็จในสัปดาห์นี้', r.doneThisWeek);
+  add('ลงสื่อจริงสัปดาห์นี้', r.posted);
+  add('สัปดาห์หน้า', r.nextWeek);
+  if (r.noDueCount) L.push('ไม่ได้ใส่วันครบกำหนด ' + r.noDueCount + ' รายการ');
+  L.push('https://pawdycontent.vercel.app');
+  return L.join('\n');
+}
