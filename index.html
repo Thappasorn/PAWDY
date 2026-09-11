@@ -4196,7 +4196,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <button sc-camel-on-click="{{ onUndo }}" title="{{ undoTitle }}" style="{{ undoStyle }}">↶</button>
           <button sc-camel-on-click="{{ onRedo }}" title="{{ redoTitle }}" style="{{ redoStyle }}">↷</button>
           <button sc-camel-on-click="{{ onToggleTheme }}" title="{{ themeTitle }}" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ themeIcon }}</button>
-          <button sc-camel-on-click="{{ onCopyComments }}" title="ก๊อปคอมเมนต์ทุกงาน แล้วไปวางในชีตเปล่า (⌘V) — รูปขึ้นให้เอง" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">❝</button>
+          <button sc-camel-on-click="{{ onCopyComments }}" title="Export คอมเมนต์ทุกงานเป็นไฟล์ .csv — เปิดใน Google Sheets แล้วรูปขึ้นให้เอง" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">❝</button>
           <button sc-camel-on-click="{{ onExport }}" title="ดาวน์โหลดงานที่เห็นอยู่เป็นไฟล์ Excel (.xlsx)" style="width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--pw-border); background: var(--pw-surface); color: var(--pw-muted); cursor: pointer; font-size: 13px; display: grid; place-items: center;" style-hover="border-color: #4f46e5; color: #4f46e5;">⤓</button>
           <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ true }}">
             <button sc-camel-on-click="{{ onToggleSettings }}" title="ตั้งค่า workspace (admin)" style="{{ settingsBtnStyle }}">⚙</button>
@@ -5925,7 +5925,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <div style="{{ detail.sectionHeadStyle }}">
               <span style="{{ detail.sectionIcon }}">❝</span>
               <span style="{{ detail.sectionTitle }}">Comments and activity</span>
-              <button sc-camel-on-click="{{ detail.onExportComments }}" title="ก๊อปคอมเมนต์ของงานนี้ แล้วไปวางในชีตเปล่า (⌘V) — รูปขึ้นให้เอง" style="margin-left: auto; border: 1px dashed var(--pw-faint); background: transparent; border-radius: 7px; padding: 4px 10px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">Export comment</button>
+              <button sc-camel-on-click="{{ detail.onExportComments }}" title="Export คอมเมนต์ของงานนี้เป็นไฟล์ .csv — เปิดใน Google Sheets แล้วรูปขึ้นให้เอง" style="margin-left: auto; border: 1px dashed var(--pw-faint); background: transparent; border-radius: 7px; padding: 4px 10px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">Export comment</button>
             </div>
 
             <div style="display: flex; gap: 6px;">
@@ -7604,7 +7604,8 @@ class Component extends DCLogic {
     return (c && c.when) || '';
   }
 
-  commentsTsv(taskId) {
+  /* แถวข้อมูลคอมเมนต์ — หัวตาราง + หนึ่งแถวต่อหนึ่งคอมเมนต์ */
+  commentRows(taskId) {
     const self = this;
     const rows = [['Task ID', 'List', 'ชื่องาน', 'ผู้เขียน', 'เมื่อ', 'ข้อความ', 'จำนวนรูป', 'รูป', 'ลิงก์รูปทั้งหมด']];
     (this.state.tasks || []).filter(function (t) { return !taskId || t.id === taskId; }).forEach(function (t) {
@@ -7619,44 +7620,40 @@ class Component extends DCLogic {
         const imgs = self.imgUrlsIn(text);
         rows.push([
           t.id, t.list || '', t.name || '', (c && c.author) || '', self.commentWhen(c),
-          self.stripImgUrls(text).replace(/[\t]/g, ' ').replace(/\n/g, ' / '),   // TSV ห้ามมี tab/newline ในเซลล์
-          imgs.length || '',
+          self.stripImgUrls(text),
+          imgs.length ? String(imgs.length) : '',
           imgs.length ? '=IMAGE("' + imgs[0] + '", 4, 90, 120)' : '',
-          imgs.join(' ')
+          imgs.join('\n')
         ]);
       });
     });
-    return rows.map(function (r) { return r.join('\t'); }).join('\n');
+    return rows;
   }
 
-  copyComments(taskId) {
-    const tsv = this.commentsTsv(taskId);
-    const n = tsv.split('\n').length - 1;                          // ไม่นับหัวตาราง
-    if (!n) { window.alert(taskId ? 'งานนี้ยังไม่มีคอมเมนต์' : 'ยังไม่มีคอมเมนต์ให้ก๊อป'); return; }
+  /* CSV เพราะเก็บสูตรได้ — เปิดใน Google Sheets แล้ว =IMAGE() กลายเป็นสูตรจริง รูปขึ้นในเซลล์
+     ตัวเขียน .xlsx ของปุ่ม ⤓ รองรับแค่ inlineStr กับตัวเลข เขียนสูตรไม่ได้ */
+  commentsCsv(taskId) {
+    const cell = function (v) { return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"'; };
+    return '\ufeff' + this.commentRows(taskId).map(function (r) {
+      return r.map(cell).join(',');
+    }).join('\r\n');
+  }
 
-    const scope = taskId ? 'ของงานนี้ ' : 'ทุกงาน ';
-    const ok = function () {
-      window.alert('ก๊อปคอมเมนต์' + scope + n + ' รายการแล้ว\n\n' +
-                   'เปิด Google Sheets แผ่นเปล่า คลิกช่อง A1 แล้วกด ⌘V (Ctrl+V)\n' +
-                   'รูปจะขึ้นในคอลัมน์ "รูป" ให้เอง');
-    };
-    const fallback = function () {
-      const ta = document.createElement('textarea');
-      ta.value = tsv;
-      ta.style.position = 'fixed'; ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      let done = false;
-      try { done = document.execCommand('copy'); } catch (e) {}
-      ta.remove();
-      if (done) ok(); else window.alert('ก๊อปไม่สำเร็จ — เบราว์เซอร์ไม่ให้เข้าถึงคลิปบอร์ด ลองใช้ Chrome');
-    };
+  exportComments(taskId) {
+    const rows = this.commentRows(taskId);
+    if (rows.length < 2) { window.alert(taskId ? 'งานนี้ยังไม่มีคอมเมนต์' : 'ยังไม่มีคอมเมนต์ให้ export'); return; }
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(tsv).then(ok).catch(fallback);
-    } else {
-      fallback();
-    }
+    const task = taskId ? (this.state.tasks || []).filter(function (t) { return t.id === taskId; })[0] : null;
+    const scope = task ? String(task.name || taskId) : (this.state.list === '__all' ? 'ทุกงาน' : this.state.list);
+    const safe = String(scope).replace(/[\\/:*?"<>|]/g, '-').slice(0, 60);
+
+    const blob = new Blob([this.commentsCsv(taskId)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Pawdy_comments_' + safe + '_' + TODAY + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   }
 
   exportXlsx() {
@@ -11504,7 +11501,7 @@ class Component extends DCLogic {
         sectionHeadStyle: 'display:flex;align-items:center;gap:7px;',
         sectionIcon: SECTION_ICON,
         sectionTitle: SECTION_TITLE,
-        onExportComments: function () { self.copyComments(sel && sel.id); },
+        onExportComments: function () { self.exportComments(sel && sel.id); },
         miniLabel: MINI_LABEL,
 
         // ---------- ชื่องาน ----------
@@ -13814,7 +13811,7 @@ class Component extends DCLogic {
       trashEmpty: self.trashTasks().length === 0,
       isAdmin: self.isAdmin(),
       onExport: function () { self.exportXlsx(); },
-      onCopyComments: function () { self.copyComments(); },
+      onCopyComments: function () { self.exportComments(); },
       buildLabel: 'เวอร์ชันไฟล์ ' + ((window.PAWDY_CONFIG && window.PAWDY_CONFIG.build) || '—') +
                   ' · Edge Function: ' + ((window.PAWDY_CONFIG && window.PAWDY_CONFIG.notifyFunction) || 'notify'),
       meEmail: self.me().email || '',
