@@ -109,6 +109,27 @@ const rendered = await p.evaluate(async (u)=>{
 }, PNG);
 if (rendered < 1) { console.log('FAIL ไม่วาด <img> ในคอมเมนต์'); process.exit(1); }
 
-console.log('parts:', parts.join('/'), '| img rendered:', rendered);
+// G) รูปตัวอย่างในช่องพิมพ์ ก่อนกดส่ง
+const draft = await p.evaluate(async (u)=>{
+  window.__app.setState(s=>({tasks:s.tasks.map(t=>t.id==='T101'
+    ? Object.assign({},t,{comments:[]}) : t), newComment:'ดูอันนี้ '+u}));
+  await new Promise(r=>setTimeout(r,600));
+  const thumbs=[...document.querySelectorAll('img')].filter(i=>(i.src||'').includes('task-images') && i.style.width==='72px');
+  return { count: thumbs.length, hasRemove: !!document.querySelector('button[aria-label="เอารูปนี้ออก"]') };
+}, PNG);
+if (draft.count !== 1) { console.log('FAIL ไม่เห็นรูปตัวอย่างก่อนส่ง:', draft); process.exit(1); }
+if (!draft.hasRemove) { console.log('FAIL ไม่มีปุ่มเอารูปออก'); process.exit(1); }
+
+// H) กดปุ่มเอารูปออก -> URL ต้องหลุดจากข้อความ แต่ข้อความที่พิมพ์ไว้ต้องอยู่
+const removed = await p.evaluate(async ()=>{
+  document.querySelector('button[aria-label="เอารูปนี้ออก"]').click();
+  await new Promise(r=>setTimeout(r,500));
+  return { text: window.__app.state.newComment,
+           thumbs: [...document.querySelectorAll('img')].filter(i=>(i.src||'').includes('task-images') && i.style.width==='72px').length };
+});
+if (removed.text !== 'ดูอันนี้') { console.log('FAIL ลบรูปแล้วข้อความเพี้ยน:', JSON.stringify(removed.text)); process.exit(1); }
+if (removed.thumbs !== 0) { console.log('FAIL รูปตัวอย่างไม่หาย'); process.exit(1); }
+
+console.log('parts:', parts.join('/'), '| img rendered:', rendered, '| draft preview: ok');
 console.log(errs.join('\n')||'no errors');
 await b.close();

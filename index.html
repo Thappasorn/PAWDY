@@ -4758,6 +4758,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                         </div>
                       </sc-if>
                       <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" sc-camel-on-paste="{{ row.onCommentPaste }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
+                      <sc-if value="{{ row.hasDraftImgs }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                          <sc-for list="{{ row.draftImgs }}" as="di" hint-placeholder-count="1">
+                            <span style="position:relative;display:inline-block;line-height:0;">
+                              <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
+                              <button sc-camel-on-click="{{ di.onRemove }}" type="button" title="เอารูปนี้ออก" aria-label="เอารูปนี้ออก" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:#dc2626;color:#fff;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;">×</button>
+                            </span>
+                          </sc-for>
+                        </div>
+                      </sc-if>
                       <div style="display:flex;align-items:center;gap:5px;">
                         <button type="button" title="เพิ่ม" style="width:28px;height:28px;border:0;border-radius:50%;background:var(--pw-surface3);color:var(--pw-muted);cursor:pointer;font-size:17px;">+</button>
                         <span style="width:1px;height:18px;background:var(--pw-line);margin:0 2px;"></span>
@@ -5917,6 +5927,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" sc-camel-on-paste="{{ onNewCommentPaste }}" placeholder="เขียนคอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; outline: 0; background: var(--pw-surface);" style-focus="border-color: #4f46e5;">
               <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 7px; padding: 7px 13px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">ส่ง</button>
             </div>
+
+            <sc-if value="{{ hasDraftImgs }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                          <sc-for list="{{ draftImgs }}" as="di" hint-placeholder-count="1">
+                            <span style="position:relative;display:inline-block;line-height:0;">
+                              <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
+                              <button sc-camel-on-click="{{ di.onRemove }}" type="button" title="เอารูปนี้ออก" aria-label="เอารูปนี้ออก" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:#dc2626;color:#fff;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;">×</button>
+                            </span>
+                          </sc-for>
+                        </div>
+                      </sc-if>
 
             <div style="display: flex; flex-wrap: wrap; gap: 5px;">
               <sc-for list="{{ detail.mentionChips }}" as="mc" hint-placeholder-count="3">
@@ -8050,6 +8071,23 @@ class Component extends DCLogic {
      เก็บเป็น URL ไม่ใช่ base64 เพราะ task ทั้งก้อนถูกโหลดเข้า state ทุกครั้งที่เปิดเว็บ
      สกรีนช็อต 2 MB ฝังเป็น base64 = +2.7 MB ต่อรูป ทั้งใน Supabase และในเซลล์ชีต Sync */
   PASTE_MARK() { return '⏳ กำลังอัปโหลดรูป…'; }
+
+  /* รูปที่แปะไว้ในช่องพิมพ์แต่ยังไม่ได้กดส่ง — อ่านจากข้อความด้วย commentParts ตัวเดิม
+     ไม่เก็บ state แยก ช่องพิมพ์จึงเป็นแหล่งความจริงเดียว แก้ข้อความแล้วรูปตามทันที */
+  draftImgs(text, key) {
+    const self = this;
+    return this.commentParts(text).filter(function (x) { return x.isImg; }).map(function (x) {
+      return {
+        url: x.url,
+        onRemove: function () {
+          const cur = String(self.state[key] || '');
+          const o = {};
+          o[key] = cur.replace(x.url, '').replace(/[ \t]+$/gm, '').replace(/\n{2,}/g, '\n').trim();
+          self.setState(o);
+        }
+      };
+    });
+  }
 
   pasteImageInto(e, taskId, key) {
     const items = (e && e.clipboardData && e.clipboardData.items) || [];
@@ -10539,6 +10577,8 @@ class Component extends DCLogic {
       },
       onCommentSubmit: function () { self.addCommentTo(t.id); },
       onCommentPaste: function (e) { self.pasteImageInto(e, t.id); },
+      draftImgs: self.draftImgs(self.state.commentComposerText, 'commentComposerText'),
+      hasDraftImgs: self.draftImgs(self.state.commentComposerText, 'commentComposerText').length > 0,
       onCommentClose: function () { self.closeCommentComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
@@ -12845,6 +12885,8 @@ class Component extends DCLogic {
       onSubtaskKey: function (e) { if (e.key === 'Enter') addSub(); },
       onCommentKey: function (e) { if (e.key === 'Enter') addComment(); },
       onNewCommentPaste: function (e) { self.pasteImageInto(e, sel && sel.id, 'newComment'); },
+      draftImgs: self.draftImgs(s.newComment, 'newComment'),
+      hasDraftImgs: self.draftImgs(s.newComment, 'newComment').length > 0,
       onAddSubtask: addSub,
       onAddComment: addComment,
       onAddAttachment: function () { if (sel) self.promptAttachment(sel.id); },
