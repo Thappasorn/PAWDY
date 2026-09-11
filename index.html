@@ -656,6 +656,25 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
   // ---------- public API used by the app ----------
   window.PawdySync = {
     snapshot: function () { return snap; },
+    /* อัปรูปที่ paste มา -> คืน public URL ใช้ได้ทันที
+       bucket "task-images" ต้องสร้างก่อนด้วย 9-storage-รูปแนบ.sql */
+    uploadImage: function (file, taskId) {
+      if (!sb) return Promise.reject(new Error('ยังไม่ได้เชื่อมต่อ Supabase'));
+      if (!file || String(file.type || '').indexOf('image/') !== 0) return Promise.reject(new Error('ไม่ใช่ไฟล์รูป'));
+      if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error('รูปใหญ่เกิน 8 MB'));
+      var ext = (String(file.type).split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
+      var path = (taskId || 'misc') + '/' + Date.now().toString(36) + '-' +
+                 Math.random().toString(36).slice(2, 8) + '.' + ext;
+      return sb.storage.from('task-images')
+        .upload(path, file, { contentType: file.type, cacheControl: '31536000' })
+        .then(function (r) {
+          if (r && r.error) throw r.error;
+          var pub = sb.storage.from('task-images').getPublicUrl(path);
+          var url = pub && pub.data && pub.data.publicUrl;
+          if (!url) throw new Error('ไม่ได้ URL กลับมา');
+          return url;
+        });
+    },
     // ---- สำรอง / กู้คืนข้อมูลด้วยตัวเอง ----
     backups: function () {
       var out = [];
@@ -1928,6 +1947,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     ondragenter: "onDragEnter",
     ondragleave: "onDragLeave",
     ondragover: "onDragOver",
+    onpaste: "onPaste",
     onanimationstart: "onAnimationStart",
     onanimationend: "onAnimationEnd",
     onanimationiteration: "onAnimationIteration",
@@ -4731,13 +4751,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                               <span style="{{ rcm.avatarStyle }}">{{ rcm.initials }}</span>
                               <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
                                 <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><b style="color:var(--pw-text2);">{{ rcm.author }}</b><span style="color:var(--pw-muted2);">{{ rcm.when }}</span><button sc-camel-on-click="{{ rcm.onDelete }}" title="ลบ Comment" aria-label="ลบ Comment" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);cursor:pointer;font-size:14px;line-height:1;padding:1px 4px;border-radius:4px;" style-hover="color:#dc2626;background:rgba(220,38,38,.08);">×</button></span>
-                                <span style="font-size:12px;line-height:1.45;color:var(--pw-text);white-space:pre-wrap;overflow-wrap:anywhere;"><sc-for list="{{ rcm.parts }}" as="rcp"><sc-if value="{{ rcp.isLink }}" hint-placeholder-val="{{ false }}"><a href="{{ rcp.url }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;">{{ rcp.text }}</a></sc-if><sc-if value="{{ rcp.isText }}" hint-placeholder-val="{{ false }}"><span>{{ rcp.text }}</span></sc-if></sc-for></span>
+                                <span style="font-size:12px;line-height:1.45;color:var(--pw-text);white-space:pre-wrap;overflow-wrap:anywhere;"><sc-for list="{{ rcm.parts }}" as="rcp"><sc-if value="{{ rcp.isLink }}" hint-placeholder-val="{{ false }}"><a href="{{ rcp.url }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;">{{ rcp.text }}</a></sc-if><sc-if value="{{ rcp.isText }}" hint-placeholder-val="{{ false }}"><span>{{ rcp.text }}</span></sc-if><sc-if value="{{ rcp.isImg }}" hint-placeholder-val="{{ false }}"><a href="{{ rcp.url }}" target="_blank" rel="noopener noreferrer" title="เปิดรูปขนาดเต็ม" style="display:block;margin:4px 0;"><img src="{{ rcp.url }}" alt="" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--pw-border);display:block;"></a></sc-if></sc-for></span>
                               </span>
                             </div>
                           </sc-for>
                         </div>
                       </sc-if>
-                      <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
+                      <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" sc-camel-on-paste="{{ row.onCommentPaste }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
                       <div style="display:flex;align-items:center;gap:5px;">
                         <button type="button" title="เพิ่ม" style="width:28px;height:28px;border:0;border-radius:50%;background:var(--pw-surface3);color:var(--pw-muted);cursor:pointer;font-size:17px;">+</button>
                         <span style="width:1px;height:18px;background:var(--pw-line);margin:0 2px;"></span>
@@ -5894,7 +5914,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             </div>
 
             <div style="display: flex; gap: 6px;">
-              <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" placeholder="เขียนคอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; outline: 0; background: var(--pw-surface);" style-focus="border-color: #4f46e5;">
+              <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" sc-camel-on-paste="{{ onNewCommentPaste }}" placeholder="เขียนคอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; outline: 0; background: var(--pw-surface);" style-focus="border-color: #4f46e5;">
               <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 7px; padding: 7px 13px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">ส่ง</button>
             </div>
 
@@ -5914,6 +5934,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>
                   <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
                     <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
+                    <sc-if value="{{ cm.hasImgs }}" hint-placeholder-val="{{ false }}">
+                      <sc-for list="{{ cm.imgs }}" as="cmi" hint-placeholder-count="1">
+                        <a href="{{ cmi.url }}" target="_blank" rel="noopener noreferrer" title="เปิดรูปขนาดเต็ม" style="display:block;">
+                          <img src="{{ cmi.url }}" alt="" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--pw-border);display:block;">
+                        </a>
+                      </sc-for>
+                    </sc-if>
                     <textarea ref="{{ cm.textRef }}" data-sync="{{ cm.text }}" value="{{ cm.text }}" sc-camel-on-change="{{ cm.onText }}" rows="2" style="border: 1px solid var(--pw-border); border-radius: 8px; padding: 7px 9px; font-size: 12px; line-height: 1.55; color: var(--pw-text2); background: var(--pw-surface); resize: vertical; outline: 0; width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
                   </div>
                   <button sc-camel-on-click="{{ cm.onDelete }}" title="ลบคอมเมนต์" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1; height: 16px;" style-hover="color: #dc2626;">×</button>
@@ -7983,23 +8010,26 @@ class Component extends DCLogic {
   commentParts(text) {
     const value = String(text || '');
     const parts = [];
+    const IMG = /\.(png|jpe?g|gif|webp|avif)(\?[^#]*)?$/i;
     const matcher = /https?:\/\/[^\s<>"']+/gi;
     let cursor = 0;
     let match;
     while ((match = matcher.exec(value))) {
-      if (match.index > cursor) parts.push({ isText: true, isLink: false, text: value.slice(cursor, match.index), url: '' });
+      if (match.index > cursor) parts.push({ isText: true, isLink: false, isImg: false, text: value.slice(cursor, match.index), url: '' });
       let url = match[0];
       let trailing = '';
       while (url && /[),.;!?]$/.test(url)) {
         trailing = url.slice(-1) + trailing;
         url = url.slice(0, -1);
       }
-      if (url) parts.push({ isText: false, isLink: true, text: url, url: url });
-      if (trailing) parts.push({ isText: true, isLink: false, text: trailing, url: '' });
+      if (url) parts.push(IMG.test(url)
+        ? { isText: false, isLink: false, isImg: true, text: url, url: url }
+        : { isText: false, isLink: true, isImg: false, text: url, url: url });
+      if (trailing) parts.push({ isText: true, isLink: false, isImg: false, text: trailing, url: '' });
       cursor = match.index + match[0].length;
     }
-    if (cursor < value.length) parts.push({ isText: true, isLink: false, text: value.slice(cursor), url: '' });
-    if (!parts.length) parts.push({ isText: true, isLink: false, text: value, url: '' });
+    if (cursor < value.length) parts.push({ isText: true, isLink: false, isImg: false, text: value.slice(cursor), url: '' });
+    if (!parts.length) parts.push({ isText: true, isLink: false, isImg: false, text: value, url: '' });
     return parts;
   }
   deleteInlineComment(taskId, commentIndex, fid) {
@@ -8015,7 +8045,44 @@ class Component extends DCLogic {
       return t;
     });
   }
+  /* ---- paste รูปจากคลิปบอร์ดลงช่องคอมเมนต์ ----
+     อัปขึ้น Supabase Storage แล้วแปะ URL ต่อท้ายข้อความ — commentParts() วาดเป็น <img> ให้เอง
+     เก็บเป็น URL ไม่ใช่ base64 เพราะ task ทั้งก้อนถูกโหลดเข้า state ทุกครั้งที่เปิดเว็บ
+     สกรีนช็อต 2 MB ฝังเป็น base64 = +2.7 MB ต่อรูป ทั้งใน Supabase และในเซลล์ชีต Sync */
+  PASTE_MARK() { return '⏳ กำลังอัปโหลดรูป…'; }
+
+  pasteImageInto(e, taskId, key) {
+    const items = (e && e.clipboardData && e.clipboardData.items) || [];
+    let file = null;
+    for (let i = 0; i < items.length; i++) {
+      if (String(items[i].type || '').indexOf('image/') === 0) { file = items[i].getAsFile(); break; }
+    }
+    if (!file) return;                                 // paste ข้อความธรรมดา ปล่อยให้ทำงานตามปกติ
+    if (e.preventDefault) e.preventDefault();
+
+    const mark = this.PASTE_MARK();
+    const self = this;
+    const k = key || 'commentComposerText';
+    const put = function (text) { const o = {}; o[k] = text; self.setState(o); };
+    const base = String(this.state[k] || '');
+    put(base ? base.replace(/\s*$/, '') + '\n' + mark : mark);
+
+    window.PawdySync.uploadImage(file, taskId).then(function (url) {
+      const cur = String(self.state[k] || '');
+      put(cur.indexOf(mark) >= 0 ? cur.replace(mark, url) : (cur.replace(/\s*$/, '') + '\n' + url));
+    }).catch(function (err) {
+      const cur = String(self.state[k] || '');
+      put(cur.replace(mark, '').replace(/\n+$/, ''));
+      window.alert('อัปรูปไม่สำเร็จ: ' + ((err && err.message) || err) +
+                   '\n\nถ้าขึ้นว่าไม่พบ bucket ให้รัน 9-storage-รูปแนบ.sql ใน Supabase ก่อน');
+    });
+  }
+
   addCommentTo(id) {
+    if (String(this.state.commentComposerText || '').indexOf(this.PASTE_MARK()) >= 0) {
+      window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด');
+      return;
+    }
     const v = String(this.state.commentComposerText || '').trim();
     const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
     if (!v || !task) return;
@@ -10471,6 +10538,7 @@ class Component extends DCLogic {
         if (e.key === 'Escape') { e.preventDefault(); self.closeCommentComposer(); }
       },
       onCommentSubmit: function () { self.addCommentTo(t.id); },
+      onCommentPaste: function (e) { self.pasteImageInto(e, t.id); },
       onCommentClose: function () { self.closeCommentComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
@@ -11540,6 +11608,8 @@ class Component extends DCLogic {
         comments: sel.comments.map(function (c, ci) {
           return {
             author: c.author, text: c.text, when: c.when,
+            imgs: self.commentParts(c.text).filter(function (x) { return x.isImg; }),
+            hasImgs: self.commentParts(c.text).some(function (x) { return x.isImg; }),
             textRef: self.syncRef(c.text),
             initials: self.initials(c.author),
             avatarStyle: self.avatar(c.author, 24),
@@ -11607,6 +11677,10 @@ class Component extends DCLogic {
       self.setState({ newSubtask: '' });
     };
     const addComment = function () {
+      if (String(self.state.newComment || '').indexOf(self.PASTE_MARK()) >= 0) {
+        window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด');
+        return;
+      }
       const v = self.state.newComment.trim();
       if (!v || !sel) return;
       self.mark('เพิ่มคอมเมนต์');
@@ -12770,6 +12844,7 @@ class Component extends DCLogic {
       onNewComment: function (e) { self.setState({ newComment: e.target.value }); },
       onSubtaskKey: function (e) { if (e.key === 'Enter') addSub(); },
       onCommentKey: function (e) { if (e.key === 'Enter') addComment(); },
+      onNewCommentPaste: function (e) { self.pasteImageInto(e, sel && sel.id, 'newComment'); },
       onAddSubtask: addSub,
       onAddComment: addComment,
       onAddAttachment: function () { if (sel) self.promptAttachment(sel.id); },
