@@ -38,7 +38,27 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Pawdy')
     .addItem('ดึงคอมเมนต์ลงชีต', 'exportComments')
+    .addSeparator()
+    .addItem('ให้ดึงเองทุกวัน (ตี 2)', 'setupCommentsAuto')
+    .addItem('เลิกดึงเองทุกวัน', 'stopCommentsAuto')
     .addToUi();
+}
+
+
+/* ==================== ให้รีเฟรชเองอัตโนมัติ (ไม่ต้องกดเลย) ==================== */
+
+/* Run ครั้งเดียว -> แท็บ Comments จะอัปเดตเองทุกวันตอนตี 2
+   เลิก: Run stopCommentsAuto */
+function setupCommentsAuto() {
+  stopCommentsAuto();
+  ScriptApp.newTrigger('exportComments').timeBased().atHour(2).everyDays(1).create();
+  msg_('ตั้งให้ดึงคอมเมนต์ลงชีตเองทุกวันตอนตี 2 เรียบร้อย');
+}
+
+function stopCommentsAuto() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'exportComments') ScriptApp.deleteTrigger(t);
+  });
 }
 
 
