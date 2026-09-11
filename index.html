@@ -440,6 +440,9 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
   }
 
   // zip แบบ store (ไม่บีบอัด) — Excel อ่านได้ปกติ
+  var EMU = 9525;          // 1 พิกเซล = 9525 EMU
+  var PAD_EMU = 19050;     // เว้นขอบในเซลล์ 2 พิกเซล
+
   function zip(files) {
     var chunks = [], central = [], offset = 0;
     files.forEach(function (f) {
@@ -482,6 +485,13 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
       '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
       '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
       sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') +
+      '<Default Extension="png" ContentType="image/png"/>' +
+      '<Default Extension="jpeg" ContentType="image/jpeg"/>' +
+      '<Default Extension="gif" ContentType="image/gif"/>' +
+      sheets.map(function (s, i) {
+        return (s.images && s.images.length)
+          ? '<Override PartName="/xl/drawings/drawing' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' : '';
+      }).join('') +
       '</Types>') });
 
     files.push({ name: '_rels/.rels', data: utf8(
@@ -555,14 +565,71 @@ window.__resources = {};  /* template ฝังในไฟล์แล้ว �
           }
           return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
         }).join('');
-        xml.push('<row r="' + r + '">' + cells + '</row>');
+        var ht = (sh.rowHeights || {})[r];
+        xml.push('<row r="' + r + '"' + (ht ? ' ht="' + ht + '" customHeight="1"' : '') + '>' + cells + '</row>');
       });
       xml.push('</sheetData>');
       if (cols.length && (sh.rows || []).length) {
         xml.push('<autoFilter ref="A1:' + colName(cols.length) + (sh.rows.length + 1) + '"/>');
       }
+      /* <drawing> ต้องอยู่ท้ายสุดตาม schema ของ worksheet (หลัง autoFilter) */
+      var imgs = sh.images || [];
+      if (imgs.length) xml.push('<drawing r:id="rIdDraw"/>');
       xml.push('</worksheet>');
-      files.push({ name: 'xl/worksheets/sheet' + (si + 1) + '.xml', data: utf8(xml.join('')) });
+      var wsXml = xml.join('');
+      if (imgs.length) {
+        // worksheet ที่อ้าง r:id ต้องประกาศ namespace r ด้วย
+        wsXml = wsXml.replace('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+          '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">');
+      }
+      files.push({ name: 'xl/worksheets/sheet' + (si + 1) + '.xml', data: utf8(wsXml) });
+
+      if (!imgs.length) return;
+
+      files.push({ name: 'xl/worksheets/_rels/sheet' + (si + 1) + '.xml.rels', data: utf8(
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rIdDraw" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" ' +
+        'Target="../drawings/drawing' + (si + 1) + '.xml"/>' +
+        '</Relationships>') });
+
+      var anchors = [], relItems = [];
+      imgs.forEach(function (im, k) {
+        var rid = 'rIdImg' + (k + 1);
+        var ext = (im.ext || 'png').toLowerCase();
+        var mediaName = 'image_s' + (si + 1) + '_' + (k + 1) + '.' + ext;
+        files.push({ name: 'xl/media/' + mediaName, data: im.data });
+        relItems.push('<Relationship Id="' + rid + '" ' +
+          'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" ' +
+          'Target="../media/' + mediaName + '"/>');
+
+        var cx = Math.round((im.w || 120) * EMU), cy = Math.round((im.h || 90) * EMU);
+        anchors.push(
+          '<xdr:oneCellAnchor>' +
+          '<xdr:from><xdr:col>' + im.col + '</xdr:col><xdr:colOff>' + PAD_EMU + '</xdr:colOff>' +
+          '<xdr:row>' + im.row + '</xdr:row><xdr:rowOff>' + PAD_EMU + '</xdr:rowOff></xdr:from>' +
+          '<xdr:ext cx="' + cx + '" cy="' + cy + '"/>' +
+          '<xdr:pic>' +
+          '<xdr:nvPicPr><xdr:cNvPr id="' + (k + 2) + '" name="Picture ' + (k + 1) + '"' +
+          (im.alt ? ' descr="' + esc(im.alt) + '"' : '') + '/><xdr:cNvPicPr/></xdr:nvPicPr>' +
+          '<xdr:blipFill><a:blip r:embed="' + rid + '"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
+          '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>' +
+          '</xdr:pic><xdr:clientData/></xdr:oneCellAnchor>');
+      });
+
+      files.push({ name: 'xl/drawings/drawing' + (si + 1) + '.xml', data: utf8(
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ' +
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        anchors.join('') + '</xdr:wsDr>') });
+
+      files.push({ name: 'xl/drawings/_rels/drawing' + (si + 1) + '.xml.rels', data: utf8(
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        relItems.join('') + '</Relationships>') });
     });
 
     return zip(files);
@@ -5925,7 +5992,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             <div style="{{ detail.sectionHeadStyle }}">
               <span style="{{ detail.sectionIcon }}">❝</span>
               <span style="{{ detail.sectionTitle }}">Comments and activity</span>
-              <button sc-camel-on-click="{{ detail.onExportComments }}" title="Export คอมเมนต์ของงานนี้เป็นไฟล์ .csv — เปิดใน Google Sheets แล้วรูปขึ้นให้เอง" style="margin-left: auto; border: 1px dashed var(--pw-faint); background: transparent; border-radius: 7px; padding: 4px 10px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">Export comment</button>
+              <button sc-camel-on-click="{{ detail.onExportComments }}" title="Export คอมเมนต์ของงานนี้เป็นไฟล์ .csv — เปิดใน Google Sheets แล้วรูปขึ้นให้เอง" style="margin-left: auto; border: 1px dashed var(--pw-faint); background: transparent; border-radius: 7px; padding: 4px 10px; font-size: 11.5px; color: var(--pw-muted); cursor: pointer; white-space: nowrap;" style-hover="border-color: #4f46e5; color: #4f46e5;">{{ detail.exportLabel }}</button>
             </div>
 
             <div style="display: flex; gap: 6px;">
@@ -7604,14 +7671,31 @@ class Component extends DCLogic {
     return (c && c.when) || '';
   }
 
-  /* แถวข้อมูลคอมเมนต์ — หัวตาราง + หนึ่งแถวต่อหนึ่งคอมเมนต์ */
-  commentRows(taskId) {
+  /* ---- Export คอมเมนต์เป็น .xlsx ที่ "ฝังรูปไว้ในไฟล์" ----
+     ทำไมไม่ใช้สูตร =IMAGE(): Excel บล็อกการโหลดรูปจากเน็ต (#BLOCKED!) และลำดับ
+     พารามิเตอร์ก็คนละแบบกับ Google Sheets ฝังไบต์รูปลงไฟล์เลยจึงเปิดได้ทุกโปรแกรม
+     ทั้ง Excel / Numbers / Google Sheets และไม่ต้องต่อเน็ตตอนเปิด */
+  CM_IMG_BOX() { return { w: 120, h: 90 }; }      // กรอบรูปในเซลล์ (พิกเซล)
+  CM_IMG_MAX() { return 60; }                     // ฝังรูปมากสุดกี่รูป กันไฟล์บวม
+
+  commentData(taskId) {
     const self = this;
-    const rows = [['Task ID', 'List', 'ชื่องาน', 'ผู้เขียน', 'เมื่อ', 'ข้อความ', 'จำนวนรูป', 'รูป', 'ลิงก์รูปทั้งหมด']];
+    const columns = [
+      { label: 'Task ID', width: 11 },
+      { label: 'List', width: 14 },
+      { label: 'ชื่องาน', width: 34 },
+      { label: 'ผู้เขียน', width: 14 },
+      { label: 'เมื่อ', width: 18 },
+      { label: 'ข้อความ', width: 52 },
+      { label: 'จำนวนรูป', width: 9, type: 'number' },
+      { label: 'รูป', width: 18 },
+      { label: 'ลิงก์รูปทั้งหมด', width: 40 }
+    ];
+    const rows = [], firstImg = [];
     (this.state.tasks || []).filter(function (t) { return !taskId || t.id === taskId; }).forEach(function (t) {
       const all = (t.comments || []).slice();
       const custom = t.custom || {};
-      Object.keys(custom).forEach(function (k) {                    // คอมเมนต์ใน custom field แบบ thread
+      Object.keys(custom).forEach(function (k) {                   // คอมเมนต์ใน custom field แบบ thread
         const v = custom[k];
         if (Array.isArray(v)) v.forEach(function (c) { if (c && c.text !== undefined) all.push(c); });
       });
@@ -7621,41 +7705,88 @@ class Component extends DCLogic {
         rows.push([
           t.id, t.list || '', t.name || '', (c && c.author) || '', self.commentWhen(c),
           self.stripImgUrls(text),
-          imgs.length ? String(imgs.length) : '',
-          /* อาร์กิวเมนต์เดียวเท่านั้น — Google Sheets คือ IMAGE(url,โหมด,สูง,กว้าง)
-             แต่ Excel คือ IMAGE(url,ข้อความแทน,ขนาด,สูง,กว้าง) ใส่เกินแล้ว Excel ขึ้น #VALUE! */
-          imgs.length ? '=IMAGE("' + imgs[0] + '")' : '',
+          imgs.length || '',
+          '',                                                      // ช่องรูป ปล่อยว่าง รูปลอยทับอยู่
           imgs.join('\n')
         ]);
+        firstImg.push(imgs[0] || '');
       });
     });
-    return rows;
+    return { columns: columns, rows: rows, firstImg: firstImg };
   }
 
-  /* CSV เพราะเก็บสูตรได้ — เปิดใน Google Sheets แล้ว =IMAGE() กลายเป็นสูตรจริง รูปขึ้นในเซลล์
-     ตัวเขียน .xlsx ของปุ่ม ⤓ รองรับแค่ inlineStr กับตัวเลข เขียนสูตรไม่ได้ */
-  commentsCsv(taskId) {
-    const cell = function (v) { return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"'; };
-    return '\ufeff' + this.commentRows(taskId).map(function (r) {
-      return r.map(cell).join(',');
-    }).join('\r\n');
+  /* ดึงไบต์รูป + ขนาดจริง เพื่อย่อให้พอดีกรอบโดยไม่บิดสัดส่วน
+     รูปไหนโหลดไม่ได้ คืน null แล้วข้ามไป ไฟล์ยังใช้ได้ ลิงก์ยังอยู่ในคอลัมน์สุดท้าย */
+  fetchImageForXlsx(url, rowIndex, colIndex) {
+    const box = this.CM_IMG_BOX();
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (blob) {
+      const bytes = blob.arrayBuffer().then(function (b) { return new Uint8Array(b); });
+      const dims = (window.createImageBitmap
+        ? createImageBitmap(blob).then(function (bm) { return { w: bm.width, h: bm.height }; })
+        : Promise.resolve(null)).catch(function () { return null; });
+      return Promise.all([bytes, dims]).then(function (out) {
+        const data = out[0], d = out[1];
+        let w = box.w, h = box.h;
+        if (d && d.w > 0 && d.h > 0) {
+          const k = Math.min(box.w / d.w, box.h / d.h);
+          w = Math.max(1, Math.round(d.w * k));
+          h = Math.max(1, Math.round(d.h * k));
+        }
+        /* นามสกุลต้องตรงกับ "ไบต์จริง" ไม่ใช่ตามที่ URL อ้าง — ไฟล์ชื่อ .jpg ที่ข้างในเป็น PNG
+           ทำให้ Excel ปฏิเสธรูป เลยเชื่อ MIME ของ blob ก่อน แล้วค่อย fallback ไป URL */
+        let ext = 'png';
+        const mime = String(blob.type || '').toLowerCase();
+        if (mime === 'image/jpeg') ext = 'jpeg';
+        else if (mime === 'image/gif') ext = 'gif';
+        else if (mime === 'image/png') ext = 'png';
+        else {
+          const m = /\.(png|jpe?g|gif)(?:\?|$)/i.exec(url);
+          ext = m ? m[1].toLowerCase().replace('jpg', 'jpeg') : 'png';
+        }
+        return { row: rowIndex, col: colIndex, data: data, ext: ext, w: w, h: h, alt: url };
+      });
+    }).catch(function () { return null; });
   }
 
   exportComments(taskId) {
-    const rows = this.commentRows(taskId);
-    if (rows.length < 2) { window.alert(taskId ? 'งานนี้ยังไม่มีคอมเมนต์' : 'ยังไม่มีคอมเมนต์ให้ export'); return; }
+    if (this.state.cmExporting) return;                             // กันกดซ้ำระหว่างรวมรูป
+    const d = this.commentData(taskId);
+    if (!d.rows.length) { window.alert(taskId ? 'งานนี้ยังไม่มีคอมเมนต์' : 'ยังไม่มีคอมเมนต์ให้ export'); return; }
+    if (!window.PawdyXlsx) { window.alert('ตัวสร้างไฟล์ Excel โหลดไม่สำเร็จ ลอง refresh หน้าเว็บ'); return; }
+
+    const self = this;
+    const IMG_COL = 7;                                              // คอลัมน์ H (นับจาก 0)
+    const cap = this.CM_IMG_MAX();
+    const jobs = [];
+    d.firstImg.forEach(function (u, ri) {
+      if (u && jobs.length < cap) jobs.push({ url: u, row: ri + 1 });  // +1 เพราะแถว 0 คือหัวตาราง
+    });
+    const skipped = d.firstImg.filter(function (u) { return !!u; }).length - jobs.length;
 
     const task = taskId ? (this.state.tasks || []).filter(function (t) { return t.id === taskId; })[0] : null;
     const scope = task ? String(task.name || taskId) : (this.state.list === '__all' ? 'ทุกงาน' : this.state.list);
     const safe = String(scope).replace(/[\\/:*?"<>|]/g, '-').slice(0, 60);
 
-    const blob = new Blob([this.commentsCsv(taskId)], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Pawdy_comments_' + safe + '_' + TODAY + '.csv';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    this.setState({ cmExporting: true });
+    const finish = function (images) {
+      const box = self.CM_IMG_BOX();
+      const rowHeights = {};
+      images.forEach(function (im) { rowHeights[im.row + 1] = Math.round(box.h * 0.75) + 4; });  // px -> pt
+      self.setState({ cmExporting: false });
+      window.PawdyXlsx.download('Pawdy_comments_' + safe + '_' + TODAY + '.xlsx',
+        [{ name: 'Comments', columns: d.columns, rows: d.rows, images: images, rowHeights: rowHeights }]);
+      if (skipped > 0) {
+        window.alert('ฝังรูปให้ ' + images.length + ' รูป (สูงสุด ' + cap + ' รูปต่อไฟล์)\n' +
+                     'อีก ' + skipped + ' รูปไม่ได้ฝัง แต่ลิงก์ยังอยู่ในคอลัมน์ "ลิงก์รูปทั้งหมด"');
+      }
+    };
+
+    Promise.all(jobs.map(function (j) { return self.fetchImageForXlsx(j.url, j.row, IMG_COL); }))
+      .then(function (got) { finish(got.filter(Boolean)); })
+      .catch(function () { finish([]); });
   }
 
   exportXlsx() {
@@ -11504,6 +11635,7 @@ class Component extends DCLogic {
         sectionIcon: SECTION_ICON,
         sectionTitle: SECTION_TITLE,
         onExportComments: function () { self.exportComments(sel && sel.id); },
+        exportLabel: self.state.cmExporting ? 'กำลังรวมรูป…' : 'Export comment',
         miniLabel: MINI_LABEL,
 
         // ---------- ชื่องาน ----------
