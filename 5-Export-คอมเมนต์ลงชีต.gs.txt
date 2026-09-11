@@ -1,0 +1,169 @@
+/* ============================================================
+   Pawdy — Export คอมเมนต์ทั้งหมด (ข้อความ + รูป) ลงแท็บ "Comments"
+
+   วิธีติดตั้ง (ทำครั้งเดียว)
+   1) วางเป็นไฟล์ใหม่ในโปรเจกต์ Apps Script ของชีต (+ → Script → ชื่อ comments-export)
+   2) รีเฟรชหน้าชีต จะมีเมนู "Pawdy" ขึ้นบนแถบเมนู
+   3) เมนู Pawdy → "ดึงคอมเมนต์ลงชีต"  (ครั้งแรกกด Allow)
+
+   ดึงข้อมูลจาก Supabase ตรงๆ ด้วย publishable key ที่ public อยู่แล้วใน index.html
+   ไม่ต้องเอา write SECRET ไปไว้ในเว็บ
+   ============================================================ */
+
+var SB_URL  = 'https://zkdhwgulkwzxajinqsis.supabase.co';
+var SB_KEY  = 'sb_publishable_FOqsERcwCXxA2LdPwVqpiA_0bmQye9r';
+var CM_TAB  = 'Comments';
+var CM_APP  = 'https://pawdycontent.vercel.app';
+
+/* รูปในเซลล์: =IMAGE(url, 4, สูง, กว้าง) */
+var IMG_H = 90, IMG_W = 120;
+
+var CM_HEADERS = [
+  'Task ID',            // A
+  'List',               // B
+  'ชื่องาน',             // C
+  'ผู้เขียน',            // D
+  'เมื่อ',               // E
+  'ข้อความ',             // F
+  'จำนวนรูป',           // G
+  'รูป',                // H  =IMAGE รูปแรก
+  'ลิงก์รูปทั้งหมด',     // I
+  'เปิดการ์ดในเว็บ'      // J
+];
+
+
+/* ==================== เมนูในชีต ==================== */
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Pawdy')
+    .addItem('ดึงคอมเมนต์ลงชีต', 'exportComments')
+    .addToUi();
+}
+
+
+/* ==================== ตัวหลัก ==================== */
+
+function exportComments() {
+  var tasks = fetchTasks_();
+  var rows  = commentRows_(tasks);
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(CM_TAB) || ss.insertSheet(CM_TAB);
+  sh.clear();
+
+  sh.getRange(1, 1, 1, CM_HEADERS.length).setValues([CM_HEADERS])
+    .setFontWeight('bold').setFontSize(10).setBackground('#e8eaed').setFontColor('#3c4043');
+  sh.setFrozenRows(1);
+
+  if (!rows.length) {
+    sh.getRange(2, 1).setValue('ยังไม่มีคอมเมนต์');
+    msg_('ยังไม่มีคอมเมนต์ในระบบ');
+    return;
+  }
+
+  sh.getRange(2, 1, rows.length, CM_HEADERS.length).setValues(rows);
+
+  var w = [92, 110, 240, 110, 150, 420, 70, IMG_W + 16, 260, 110];
+  w.forEach(function (px, i) { sh.setColumnWidth(i + 1, px); });
+  for (var r = 2; r < 2 + rows.length; r++) sh.setRowHeight(r, IMG_H + 8);
+
+  sh.getRange(2, 1, rows.length, CM_HEADERS.length)
+    .setVerticalAlignment('top').setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+  sh.getRange(2, 6, rows.length, 1).setFontSize(10);       // ช่องข้อความ
+
+  msg_('ดึงคอมเมนต์ลงแท็บ "' + CM_TAB + '" แล้ว ' + rows.length + ' รายการ');
+}
+
+
+/* ==================== ดึงข้อมูล ==================== */
+
+function fetchTasks_() {
+  var out = [], from = 0, page = 1000;
+  while (true) {
+    var url = SB_URL + '/rest/v1/tasks?select=id,doc,updated_at&order=updated_at.desc' +
+              '&limit=' + page + '&offset=' + from;
+    var res = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) {
+      throw new Error('ดึงข้อมูลจาก Supabase ไม่สำเร็จ (' + res.getResponseCode() + '): ' +
+                      String(res.getContentText()).slice(0, 300));
+    }
+    var batch = JSON.parse(res.getContentText() || '[]');
+    out = out.concat(batch);
+    if (batch.length < page) break;
+    from += page;
+  }
+  return out;
+}
+
+
+/* ==================== แปลงเป็นแถว (ตรรกะล้วน เทสต์ได้) ==================== */
+
+function commentRows_(tasks) {
+  var rows = [];
+  (tasks || []).forEach(function (rec) {
+    var doc = (rec && rec.doc) || {};
+    var id  = doc.id || (rec && rec.id) || '';
+    var comments = [];
+
+    // คอมเมนต์หลัก + คอมเมนต์ที่อยู่ใน custom field แบบ thread
+    (doc.comments || []).forEach(function (c) { comments.push(c); });
+    var custom = doc.custom || {};
+    Object.keys(custom).forEach(function (k) {
+      var v = custom[k];
+      if (Array.isArray(v)) v.forEach(function (c) { if (c && c.text !== undefined) comments.push(c); });
+    });
+
+    comments.forEach(function (c) {
+      if (!c) return;
+      var text = String(c.text || '');
+      var imgs = imgUrlsIn_(text);
+      rows.push([
+        id,
+        doc.list || '',
+        doc.name || '',
+        c.author || '',
+        cmWhen_(c),
+        stripImgUrls_(text),
+        imgs.length || '',
+        imgs.length ? '=IMAGE("' + imgs[0] + '", 4, ' + IMG_H + ', ' + IMG_W + ')' : '',
+        imgs.join('\n'),
+        id ? (CM_APP + '/#/list/' + encodeURIComponent(doc.list || '') + '/table/task/' + encodeURIComponent(id)) : ''
+      ]);
+    });
+  });
+  return rows;
+}
+
+/* คอมเมนต์เก่าเก็บเวลาเป็นข้อความแช่แข็ง ('just now', '2d ago') ไม่ใช่ timestamp
+   ตัวใหม่มี c.at เป็น epoch ms — ใช้ตัวนั้นก่อนถ้ามี */
+function cmWhen_(c) {
+  if (c && c.at) {
+    var d = new Date(Number(c.at));
+    if (!isNaN(d.getTime())) return Utilities.formatDate(d, 'Asia/Bangkok', 'd/MM/yyyy HH:mm');
+  }
+  return (c && c.when) || '';
+}
+
+var CM_IMG_RE = /https?:\/\/[^\s<>"']+?\.(?:png|jpe?g|gif|webp|avif)(?:\?[^\s<>"']*)?/gi;
+
+function imgUrlsIn_(text) {
+  var out = String(text || '').match(CM_IMG_RE);
+  return out ? out.slice() : [];
+}
+
+function stripImgUrls_(text) {
+  return String(text || '').replace(CM_IMG_RE, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s*\n\s*/g, '\n')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+}
+
+function msg_(m) {
+  try { SpreadsheetApp.getUi().alert(m); } catch (e) { console.log(m); }
+}

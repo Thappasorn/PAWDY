@@ -8158,7 +8158,7 @@ class Component extends DCLogic {
     this.mark('เพิ่มคอมเมนต์');
     const fid = this.state.commentField || null;
     this.patchTask(id, function (t) {
-      const item = { author: this.me().n, text: v, when: 'just now' };
+      const item = { author: this.me().n, text: v, when: 'just now', at: Date.now() };
       if (fid) {
         t.custom = Object.assign({}, t.custom || {});
         t.custom[fid] = (Array.isArray(t.custom[fid]) ? t.custom[fid] : []).concat([item]);
@@ -11757,7 +11757,7 @@ class Component extends DCLogic {
       const v = self.joinTextImgs(self.state.newComment, self.draftImgList('newComment'));
       if (!v || !sel) return;
       self.mark('เพิ่มคอมเมนต์');
-      self.patchTask(sel.id, function (t) { t.comments = t.comments.concat([{ author: self.me().n, text: v, when: 'just now' }]); return t; });
+      self.patchTask(sel.id, function (t) { t.comments = t.comments.concat([{ author: self.me().n, text: v, when: 'just now', at: Date.now() }]); return t; });
 
       const subject = '[' + sel.list + '] ' + sel.name;
       const mine = String(self.me().email || '').toLowerCase();
