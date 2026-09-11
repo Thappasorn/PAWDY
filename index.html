@@ -4760,6 +4760,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" sc-camel-on-paste="{{ row.onCommentPaste }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
                       <sc-if value="{{ row.hasDraftImgs }}" hint-placeholder-val="{{ false }}">
                         <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                          <sc-for list="{{ row.draftBusySlots }}" as="bz" hint-placeholder-count="1">
+                            <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
+                          </sc-for>
                           <sc-for list="{{ row.draftImgs }}" as="di" hint-placeholder-count="1">
                             <span style="position:relative;display:inline-block;line-height:0;">
                               <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
@@ -5930,6 +5933,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
             <sc-if value="{{ hasDraftImgs }}" hint-placeholder-val="{{ false }}">
                         <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                          <sc-for list="{{ draftBusySlots }}" as="bz" hint-placeholder-count="1">
+                            <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
+                          </sc-for>
                           <sc-for list="{{ draftImgs }}" as="di" hint-placeholder-count="1">
                             <span style="position:relative;display:inline-block;line-height:0;">
                               <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
@@ -6583,7 +6589,7 @@ class Component extends DCLogic {
       subComposerText: '',
       subComposerDraft: null,
       commentComposer: null, // taskId ที่เปิดกล่องคอมเมนต์จากคอลัมน์ Comment
-      commentComposerText: '',
+      commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0,
       commentComposerPos: null,
       timelinePicker: null,     // date-range popover ของฟิลด์ Timeline ในตาราง
       multiSelectPicker: null,  // custom dropdown แบบเลือกหลายค่า
@@ -6605,7 +6611,7 @@ class Component extends DCLogic {
       filterOpen: false,
       filters: (ui.filters && typeof ui.filters === 'object') ? ui.filters : { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' },
       newSubtask: '',
-      newComment: ''
+      newComment: '', newCommentImgs: [], newCommentBusy: 0
     };
     this.dragId = null;
   }
@@ -7940,8 +7946,8 @@ class Component extends DCLogic {
   openTask(id) {
     this.setState({
       selected: id, subFocus: null, detailMenu: false, detailFields: true,
-      newComment: '', newSubtask: '',
-      commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null
+      newComment: '', newCommentImgs: [], newCommentBusy: 0, newSubtask: '',
+      commentComposer: null, commentField: null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: null
     });
   }
   // เปิดการ์ดงาน แล้วไฮไลต์ subtask ลำดับ i (ใช้ตอนกด subtask หรือเปิดจากลิงก์)
@@ -7949,8 +7955,8 @@ class Component extends DCLogic {
     this._scrollSub = true;
     this.setState({
       selected: id, subFocus: { id: id, i: i }, detailMenu: false, detailFields: true,
-      newComment: '', newSubtask: '',
-      commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null
+      newComment: '', newCommentImgs: [], newCommentBusy: 0, newSubtask: '',
+      commentComposer: null, commentField: null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: null
     });
   }
   // แนบลิงก์/ไฟล์เข้างาน — ใช้ทั้งปุ่ม + Attach file และปุ่มลัดบนการ์ด
@@ -8023,10 +8029,10 @@ class Component extends DCLogic {
     let top = rect ? rect.bottom + 8 : 72;
     left = Math.max(12, Math.min(left, vw - width - 12));
     if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 8);
-    this.setState({ commentComposer: id, commentField: fid || null, commentComposerText: '', commentComposerPos: { left: left, top: top } });
+    this.setState({ commentComposer: id, commentField: fid || null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: { left: left, top: top } });
   }
   closeCommentComposer() {
-    this.setState({ commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null });
+    this.setState({ commentComposer: null, commentField: null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: null });
   }
   commentParts(text) {
     const value = String(text || '');
@@ -8070,23 +8076,51 @@ class Component extends DCLogic {
      อัปขึ้น Supabase Storage แล้วแปะ URL ต่อท้ายข้อความ — commentParts() วาดเป็น <img> ให้เอง
      เก็บเป็น URL ไม่ใช่ base64 เพราะ task ทั้งก้อนถูกโหลดเข้า state ทุกครั้งที่เปิดเว็บ
      สกรีนช็อต 2 MB ฝังเป็น base64 = +2.7 MB ต่อรูป ทั้งใน Supabase และในเซลล์ชีต Sync */
-  PASTE_MARK() { return '⏳ กำลังอัปโหลดรูป…'; }
+  /* รูปที่แปะไว้เก็บแยกจากข้อความ — ช่องพิมพ์จะไม่มี URL โผล่เลย
+     พอกดส่งค่อยเอามาต่อท้ายข้อความ เก็บใน comment.text เหมือนเดิม
+     ของเดิมจึงใช้ได้ทั้งหมด: sync, ชีต Sync, ค้นหา, undo, อีเมล @mention */
+  IMGKEY(key) { return key === 'newComment' ? 'newCommentImgs' : 'commentComposerImgs'; }
+  BUSYKEY(key) { return key === 'newComment' ? 'newCommentBusy' : 'commentComposerBusy'; }
+  draftImgList(key) { const v = this.state[this.IMGKEY(key)]; return Array.isArray(v) ? v : []; }
+  draftBusy(key) { return Number(this.state[this.BUSYKEY(key)] || 0); }
 
-  /* รูปที่แปะไว้ในช่องพิมพ์แต่ยังไม่ได้กดส่ง — อ่านจากข้อความด้วย commentParts ตัวเดิม
-     ไม่เก็บ state แยก ช่องพิมพ์จึงเป็นแหล่งความจริงเดียว แก้ข้อความแล้วรูปตามทันที */
-  draftImgs(text, key) {
+  /* แยกข้อความล้วนกับลิงก์รูปออกจากกัน — ใช้ commentParts ตัวเดิมเป็นตัวตัดสิน */
+  stripImgUrls(text) {
+    return this.commentParts(text).filter(function (x) { return !x.isImg; })
+      .map(function (x) { return x.text; }).join('')
+      .replace(/[ \t]+$/gm, '').replace(/\n{2,}/g, '\n').trim();
+  }
+  imgUrlsIn(text) {
+    return this.commentParts(text).filter(function (x) { return x.isImg; })
+      .map(function (x) { return x.url; });
+  }
+  joinTextImgs(text, imgs) {
+    const t = String(text || '').trim();
+    const u = (imgs || []).join('\n');
+    return t && u ? (t + '\n' + u) : (t || u);
+  }
+
+  /* รูปตัวอย่างใต้ช่องพิมพ์ + ปุ่มเอาออก */
+  draftImgs(key) {
     const self = this;
-    return this.commentParts(text).filter(function (x) { return x.isImg; }).map(function (x) {
+    const ik = this.IMGKEY(key);
+    return this.draftImgList(key).map(function (url, i) {
       return {
-        url: x.url,
+        url: url,
         onRemove: function () {
-          const cur = String(self.state[key] || '');
-          const o = {};
-          o[key] = cur.replace(x.url, '').replace(/[ \t]+$/gm, '').replace(/\n{2,}/g, '\n').trim();
+          const next = self.draftImgList(key).filter(function (x, j) { return j !== i; });
+          const o = {}; o[ik] = next;
           self.setState(o);
         }
       };
     });
+  }
+
+  /* ช่องกำลังอัปโหลด — แสดงเป็นช่องว่างหมุนๆ เท่าจำนวนรูปที่ค้างอยู่ */
+  draftBusySlots(key) {
+    const out = [];
+    for (let i = 0; i < this.draftBusy(key); i++) out.push({ i: i });
+    return out;
   }
 
   pasteImageInto(e, taskId, key) {
@@ -8098,30 +8132,27 @@ class Component extends DCLogic {
     if (!file) return;                                 // paste ข้อความธรรมดา ปล่อยให้ทำงานตามปกติ
     if (e.preventDefault) e.preventDefault();
 
-    const mark = this.PASTE_MARK();
     const self = this;
     const k = key || 'commentComposerText';
-    const put = function (text) { const o = {}; o[k] = text; self.setState(o); };
-    const base = String(this.state[k] || '');
-    put(base ? base.replace(/\s*$/, '') + '\n' + mark : mark);
+    const ik = this.IMGKEY(k), bk = this.BUSYKEY(k);
+    const bump = function (d) { const o = {}; o[bk] = Math.max(0, self.draftBusy(k) + d); self.setState(o); };
 
+    bump(1);
     window.PawdySync.uploadImage(file, taskId).then(function (url) {
-      const cur = String(self.state[k] || '');
-      put(cur.indexOf(mark) >= 0 ? cur.replace(mark, url) : (cur.replace(/\s*$/, '') + '\n' + url));
+      const o = {};
+      o[ik] = self.draftImgList(k).concat([url]);
+      o[bk] = Math.max(0, self.draftBusy(k) - 1);
+      self.setState(o);
     }).catch(function (err) {
-      const cur = String(self.state[k] || '');
-      put(cur.replace(mark, '').replace(/\n+$/, ''));
+      bump(-1);
       window.alert('อัปรูปไม่สำเร็จ: ' + ((err && err.message) || err) +
                    '\n\nถ้าขึ้นว่าไม่พบ bucket ให้รัน 9-storage-รูปแนบ.sql ใน Supabase ก่อน');
     });
   }
 
   addCommentTo(id) {
-    if (String(this.state.commentComposerText || '').indexOf(this.PASTE_MARK()) >= 0) {
-      window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด');
-      return;
-    }
-    const v = String(this.state.commentComposerText || '').trim();
+    if (this.draftBusy('commentComposerText') > 0) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
+    const v = this.joinTextImgs(this.state.commentComposerText, this.draftImgList('commentComposerText'));
     const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
     if (!v || !task) return;
     this.mark('เพิ่มคอมเมนต์');
@@ -8150,7 +8181,7 @@ class Component extends DCLogic {
     this._focusRowComment = true;
     const pos = this.state.commentComposerPos;
     const nextPos = pos ? Object.assign({}, pos, { top: Math.max(12, Math.min(pos.top, (window.innerHeight || 768) - 298)) }) : pos;
-    this.setState({ commentComposerText: '', commentComposerPos: nextPos });
+    this.setState({ commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: nextPos });
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
@@ -9812,7 +9843,7 @@ class Component extends DCLogic {
       return {
         tasks: [t].concat(s.tasks),
         selected: id, subFocus: null, detailMenu: false, detailFields: true,
-        calAdd: null, calAddText: '', newComment: '', newSubtask: ''
+        calAdd: null, calAddText: '', newComment: '', newCommentImgs: [], newCommentBusy: 0, newSubtask: ''
       };
     }, () => this.persist());
   }
@@ -10577,8 +10608,9 @@ class Component extends DCLogic {
       },
       onCommentSubmit: function () { self.addCommentTo(t.id); },
       onCommentPaste: function (e) { self.pasteImageInto(e, t.id); },
-      draftImgs: self.draftImgs(self.state.commentComposerText, 'commentComposerText'),
-      hasDraftImgs: self.draftImgs(self.state.commentComposerText, 'commentComposerText').length > 0,
+      draftImgs: self.draftImgs('commentComposerText'),
+      hasDraftImgs: self.draftImgList('commentComposerText').length > 0 || self.draftBusy('commentComposerText') > 0,
+      draftBusySlots: self.draftBusySlots('commentComposerText'),
       onCommentClose: function () { self.closeCommentComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
@@ -11647,16 +11679,20 @@ class Component extends DCLogic {
         }),
         comments: sel.comments.map(function (c, ci) {
           return {
-            author: c.author, text: c.text, when: c.when,
+            author: c.author, text: self.stripImgUrls(c.text), when: c.when,
             imgs: self.commentParts(c.text).filter(function (x) { return x.isImg; }),
             hasImgs: self.commentParts(c.text).some(function (x) { return x.isImg; }),
-            textRef: self.syncRef(c.text),
+            textRef: self.syncRef(self.stripImgUrls(c.text)),
             initials: self.initials(c.author),
             avatarStyle: self.avatar(c.author, 24),
             onText: function (e) {
               const v = e.target.value;
               self.patchTask(sel.id, function (t) {
-                t.comments = t.comments.map(function (x, j) { return j === ci ? Object.assign({}, x, { text: v }) : x; });
+                t.comments = t.comments.map(function (x, j) {
+                  if (j !== ci) return x;
+                  // ช่องแก้ข้อความไม่โชว์ URL รูป -> ต้องเอาลิงก์เดิมกลับไปต่อ ไม่งั้นรูปหายตอนแก้ข้อความ
+                  return Object.assign({}, x, { text: self.joinTextImgs(v, self.imgUrlsIn(x.text)) });
+                });
                 return t;
               });
             },
@@ -11717,11 +11753,8 @@ class Component extends DCLogic {
       self.setState({ newSubtask: '' });
     };
     const addComment = function () {
-      if (String(self.state.newComment || '').indexOf(self.PASTE_MARK()) >= 0) {
-        window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด');
-        return;
-      }
-      const v = self.state.newComment.trim();
+      if (self.draftBusy('newComment') > 0) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
+      const v = self.joinTextImgs(self.state.newComment, self.draftImgList('newComment'));
       if (!v || !sel) return;
       self.mark('เพิ่มคอมเมนต์');
       self.patchTask(sel.id, function (t) { t.comments = t.comments.concat([{ author: self.me().n, text: v, when: 'just now' }]); return t; });
@@ -11738,7 +11771,7 @@ class Component extends DCLogic {
         self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', sel.id, 'mention');
       });
 
-      self.setState({ newComment: '' });
+      self.setState({ newComment: '', newCommentImgs: [], newCommentBusy: 0 });
     };
 
     const listMeta = s.spaces.filter(function (sp) { return sp.lists.indexOf(s.list) >= 0; })[0];
@@ -12885,8 +12918,9 @@ class Component extends DCLogic {
       onSubtaskKey: function (e) { if (e.key === 'Enter') addSub(); },
       onCommentKey: function (e) { if (e.key === 'Enter') addComment(); },
       onNewCommentPaste: function (e) { self.pasteImageInto(e, sel && sel.id, 'newComment'); },
-      draftImgs: self.draftImgs(s.newComment, 'newComment'),
-      hasDraftImgs: self.draftImgs(s.newComment, 'newComment').length > 0,
+      draftImgs: self.draftImgs('newComment'),
+      hasDraftImgs: self.draftImgList('newComment').length > 0 || self.draftBusy('newComment') > 0,
+      draftBusySlots: self.draftBusySlots('newComment'),
       onAddSubtask: addSub,
       onAddComment: addComment,
       onAddAttachment: function () { if (sel) self.promptAttachment(sel.id); },
