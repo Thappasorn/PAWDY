@@ -7622,7 +7622,9 @@ class Component extends DCLogic {
           t.id, t.list || '', t.name || '', (c && c.author) || '', self.commentWhen(c),
           self.stripImgUrls(text),
           imgs.length ? String(imgs.length) : '',
-          imgs.length ? '=IMAGE("' + imgs[0] + '", 4, 90, 120)' : '',
+          /* อาร์กิวเมนต์เดียวเท่านั้น — Google Sheets คือ IMAGE(url,โหมด,สูง,กว้าง)
+             แต่ Excel คือ IMAGE(url,ข้อความแทน,ขนาด,สูง,กว้าง) ใส่เกินแล้ว Excel ขึ้น #VALUE! */
+          imgs.length ? '=IMAGE("' + imgs[0] + '")' : '',
           imgs.join('\n')
         ]);
       });
