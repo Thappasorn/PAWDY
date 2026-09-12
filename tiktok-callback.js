@@ -34,13 +34,21 @@ function acceptCallback(params, pending, now) {
   }
   if (params.has('error')) throw new Error('TikTok ไม่ได้อนุญาตการเชื่อมต่อ กรุณาเริ่มใหม่เมื่อต้องการเชื่อมต่อ');
   const keys = ['auth_code', 'code'].filter(key => params.has(key));
-  if (keys.length !== 1 || params.getAll(keys[0]).length !== 1) throw new Error('ไม่ได้รับรหัสอนุญาตที่ถูกต้องจาก TikTok');
+  if (keys.length !== 1 || params.getAll(keys[0]).length !== 1) {
+    throw new Error('ไม่ได้รับรหัสอนุญาตที่ถูกต้องจาก TikTok (พารามิเตอร์ที่ได้รับ: ' + receivedParameterNames_(params) + ')');
+  }
   const code = params.get(keys[0]);
   if (!code || code.length > 4096 || /[\s\x00-\x1f\x7f]/.test(code)) throw new Error('รูปแบบรหัสอนุญาตไม่ถูกต้อง กรุณาเริ่มใหม่');
   return code;
 }
 
-if (typeof module !== 'undefined') module.exports = { authorizationLink, acceptCallback, CALLBACK, MAX_AGE };
+function receivedParameterNames_(params) {
+  const names = [...new Set(Array.from(params.keys()).map(key => String(key)
+    .replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 64)).filter(Boolean))];
+  return names.length ? names.slice(0, 20).join(', ') : 'ไม่มี';
+}
+
+if (typeof module !== 'undefined') module.exports = { authorizationLink, acceptCallback, CALLBACK, MAX_AGE, receivedParameterNames_ };
 
 if (typeof document !== 'undefined') {
   const returned = new URLSearchParams(location.search);
