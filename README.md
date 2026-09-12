@@ -1,5 +1,20 @@
 # Pawdy Workspace — ไฟล์ทั้งหมด
 
+## TikTok connection setup (12 Sep 2026)
+
+Production uses the repository root (Vercel Root Directory is blank), not the archived `web/` copy.
+Register `https://pawdycontent.vercel.app/tiktok-callback.html` as the advertiser and TikTok account holder redirect URL.
+This page handles **one-time administrator authorization only**, not scheduled data collection.
+After TikTok approves the app/scopes, open this page and paste the authorization URL from the TikTok app portal.
+It validates the redirect URL, sets a random state in this tab, checks the returned state/expiry, strips the query,
+and presents the single-use authorization code. The administrator must exchange that code in the private Apps Script project;
+no app secret or access/refresh token belongs in this static site, repository, shared Sheet, or chat.
+The Apps Script token exchange, refresh and TikTok reporting connection are **not configured yet**.
+Do not mark TikTok scheduled updates active until a real authenticated fetch and Sheet write pass.
+The Accounts API access application also requires business verification and a screen recording before app submission.
+
+Check: `node test/tiktok-callback.cjs` (no dependencies).
+
 รวมทุกอย่างของเว็บ Pawdy Workspace · อัปเดต 11 ส.ค. 2026
 
 **เว็บจริง:** https://pawdycontent.vercel.app

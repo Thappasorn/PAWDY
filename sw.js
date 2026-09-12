@@ -9,7 +9,7 @@
    - Supabase / CDN / อะไรที่ไม่ใช่ origin เรา → ไม่ยุ่งเลย ปล่อยผ่าน
    ============================================================ */
 
-const VERSION = 'pawdy-v3';
+const VERSION = 'pawdy-v4';
 const SHELL = [
   './',
   './manifest.webmanifest',
@@ -42,6 +42,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   // ข้ามทุกอย่างที่ไม่ใช่โดเมนเรา — Supabase realtime/REST ห้ามแตะเด็ดขาด
   if (url.origin !== self.location.origin) return;
+  // OAuth responses must never replace the cached Workspace shell.
+  if (url.pathname.startsWith('/tiktok-callback.')) return;
 
   // หน้าเว็บ: เน็ตก่อน แล้วค่อย cache
   if (req.mode === 'navigate') {

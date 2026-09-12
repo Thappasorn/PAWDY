@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>เชื่อมต่อ TikTok · Pawdy</title>
+  <script src="/tiktok-callback.js" defer></script>
+  <style>
+    :root { color-scheme: light; font: 16px/1.65 system-ui,sans-serif; color:#263128; background:#f3f6ef; }
+    * { box-sizing:border-box; } body { margin:0; padding:clamp(20px,7vw,80px) 20px; }
+    main { max-width:640px; margin:auto; background:white; border:1px solid #dce4d4; border-radius:24px; padding:clamp(24px,5vw,48px); }
+    .brand { color:#51782d; font-weight:700; letter-spacing:.12em; font-size:13px; } h1 { font-size:clamp(26px,5vw,34px); line-height:1.35; }
+    p { margin:16px 0; } label { display:block; font-weight:650; margin:24px 0 8px; }
+    input,textarea { width:100%; font:inherit; padding:12px; border:1px solid #85987b; border-radius:10px; }
+    textarea { word-break:break-all; resize:vertical; } button { font:inherit; font-weight:650; padding:12px 18px; border:0; border-radius:10px; background:#365b20; color:white; margin-top:16px; cursor:pointer; }
+    :focus-visible { outline:3px solid #83aa53; outline-offset:3px; } .note { font-size:14px; color:#596651; }
+    #status { padding:16px; background:#eff4e9; border-radius:12px; } [hidden] { display:none !important; }
+  </style>
+</head>
+<body><main>
+  <div class="brand">PAWDY WORKSPACE</div>
+  <h1>เชื่อมต่อ TikTok</h1>
+  <p id="status" role="status" aria-live="polite">หน้านี้เตรียมไว้สำหรับเชื่อมต่อบัญชี ยังไม่ได้เริ่มดึงข้อมูล TikTok</p>
+  <form id="connect">
+    <p>เมื่อแอปและสิทธิ์ได้รับอนุมัติแล้ว ผู้ดูแลสามารถใช้ลิงก์อนุญาตจากหน้าแอป TikTok เพื่อเริ่มเชื่อมต่อได้</p>
+    <label for="authorization-url">ลิงก์อนุญาตจาก TikTok</label>
+    <input id="authorization-url" type="url" required autocomplete="off" spellcheck="false" placeholder="https://…">
+    <button type="submit">เริ่มอนุญาตบน TikTok</button>
+    <p class="note">ใช้บัญชี @pawdyofficial และตรวจสิทธิ์บนหน้า TikTok ก่อนอนุญาต</p>
+  </form>
+  <section id="received" hidden>
+    <p>ขั้นตอนต่อไปคือให้ผู้ดูแลนำรหัสนี้ไปยืนยันใน Apps Script ส่วนตัว เพื่อเปิดการดึงข้อมูลตามเวลา รหัสใช้ได้ครั้งเดียวและมีอายุจำกัด</p>
+    <label for="authorization-code">รหัสสำหรับตั้งค่าการเชื่อมต่อ</label>
+    <textarea id="authorization-code" rows="3" readonly spellcheck="false"></textarea>
+    <button id="copy-code" type="button">คัดลอกรหัส</button>
+    <p class="note">อย่าวางรหัสในชีตที่แชร์หรือช่องแชต หน้านี้ไม่บันทึกรหัสลงฐานข้อมูล และไม่ขอ App Secret หรือ Access Token</p>
+  </section>
+  <noscript>กรุณาเปิด JavaScript เพื่อใช้งานการเชื่อมต่อ</noscript>
+</main></body>
+</html>
