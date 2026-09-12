@@ -8,6 +8,7 @@ const MAX_AGE = 60 * 60 * 1000;
 function authorizationLink(raw, state) {
   const url = new URL(raw);
   const approvedRoutes = [
+    'https://business-api.tiktok.com/portal/auth',
     'https://ads.tiktok.com/marketing_api/auth',
     'https://www.tiktok.com/v2/auth/authorize'
   ];
