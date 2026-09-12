@@ -23,6 +23,12 @@ assert.throws(() => acceptCallback(response, pending, 999));
 assert.throws(() => acceptCallback(new URLSearchParams(response + '&code=ambiguous'), pending, 2000));
 assert.throws(() => acceptCallback(new URLSearchParams(response + '&state=' + state), pending, 2000));
 assert.throws(() => acceptCallback(new URLSearchParams({ state, error: '<script>' }), pending, 2000));
+const malformed = new URLSearchParams({ state, unexpected_key: 'do-not-show-this-value', auth_code: 'first', code: 'second' });
+assert.throws(() => acceptCallback(malformed, pending, 2000), error => {
+  assert.match(error.message, /unexpected_key/);
+  assert.doesNotMatch(error.message, /do-not-show-this-value|first|second/);
+  return true;
+});
 
 // Exercise browser callback: strip URL, consume state, never persist the code, reject replay.
 const source = fs.readFileSync(require.resolve('../tiktok-callback.js'), 'utf8');
