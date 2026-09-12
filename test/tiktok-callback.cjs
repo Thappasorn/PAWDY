@@ -16,17 +16,27 @@ assert.throws(() => authorizationLink(url.href + '&redirect_uri=' + encodeURICom
 assert.throws(() => authorizationLink(url.href + '&client_secret=never-accept', state));
 const response = new URLSearchParams({ state, auth_code: 'sample-one-use-code' });
 assert.equal(acceptCallback(response, pending, 2000), 'sample-one-use-code');
+const portalResponse = new URLSearchParams({ state, auth_code: 'sample-auth-code', code: 'status-code' });
+assert.equal(acceptCallback(portalResponse, pending, 2000), 'sample-auth-code');
 assert.throws(() => acceptCallback(response, null, 2000));
 assert.throws(() => acceptCallback(response, { ...pending, state: 'b'.repeat(64) }, 2000));
 assert.throws(() => acceptCallback(response, pending, 1001 + MAX_AGE));
 assert.throws(() => acceptCallback(response, pending, 999));
-assert.throws(() => acceptCallback(new URLSearchParams(response + '&code=ambiguous'), pending, 2000));
+const duplicateAuth = new URLSearchParams({ state, auth_code: 'first-auth-code', code: 'status-code' });
+duplicateAuth.append('auth_code', 'second-auth-code');
+assert.throws(() => acceptCallback(duplicateAuth, pending, 2000));
+const duplicateCode = new URLSearchParams({ state, code: 'first-code' });
+duplicateCode.append('code', 'second-code');
+assert.throws(() => acceptCallback(duplicateCode, pending, 2000));
+assert.throws(() => acceptCallback(new URLSearchParams({ state, auth_code: '', code: 'fallback-must-not-win' }), pending, 2000));
+assert.throws(() => acceptCallback(new URLSearchParams({ state, auth_code: 'unsafe code', code: 'fallback-must-not-win' }), pending, 2000));
 assert.throws(() => acceptCallback(new URLSearchParams(response + '&state=' + state), pending, 2000));
 assert.throws(() => acceptCallback(new URLSearchParams({ state, error: '<script>' }), pending, 2000));
 const malformed = new URLSearchParams({ state, unexpected_key: 'do-not-show-this-value', auth_code: 'first', code: 'second' });
+malformed.append('auth_code', 'duplicate-auth-code');
 assert.throws(() => acceptCallback(malformed, pending, 2000), error => {
   assert.match(error.message, /unexpected_key/);
-  assert.doesNotMatch(error.message, /do-not-show-this-value|first|second/);
+  assert.doesNotMatch(error.message, /do-not-show-this-value|first|second|duplicate-auth-code/);
   return true;
 });
 

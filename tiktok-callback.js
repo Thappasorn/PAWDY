@@ -33,11 +33,15 @@ function acceptCallback(params, pending, now) {
     throw new Error('ยืนยันที่มาของการเชื่อมต่อไม่ได้ หรือหมดเวลาแล้ว กรุณาเริ่มใหม่จากหน้านี้ในแท็บเดิม');
   }
   if (params.has('error')) throw new Error('TikTok ไม่ได้อนุญาตการเชื่อมต่อ กรุณาเริ่มใหม่เมื่อต้องการเชื่อมต่อ');
-  const keys = ['auth_code', 'code'].filter(key => params.has(key));
-  if (keys.length !== 1 || params.getAll(keys[0]).length !== 1) {
+  const authCodes = params.getAll('auth_code');
+  const codes = params.getAll('code');
+  let key;
+  if (authCodes.length === 1) key = 'auth_code';
+  else if (authCodes.length === 0 && codes.length === 1) key = 'code';
+  else {
     throw new Error('ไม่ได้รับรหัสอนุญาตที่ถูกต้องจาก TikTok (พารามิเตอร์ที่ได้รับ: ' + receivedParameterNames_(params) + ')');
   }
-  const code = params.get(keys[0]);
+  const code = params.get(key);
   if (!code || code.length > 4096 || /[\s\x00-\x1f\x7f]/.test(code)) throw new Error('รูปแบบรหัสอนุญาตไม่ถูกต้อง กรุณาเริ่มใหม่');
   return code;
 }
