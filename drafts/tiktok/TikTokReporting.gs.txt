@@ -1,0 +1,332 @@
+/*
+ * Pawdy — TikTok organic + ads reporting for Google Sheets
+ *
+ * DRAFT ONLY — do not install or run this file.
+ * Generic disabled prototype. No project identifiers are included.
+ *
+ * Secrets belong ONLY in Apps Script Project Settings > Script properties.
+ * Never put a client secret, access token or refresh token in GitHub or a Sheet.
+ */
+
+// Fail closed: this draft has not been integrated with the target application.
+// Remove only after addressing every blocker before production use.
+throw new Error('Unverified TikTok draft: do not install. See TIKTOK-DRAFT.md.');
+
+var TT = {
+  SHEET: 'TikTok Posts',
+  DASHBOARD: 'KPI Dashboard',
+  TZ: 'Asia/Bangkok',
+  // TikTok Login Kit / Display API v2. Used for organic video metrics.
+  ORGANIC_TOKEN_URL: 'https://open.tiktokapis.com/v2/oauth/token/',
+  ORGANIC_VIDEO_URL: 'https://open.tiktokapis.com/v2/video/query/',
+  // TikTok for Business Marketing API. Used for paid metrics.
+  ADS_TOKEN_URL: 'https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
+  ADS_REFRESH_URL: 'https://business-api.tiktok.com/open_api/v1.3/oauth2/refresh_token/',
+  ADS_REPORT_URL: 'https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/'
+};
+
+var TT_COLUMNS = [
+  'วันที่โพสต์', 'Post ID', 'Post Link', 'Preview', 'Caption', 'Views สะสม',
+  'Like', 'Comment', 'แชร์', 'ค่าโฆษณาที่ใช้จริง', 'อัปเดตล่าสุด', 'สถานะข้อมูล',
+  'Paid Impressions', 'Paid Views', 'Video Starts', '2s Views', '6s Views',
+  'Completions', 'Clicks', 'Conversions', 'Revenue (บาท)', 'Like Rate',
+  'Comment Rate', 'Share Rate', 'Engagement Rate', '2s Hold Rate',
+  '6s View Rate', 'Completion Rate', 'Spend (บาท)', 'CPM (บาท)', 'CPV (บาท)',
+  'Cost/6s View (บาท)', 'Cost/Engagement (บาท)', 'CTR', 'ROAS', 'Ads Status'
+];
+
+// If the project already has onOpen(), call createTikTokMenu_() from it.
+// Keeping this separate avoids defining a second onOpen() in an existing project.
+function createTikTokMenu_() {
+  SpreadsheetApp.getUi().createMenu('Pawdy TikTok')
+    .addItem('ทดสอบการเชื่อมต่อ', 'testTikTokConnection')
+    .addItem('อัปเดต TikTok ตอนนี้', 'syncTikTokNow')
+    .addItem('ตั้งอัปเดตวันละ 2 รอบ', 'installTikTokTriggers')
+    .addItem('หยุดอัปเดตอัตโนมัติ', 'removeTikTokTriggers')
+    .addToUi();
+}
+
+/* ---------- Setup ---------- */
+
+function installTikTokTriggers() {
+  removeTikTokTriggers();
+  // Apps Script executes close to, not exactly at, the requested minute.
+  ScriptApp.newTrigger('syncTikTokNow').timeBased().everyDays(1).atHour(8).nearMinute(30).create();
+  ScriptApp.newTrigger('syncTikTokNow').timeBased().everyDays(1).atHour(19).nearMinute(30).create();
+  toast_('ตั้งอัปเดต TikTok ประมาณ 08:30 และ 19:30 เวลาไทยแล้ว');
+}
+
+function removeTikTokTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'syncTikTokNow') ScriptApp.deleteTrigger(trigger);
+  });
+}
+
+/* Run once from the editor after replacing the values. This is a convenience
+ * for setup only; remove the values from the editor history when finished. */
+function setTikTokConfig_() {
+  throw new Error('ตั้งค่าใน Project Settings > Script properties แทน: ดูชื่อ property ใน README');
+}
+
+/* ---------- OAuth ---------- */
+
+// Call after receiving an OAuth code through the Pawdy callback page.
+// The code is single-use. Do not paste it into the Sheet.
+function exchangeTikTokOrganicCode(authorizationCode) {
+  requireText_(authorizationCode, 'authorizationCode');
+  var p = props_();
+  var payload = {
+    client_key: requireProp_('TIKTOK_ORGANIC_CLIENT_KEY'),
+    client_secret: requireProp_('TIKTOK_ORGANIC_CLIENT_SECRET'),
+    code: authorizationCode,
+    grant_type: 'authorization_code',
+    redirect_uri: requireProp_('TIKTOK_ORGANIC_REDIRECT_URI')
+  };
+  var data = formPost_(TT.ORGANIC_TOKEN_URL, payload);
+  saveToken_('TIKTOK_ORGANIC', data);
+  return safeTokenResult_(data);
+}
+
+function refreshTikTokOrganicToken_() {
+  var data = formPost_(TT.ORGANIC_TOKEN_URL, {
+    client_key: requireProp_('TIKTOK_ORGANIC_CLIENT_KEY'),
+    client_secret: requireProp_('TIKTOK_ORGANIC_CLIENT_SECRET'),
+    refresh_token: requireProp_('TIKTOK_ORGANIC_REFRESH_TOKEN'),
+    grant_type: 'refresh_token'
+  });
+  saveToken_('TIKTOK_ORGANIC', data);
+  return data.access_token;
+}
+
+// Marketing API uses a distinct Business API app/approval from organic data.
+function exchangeTikTokAdsCode(authorizationCode) {
+  requireText_(authorizationCode, 'authorizationCode');
+  var data = formPost_(TT.ADS_TOKEN_URL, {
+    app_id: requireProp_('TIKTOK_ADS_APP_ID'),
+    secret: requireProp_('TIKTOK_ADS_APP_SECRET'),
+    auth_code: authorizationCode
+  });
+  saveToken_('TIKTOK_ADS', data);
+  return safeTokenResult_(data);
+}
+
+function refreshTikTokAdsToken_() {
+  var data = formPost_(TT.ADS_REFRESH_URL, {
+    app_id: requireProp_('TIKTOK_ADS_APP_ID'),
+    secret: requireProp_('TIKTOK_ADS_APP_SECRET'),
+    refresh_token: requireProp_('TIKTOK_ADS_REFRESH_TOKEN')
+  });
+  saveToken_('TIKTOK_ADS', data);
+  return data.access_token;
+}
+
+function token_(prefix) {
+  var p = props_();
+  var expires = Number(p.getProperty(prefix + '_TOKEN_EXPIRES_AT') || 0);
+  if (!p.getProperty(prefix + '_ACCESS_TOKEN') || Date.now() > expires - 5 * 60 * 1000) {
+    return prefix === 'TIKTOK_ORGANIC' ? refreshTikTokOrganicToken_() : refreshTikTokAdsToken_();
+  }
+  return p.getProperty(prefix + '_ACCESS_TOKEN');
+}
+
+/* ---------- Main sync ---------- */
+
+function syncTikTokNow() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    var sheet = getTikTokSheet_();
+    var existing = readExisting_(sheet);
+    var result = { organic: 'ไม่ได้ตั้งค่า', ads: 'ไม่ได้ตั้งค่า', errors: [] };
+
+    if (hasProps_(['TIKTOK_ORGANIC_CLIENT_KEY', 'TIKTOK_ORGANIC_CLIENT_SECRET', 'TIKTOK_ORGANIC_REFRESH_TOKEN'])) {
+      try {
+        mergeOrganic_(existing, fetchOrganicVideos_());
+        result.organic = 'API อัปเดตแล้ว';
+      } catch (error) { result.errors.push('Organic: ' + cleanError_(error)); }
+    }
+
+    if (hasProps_(['TIKTOK_ADS_APP_ID', 'TIKTOK_ADS_APP_SECRET', 'TIKTOK_ADS_REFRESH_TOKEN', 'TIKTOK_ADVERTISER_ID'])) {
+      try {
+        mergeAds_(existing, fetchAdsReport_());
+        result.ads = 'API อัปเดตแล้ว';
+      } catch (error) { result.errors.push('Ads: ' + cleanError_(error)); }
+    }
+
+    writeRows_(sheet, existing, result);
+    updateDashboardNote_(result);
+    if (result.errors.length) throw new Error(result.errors.join(' | '));
+    return result;
+  } finally { lock.releaseLock(); }
+}
+
+function testTikTokConnection() {
+  var report = syncTikTokNow();
+  toast_('TikTok: Organic ' + report.organic + ' / Ads ' + report.ads);
+}
+
+/* ---------- TikTok API reads ---------- */
+
+function fetchOrganicVideos_() {
+  var fields = [
+    'id', 'create_time', 'title', 'video_description', 'cover_image_url', 'share_url',
+    'view_count', 'like_count', 'comment_count', 'share_count'
+  ].join(',');
+  var all = [], cursor = 0, more = true;
+  while (more) {
+    var body = { max_count: 20, cursor: cursor };
+    var json = jsonFetch_(TT.ORGANIC_VIDEO_URL + '?fields=' + encodeURIComponent(fields), body, {
+      Authorization: 'Bearer ' + token_('TIKTOK_ORGANIC')
+    });
+    var data = json || {};
+    all = all.concat(data.videos || []);
+    more = Boolean(data.has_more) && all.length < 200;
+    cursor = Number(data.cursor || 0);
+  }
+  return all.map(normalizeOrganic_);
+}
+
+function fetchAdsReport_() {
+  var end = new Date();
+  var start = new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
+  var payload = {
+    advertiser_id: requireProp_('TIKTOK_ADVERTISER_ID'),
+    service_type: 'AUCTION', report_type: 'BASIC', data_level: 'AUCTION_AD',
+    dimensions: JSON.stringify(['ad_id']),
+    metrics: JSON.stringify(['spend', 'impressions', 'clicks', 'video_play_actions', 'video_watched_2s', 'video_watched_6s', 'video_views_p100']),
+    start_date: Utilities.formatDate(start, TT.TZ, 'yyyy-MM-dd'),
+    end_date: Utilities.formatDate(end, TT.TZ, 'yyyy-MM-dd'), page: 1, page_size: 1000
+  };
+  var json = formPost_(TT.ADS_REPORT_URL, payload, { 'Access-Token': token_('TIKTOK_ADS') });
+  var list = (json.list || []);
+  // Ads metrics cannot safely be attributed to an organic post without a video/post ID.
+  // Set a mapping in Script Properties: TIKTOK_AD_TO_POST_JSON = {"ad_id":"post_id"}.
+  var mapping = parseJsonProp_('TIKTOK_AD_TO_POST_JSON', {});
+  return list.map(function (row) { return normalizeAd_(row, mapping); }).filter(function (row) { return row.postId; });
+}
+
+function normalizeOrganic_(video) {
+  return {
+    postId: String(video.id || ''), date: toDate_(video.create_time), link: video.share_url || '',
+    preview: video.cover_image_url || '', caption: video.video_description || video.title || '',
+    views: num_(video.view_count), likes: num_(video.like_count), comments: num_(video.comment_count),
+    shares: num_(video.share_count), updated: new Date(), source: 'TikTok API'
+  };
+}
+
+function normalizeAd_(row, mapping) {
+  var dim = row.dimensions || {}, met = row.metrics || {};
+  var adId = String(dim.ad_id || row.ad_id || '');
+  return {
+    postId: String(mapping[adId] || dim.video_id || row.video_id || ''), adId: adId,
+    impressions: num_(met.impressions), views: num_(met.video_play_actions), starts: num_(met.video_play_actions),
+    views2s: num_(met.video_watched_2s), views6s: num_(met.video_watched_6s),
+    completions: num_(met.video_views_p100), clicks: num_(met.clicks), spend: num_(met.spend)
+  };
+}
+
+/* ---------- Sheet operations ---------- */
+
+function getTikTokSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(TT.SHEET) || ss.insertSheet(TT.SHEET);
+  if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, TT_COLUMNS.length).setValues([TT_COLUMNS]);
+  return sheet;
+}
+
+function readExisting_(sheet) {
+  var values = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, TT_COLUMNS.length).getValues() : [];
+  var byId = {};
+  values.forEach(function (row) { if (row[1]) byId[String(row[1])] = row; });
+  return byId;
+}
+
+function blankRow_() { return TT_COLUMNS.map(function () { return ''; }); }
+
+function mergeOrganic_(rows, videos) {
+  videos.forEach(function (v) {
+    if (!v.postId) return;
+    var row = rows[v.postId] || (rows[v.postId] = blankRow_());
+    row[0] = v.date || row[0]; row[1] = v.postId; row[2] = v.link; row[3] = v.preview;
+    row[4] = v.caption; row[5] = v.views; row[6] = v.likes; row[7] = v.comments; row[8] = v.shares;
+    row[10] = v.updated; row[11] = v.source;
+  });
+}
+
+function mergeAds_(rows, ads) {
+  ads.forEach(function (a) {
+    var row = rows[a.postId] || (rows[a.postId] = blankRow_());
+    row[1] = a.postId; row[9] = a.spend; row[12] = a.impressions; row[13] = a.views;
+    row[14] = a.starts; row[15] = a.views2s; row[16] = a.views6s; row[17] = a.completions;
+    row[18] = a.clicks; row[28] = a.spend; row[35] = 'TikTok Ads API';
+  });
+}
+
+function writeRows_(sheet, byId, result) {
+  var rows = Object.keys(byId).map(function (id) { return calculateRow_(byId[id]); });
+  rows.sort(function (a, b) { return new Date(b[0] || 0) - new Date(a[0] || 0); });
+  if (sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow() - 1, TT_COLUMNS.length).clearContent();
+  if (rows.length) sheet.getRange(2, 1, rows.length, TT_COLUMNS.length).setValues(rows);
+  sheet.getRange(1, 1, 1, TT_COLUMNS.length).setValues([TT_COLUMNS]).setFontWeight('bold');
+  sheet.setFrozenRows(1);
+}
+
+function calculateRow_(r) {
+  var v = num_(r[5]), l = num_(r[6]), c = num_(r[7]), s = num_(r[8]), spend = num_(r[28] || r[9]);
+  var imp = num_(r[12]), pv = num_(r[13]), starts = num_(r[14]), v2 = num_(r[15]), v6 = num_(r[16]), complete = num_(r[17]), clicks = num_(r[18]);
+  r[21] = ratio_(l, v); r[22] = ratio_(c, v); r[23] = ratio_(s, v); r[24] = ratio_(l + c + s, v);
+  r[25] = ratio_(v2, starts); r[26] = ratio_(v6, starts); r[27] = ratio_(complete, starts);
+  r[28] = spend; r[29] = ratio_(spend * 1000, imp); r[30] = ratio_(spend, pv);
+  r[31] = ratio_(spend, v6); r[32] = ratio_(spend, l + c + s); r[33] = ratio_(clicks, imp); r[34] = ratio_(num_(r[20]), spend);
+  return r;
+}
+
+function updateDashboardNote_(result) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TT.DASHBOARD);
+  if (!sheet) return;
+  // A non-sensitive audit trail, independent of any token or API response body.
+  sheet.getRange('A1').setNote('TikTok ล่าสุด: ' + Utilities.formatDate(new Date(), TT.TZ, 'd MMM yyyy HH:mm') +
+    ' | Organic: ' + result.organic + ' | Ads: ' + result.ads + (result.errors.length ? ' | ' + result.errors.join(' | ') : ''));
+}
+
+/* ---------- HTTP, properties and safe helpers ---------- */
+
+function formPost_(url, payload, headers) {
+  var response = UrlFetchApp.fetch(url, { method: 'post', payload: payload, headers: headers || {}, muteHttpExceptions: true });
+  return parseResponse_(response);
+}
+
+function jsonFetch_(url, body, headers) {
+  var response = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(body), headers: headers || {}, muteHttpExceptions: true });
+  return parseResponse_(response);
+}
+
+function parseResponse_(response) {
+  var text = response.getContentText();
+  var json;
+  try { json = JSON.parse(text); } catch (_) { throw new Error('TikTok ส่งข้อมูลที่อ่านไม่ได้ (HTTP ' + response.getResponseCode() + ')'); }
+  var error = json.error || json.code !== undefined && Number(json.code) !== 0 ? (json.message || json.msg || JSON.stringify(json.error || json.code)) : '';
+  if (response.getResponseCode() < 200 || response.getResponseCode() >= 300 || error) throw new Error('TikTok API: ' + String(error).slice(0, 300));
+  return json.data || json;
+}
+
+function saveToken_(prefix, data) {
+  var p = props_(), now = Date.now();
+  if (!data.access_token) throw new Error('TikTok ไม่ส่ง access token กลับมา');
+  p.setProperty(prefix + '_ACCESS_TOKEN', data.access_token);
+  if (data.refresh_token) p.setProperty(prefix + '_REFRESH_TOKEN', data.refresh_token);
+  p.setProperty(prefix + '_TOKEN_EXPIRES_AT', String(now + Number(data.expires_in || 0) * 1000));
+  if (data.refresh_expires_in) p.setProperty(prefix + '_REFRESH_EXPIRES_AT', String(now + Number(data.refresh_expires_in) * 1000));
+}
+
+function safeTokenResult_(data) { return { expires_in: data.expires_in || null, advertiser_ids: data.advertiser_ids || [] }; }
+function props_() { return PropertiesService.getScriptProperties(); }
+function requireProp_(name) { var v = props_().getProperty(name); if (!v) throw new Error('ยังไม่ได้ตั้ง Script Property: ' + name); return v; }
+function hasProps_(names) { return names.every(function (name) { return Boolean(props_().getProperty(name)); }); }
+function parseJsonProp_(name, fallback) { try { return JSON.parse(props_().getProperty(name) || JSON.stringify(fallback)); } catch (_) { throw new Error(name + ' ต้องเป็น JSON ที่ถูกต้อง'); } }
+function requireText_(value, name) { if (!String(value || '').trim()) throw new Error(name + ' ว่างอยู่'); }
+function num_(value) { var n = Number(value); return isFinite(n) ? n : 0; }
+function ratio_(a, b) { return b ? a / b : ''; }
+function toDate_(value) { var n = Number(value); return n ? new Date(n * (n < 1e11 ? 1000 : 1)) : ''; }
+function cleanError_(error) { return String(error && error.message || error).replace(/(?:access|refresh)[_-]?token[^\s]*/ig, '[redacted]').slice(0, 400); }
+function toast_(message) { try { SpreadsheetApp.getActiveSpreadsheet().toast(message, 'Pawdy TikTok'); } catch (_) { console.log(message); } }
