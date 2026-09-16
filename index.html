@@ -4818,7 +4818,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                             <div style="display:flex;align-items:flex-start;gap:8px;">
                               <span style="{{ rcm.avatarStyle }}">{{ rcm.initials }}</span>
                               <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;">
-                                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><b style="color:var(--pw-text2);">{{ rcm.author }}</b><span style="color:var(--pw-muted2);">{{ rcm.when }}</span><button sc-camel-on-click="{{ rcm.onDelete }}" title="ลบ Comment" aria-label="ลบ Comment" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);cursor:pointer;font-size:14px;line-height:1;padding:1px 4px;border-radius:4px;" style-hover="color:#dc2626;background:rgba(220,38,38,.08);">×</button></span>
+                                <span style="display:flex;align-items:center;gap:6px;font-size:10.5px;"><b style="color:var(--pw-text2);">{{ rcm.author }}</b><span title="{{ rcm.whenFull }}" style="color:var(--pw-muted2);">{{ rcm.when }}</span><button sc-camel-on-click="{{ rcm.onDelete }}" title="ลบ Comment" aria-label="ลบ Comment" style="margin-left:auto;border:0;background:transparent;color:var(--pw-faint);cursor:pointer;font-size:14px;line-height:1;padding:1px 4px;border-radius:4px;" style-hover="color:#dc2626;background:rgba(220,38,38,.08);">×</button></span>
                                 <span style="font-size:12px;line-height:1.45;color:var(--pw-text);white-space:pre-wrap;overflow-wrap:anywhere;"><sc-for list="{{ rcm.parts }}" as="rcp"><sc-if value="{{ rcp.isLink }}" hint-placeholder-val="{{ false }}"><a href="{{ rcp.url }}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;">{{ rcp.text }}</a></sc-if><sc-if value="{{ rcp.isText }}" hint-placeholder-val="{{ false }}"><span>{{ rcp.text }}</span></sc-if><sc-if value="{{ rcp.isImg }}" hint-placeholder-val="{{ false }}"><a href="{{ rcp.url }}" target="_blank" rel="noopener noreferrer" title="เปิดรูปขนาดเต็ม" style="display:block;margin:4px 0;"><img src="{{ rcp.url }}" alt="" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--pw-border);display:block;"></a></sc-if></sc-for></span>
                               </span>
                             </div>
@@ -6029,7 +6029,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <div style="display: flex; gap: 9px;">
                   <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>
                   <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
-                    <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
+                    <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span title="{{ cm.whenFull }}" style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
                     <sc-if value="{{ cm.hasImgs }}" hint-placeholder-val="{{ false }}">
                       <sc-for list="{{ cm.imgs }}" as="cmi" hint-placeholder-count="1">
                         <a href="{{ cmi.url }}" target="_blank" rel="noopener noreferrer" title="เปิดรูปขนาดเต็ม" style="display:block;">
@@ -7659,6 +7659,29 @@ class Component extends DCLogic {
   /* ---- ก๊อปคอมเมนต์ทุกงาน ไปวางในชีตเปล่าได้เลย ----
      ใช้ clipboard ไม่ใช่ไฟล์ เพราะ Google Sheets แปลง =IMAGE() ที่วางเข้ามาเป็นสูตรจริง รูปจึงขึ้นในเซลล์
      ส่วน .xlsx ที่ปุ่ม ⤓ สร้าง เขียนสูตรไม่ได้ (ตัวเขียนรองรับแค่ inlineStr กับตัวเลข) */
+  /* เวลาที่โชว์บนคอมเมนต์ — คำนวณจาก c.at ใหม่ทุกครั้งที่ render
+     c.when เป็นข้อความที่แช่แข็งไว้ตอนสร้าง ('just now') ไม่เคยอัปเดต จึงค้างอยู่อย่างนั้นตลอด
+     คอมเมนต์เก่าที่สร้างก่อนมี c.at กู้เวลาจริงไม่ได้ ใช้ค่าเดิมไปก่อน */
+  commentAgo(c) {
+    const at = c && c.at ? Number(c.at) : 0;
+    if (!at || isNaN(at)) return (c && c.when) || '';
+    const mins = Math.floor((Date.now() - at) / 60000);
+    if (mins < 1) return 'เมื่อสักครู่';
+    if (mins < 60) return mins + ' นาทีก่อน';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + ' ชั่วโมงก่อน';
+    const days = Math.floor(hrs / 24);
+    if (days === 1) return 'เมื่อวาน';
+    if (days < 7) return days + ' วันก่อน';
+    return this.commentWhen(c);
+  }
+
+  /* วันเวลาเต็ม สำหรับ tooltip */
+  commentWhenFull(c) {
+    const at = c && c.at ? Number(c.at) : 0;
+    return (at && !isNaN(at)) ? this.commentWhen(c) : '';
+  }
+
   commentWhen(c) {
     if (c && c.at) {
       const d = new Date(Number(c.at));
@@ -10786,7 +10809,7 @@ class Component extends DCLogic {
       commentHasItems: allComments.length > 0,
       commentItems: allComments.slice(-8).map(function (c, visibleIndex) {
         const text = c.text || '';
-        return { author: c.author || 'Unknown', text: text, parts: self.commentParts(text), when: c.when || '', initials: self.initials(c.author || 'Unknown'), avatarStyle: self.avatar(c.author || 'Unknown', 24),
+        return { author: c.author || 'Unknown', text: text, parts: self.commentParts(text), when: self.commentAgo(c), whenFull: self.commentWhenFull(c), initials: self.initials(c.author || 'Unknown'), avatarStyle: self.avatar(c.author || 'Unknown', 24),
           onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.deleteInlineComment(t.id, commentStartIndex + visibleIndex, openField); } };
       }),
       commentComposerWrapStyle: (function () {
@@ -11883,7 +11906,7 @@ class Component extends DCLogic {
         }),
         comments: sel.comments.map(function (c, ci) {
           return {
-            author: c.author, text: self.stripImgUrls(c.text), when: c.when,
+            author: c.author, text: self.stripImgUrls(c.text), when: self.commentAgo(c), whenFull: self.commentWhenFull(c),
             imgs: self.commentParts(c.text).filter(function (x) { return x.isImg; }),
             hasImgs: self.commentParts(c.text).some(function (x) { return x.isImg; }),
             textRef: self.syncRef(self.stripImgUrls(c.text)),
