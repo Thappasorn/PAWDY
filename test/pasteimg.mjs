@@ -136,6 +136,25 @@ const guard = await p.evaluate(async ()=>{
 if (guard.n !== 0) fail('ส่งออกไปทั้งที่รูปยังไม่เสร็จ');
 if (!guard.alerted.includes('ยังอัปโหลดไม่เสร็จ')) fail('ไม่เตือน', guard.alerted);
 
-console.log('คอมเมนต์: contenteditable · รูปในช่อง · ส่ง/แก้/ลบ/วาง ครบ');
+// ---- I) ไฟล์ที่อัปต้องเป็นไบต์เดิมจากคลิปบอร์ด ไม่ถูกบีบ/แปลงระหว่างทาง
+const raw = await p.evaluate(async (sel)=>{
+  const bytes = new Uint8Array([137,80,78,71,13,10,26,10,1,2,3,4,5,6,7,8]);
+  let got=null;
+  window.PawdySync.uploadImage=(f)=>{ got=f; return Promise.resolve('https://zk.supabase.co/storage/v1/object/public/task-images/T1/x.png'); };
+  const el=document.querySelector(sel);
+  el.focus();
+  const dt=new DataTransfer();
+  dt.items.add(new File([bytes],'shot.png',{type:'image/png'}));
+  el.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
+  await new Promise(r=>setTimeout(r,500));
+  if (!got) return { miss:true };
+  const buf = new Uint8Array(await got.arrayBuffer());
+  return { type: got.type, size: got.size, same: buf.length===bytes.length && buf.every((v,i)=>v===bytes[i]) };
+}, CARD);
+if (raw.miss) fail('ไม่ได้ส่งไฟล์ไปอัป');
+if (raw.type !== 'image/png') fail('ชนิดไฟล์เพี้ยน', raw.type);
+if (!raw.same) fail('ไบต์ไม่ตรงกับคลิปบอร์ด — มีการบีบ/แปลงระหว่างทาง', raw);
+
+console.log('คอมเมนต์: contenteditable · รูปในช่อง · ส่ง/แก้/ลบ/วาง ครบ · อัปไบต์ตรงต้นฉบับ');
 console.log(errs.join('\n')||'no errors');
 await b.close();
