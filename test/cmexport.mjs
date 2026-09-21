@@ -42,7 +42,7 @@ const [r0, r1, r2, r3] = rows;
 assert.deepStrictEqual(r0.slice(0, 7), ['T1', 'Official', 'งานหนึ่ง', 'Korn', M.cmWhen_({at:Date.UTC(2026,8,11)}), 'ปกใหม่', 1]);
 assert.ok(r0[7].startsWith('=IMAGE("' + PNG + '", 4, '), 'ต้องเป็นสูตร IMAGE: ' + r0[7]);
 assert.strictEqual(r0[8], PNG);
-assert.ok(r0[9].includes('/task/T1'), 'ลิงก์เปิดการ์ด: ' + r0[9]);
+assert.ok(r0[9].endsWith('/#/t/T1'), 'ลิงก์เปิดการ์ดต้องเป็นแบบสั้น: ' + r0[9]);
 
 assert.strictEqual(r1[6], 2, 'นับรูปได้ 2');
 assert.strictEqual(r1[8], PNG + '\n' + JPG, 'ลิงก์ทั้งหมดต้องอยู่ครบ');

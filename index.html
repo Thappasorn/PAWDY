@@ -7247,6 +7247,17 @@ class Component extends DCLogic {
       patch.list = dec(parts[1] || '');
       patch.customView = null;
       i = 2;
+    } else if (head === 't' && parts[1]) {
+      /* ลิงก์สั้น #/t/<id> — ไม่ต้องมีชื่อ list ในลิงก์ (ชื่อไทยถูก encode แล้วยาวมาก)
+         list ของงานเติมให้ทีหลังตอนข้อมูลมาถึง ดู _routeTaskOnly */
+      patch.selected = dec(parts[1]);
+      patch.subFocus = null;
+      if (parts[2] === 'sub' && parts[3]) {
+        const sn = parseInt(parts[3], 10);
+        if (sn > 0) patch.subFocus = { id: patch.selected, i: sn - 1 };
+      }
+      this._routeTaskOnly = true;
+      return patch;
     } else {
       return null;
     }
@@ -7294,14 +7305,15 @@ class Component extends DCLogic {
   }
 
   // ลิงก์เต็มของงาน (ไว้ copy ไปแชร์)
+  /* ลิงก์สั้นของงาน — เดิมพ่วงชื่อ list มาด้วย ชื่อไทยถูก percent-encode แล้วยาวเป็นสามเท่า
+     รหัสงานระบุงานได้อยู่แล้ว จึงไม่ต้องมีชื่อ list ในลิงก์ */
   taskLink(id, subIndex) {
     const base = location.origin + location.pathname + location.search;
-    const st = Object.assign({}, this.state, {
-      selected: id || this.state.selected,
-      subFocus: (typeof subIndex === 'number' && subIndex >= 0)
-        ? { id: id || this.state.selected, i: subIndex } : null
-    });
-    return base + this.buildRoute(st);
+    const tid = id || this.state.selected;
+    if (!tid) return base + this.buildRoute(this.state);
+    let out = base + '#/t/' + encodeURIComponent(tid);
+    if (typeof subIndex === 'number' && subIndex >= 0) out += '/sub/' + (subIndex + 1);
+    return out;
   }
 
   // ลิงก์ของหน้าที่เปิดอยู่ (ไม่รวมการ์ด)
@@ -7394,9 +7406,12 @@ class Component extends DCLogic {
       // มาจากลิงก์ที่แชร์: งานเพิ่งโหลดเสร็จ ถ้ามันอยู่ใน Archive/ถังขยะ ต้องสลับหน้าให้ ไม่งั้นเปิดไม่เจอ
       if (self._routeTask) {
         const rt = incoming.filter(function (t) { return t.id === self._routeTask; })[0];
+        const only = self._routeTaskOnly;
         self._routeTask = null;
+        self._routeTaskOnly = false;
         if (rt) {
-          const want = rt.deleted ? '__trash' : (rt.archived ? '__archive' : null);
+          let want = rt.deleted ? '__trash' : (rt.archived ? '__archive' : null);
+          if (!want && only && rt.list) want = rt.list;     // ลิงก์สั้นไม่มี list มาด้วย เติมให้จากตัวงาน
           if (want && self.state.list !== want) self.setState({ list: want });
         }
       }

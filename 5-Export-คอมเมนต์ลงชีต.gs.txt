@@ -152,7 +152,7 @@ function commentRows_(tasks) {
         imgs.length || '',
         imgs.length ? '=IMAGE("' + imgs[0] + '", 4, ' + IMG_H + ', ' + IMG_W + ')' : '',
         imgs.join('\n'),
-        id ? (CM_APP + '/#/list/' + encodeURIComponent(doc.list || '') + '/table/task/' + encodeURIComponent(id)) : ''
+        id ? (CM_APP + '/#/t/' + encodeURIComponent(id)) : ''   // ลิงก์สั้น ไม่ต้องพ่วงชื่อ list
       ]);
     });
   });
