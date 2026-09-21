@@ -5123,6 +5123,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <sc-for list="{{ col.tasks }}" as="card" hint-placeholder-count="3">
                   <div class="pw-spot pw-in" data-card data-land="{{ card.land }}" data-pulse="{{ card.pulse }}" draggable="true" sc-camel-on-context-menu="{{ card.onContext }}" sc-camel-on-drag-start="{{ card.onDragStart }}" sc-camel-on-drag-over="{{ card.onDragOverCard }}" sc-camel-on-drop="{{ card.onDropCard }}" sc-camel-on-click="{{ card.onOpen }}" style="background: var(--pw-surface); border: 1px solid var(--pw-border); border-radius: 8px; padding: 10px 11px; cursor: grab; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);" style-hover="border-color: var(--pw-accent-soft2); box-shadow: 0 3px 10px rgba(16, 24, 40, 0.08);">
+                    <sc-if value="{{ card.hasCover }}" hint-placeholder-val="{{ false }}">
+                      <img src="{{ card.coverUrl }}" alt="" style="width:100%;max-height:118px;object-fit:cover;border-radius:6px;display:block;">
+                    </sc-if>
                     <div style="display: flex; align-items: flex-start; gap: 7px;">
                       <span style="{{ card.priorityDot }}"></span>
                       <span style="font-size: 12.5px; font-weight: 500; line-height: 1.35;">{{ card.name }}</span>
@@ -5146,7 +5149,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               </div>
               <sc-if value="{{ col.composerOpen }}" hint-placeholder-val="{{ false }}">
                 <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
-                  <textarea ref="{{ col.composerRef }}" data-sync="{{ col.composerText }}" value="{{ col.composerText }}" sc-camel-on-change="{{ col.onComposerText }}" sc-camel-on-key-down="{{ col.onComposerKey }}" rows="2" placeholder="พิมพ์ชื่องาน แล้วกด Enter…" style="border: 1px solid var(--pw-border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; resize: none; outline: 0; background: var(--pw-surface); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
+                  <textarea ref="{{ col.composerRef }}" data-sync="{{ col.composerText }}" value="{{ col.composerText }}" sc-camel-on-change="{{ col.onComposerText }}" sc-camel-on-key-down="{{ col.onComposerKey }}" sc-camel-on-paste="{{ col.onComposerPaste }}" rows="2" placeholder="พิมพ์ชื่องาน แล้วกด Enter…" style="border: 1px solid var(--pw-border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; resize: none; outline: 0; background: var(--pw-surface); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
+                  <sc-if value="{{ col.hasDraftImgs }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                      <sc-for list="{{ col.draftBusySlots }}" as="bz" hint-placeholder-count="1">
+                        <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
+                      </sc-for>
+                      <sc-for list="{{ col.draftImgs }}" as="di" hint-placeholder-count="1">
+                        <span style="position:relative;display:inline-block;line-height:0;">
+                          <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
+                          <button sc-camel-on-click="{{ di.onRemove }}" type="button" title="เอารูปนี้ออก" aria-label="เอารูปนี้ออก" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:#dc2626;color:#fff;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;">×</button>
+                        </span>
+                      </sc-for>
+                    </div>
+                  </sc-if>
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <button sc-camel-on-click="{{ col.onComposerAdd }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">Add card</button>
                     <button sc-camel-on-click="{{ col.onComposerClose }}" style="background: transparent; border: 0; color: var(--pw-muted); font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px;" style-hover="color: var(--pw-text);">×</button>
@@ -6645,7 +6661,7 @@ class Component extends DCLogic {
       monthOffset: 0,
       sync: 'saved',
       composerCol: null,
-      composerText: '',
+      composerText: '', composerImgs: [], composerBusy: 0,
       rowComposer: null,
       rowComposerText: '',
       flash: null,
@@ -7476,15 +7492,17 @@ class Component extends DCLogic {
   // ---- Trello-style board behaviours ----
   openComposer(status) {
     this._focusComposer = true;
-    this.setState({ composerCol: status, composerText: '' });
+    this.setState({ composerCol: status, composerText: '', composerImgs: [], composerBusy: 0 });
   }
 
   closeComposer() {
-    this.setState({ composerCol: null, composerText: '' });
+    this.setState({ composerCol: null, composerText: '', composerImgs: [], composerBusy: 0 });
   }
 
   addFromComposer(status) {
-    const name = (this.state.composerText || '').trim();
+    if (this.draftBusy('composerText') > 0) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
+    const imgs = this.draftImgList('composerText');
+    const name = (this.state.composerText || '').trim() || (imgs.length ? 'รูปใหม่' : '');
     if (!name) { this.closeComposer(); return; }
     let list = this.state.list;
     const scope = this.scopeLists();
@@ -7500,10 +7518,16 @@ class Component extends DCLogic {
       id: 'T' + Math.floor(Math.random() * 90000 + 10000),
       list: list, name: name, status: status, assignee: 'Unassigned',
       start: TODAY, due: d(7), priority: 'Normal', tags: [], channel: '—', platform: '—',
-      cost: 0, qty: 1, pos: maxPos + 1000, subtasks: [], comments: [], attachments: [], desc: ''
+      cost: 0, qty: 1, pos: maxPos + 1000, subtasks: [], comments: [],
+      /* รูปที่แปะไว้กลายเป็นหน้าปก + เก็บเป็นไฟล์แนบด้วย จะได้เปิดดู/ลบได้จากในการ์ด */
+      attachments: imgs.map(function (u) { return { name: 'รูปที่แปะ', url: u, display: 'Preview', at: Date.now() }; }),
+      cover: imgs[0] || '',
+      desc: ''
     };
     this._focusComposer = true;
-    this.setState(function (s) { return { tasks: [t].concat(s.tasks), composerText: '' }; }, () => this.persist());
+    this.setState(function (s) {
+      return { tasks: [t].concat(s.tasks), composerText: '', composerImgs: [], composerBusy: 0 };
+    }, () => this.persist());
   }
 
   moveCard(dragId, targetId, status) {
@@ -7662,6 +7686,19 @@ class Component extends DCLogic {
   /* เวลาที่โชว์บนคอมเมนต์ — คำนวณจาก c.at ใหม่ทุกครั้งที่ render
      c.when เป็นข้อความที่แช่แข็งไว้ตอนสร้าง ('just now') ไม่เคยอัปเดต จึงค้างอยู่อย่างนั้นตลอด
      คอมเมนต์เก่าที่สร้างก่อนมี c.at กู้เวลาจริงไม่ได้ ใช้ค่าเดิมไปก่อน */
+  /* หน้าปกการ์ด — ตั้งเองที่ t.cover, '__none' คือสั่งไม่เอา ไม่งั้นใช้ไฟล์แนบรูปแรก
+     กติกาเดียวกับที่การ์ดรายละเอียดใช้อยู่ แต่บอร์ดไม่เคยเอามาแสดง */
+  taskCover(t) {
+    if (!t || t.cover === '__none') return '';
+    if (t.cover) return t.cover;
+    const atts = t.attachments || [];
+    for (let i = 0; i < atts.length; i++) {
+      const u = atts[i].url || (/^https?:\/\//i.test(atts[i].name || '') ? atts[i].name : '');
+      if (u && this.imgUrlsIn(u).length) return u;
+    }
+    return '';
+  }
+
   commentAgo(c) {
     const at = c && c.at ? Number(c.at) : 0;
     if (!at || isNaN(at)) return (c && c.when) || '';
@@ -8304,8 +8341,12 @@ class Component extends DCLogic {
   /* รูปที่แปะไว้เก็บแยกจากข้อความ — ช่องพิมพ์จะไม่มี URL โผล่เลย
      พอกดส่งค่อยเอามาต่อท้ายข้อความ เก็บใน comment.text เหมือนเดิม
      ของเดิมจึงใช้ได้ทั้งหมด: sync, ชีต Sync, ค้นหา, undo, อีเมล @mention */
-  IMGKEY(key) { return key === 'newComment' ? 'newCommentImgs' : 'commentComposerImgs'; }
-  BUSYKEY(key) { return key === 'newComment' ? 'newCommentBusy' : 'commentComposerBusy'; }
+  IMGKEY(key) {
+    return { newComment: 'newCommentImgs', composerText: 'composerImgs' }[key] || 'commentComposerImgs';
+  }
+  BUSYKEY(key) {
+    return { newComment: 'newCommentBusy', composerText: 'composerBusy' }[key] || 'commentComposerBusy';
+  }
   draftImgList(key) { const v = this.state[this.IMGKEY(key)]; return Array.isArray(v) ? v : []; }
   draftBusy(key) { return Number(this.state[this.BUSYKEY(key)] || 0); }
 
@@ -10679,7 +10720,9 @@ class Component extends DCLogic {
     const openField = (this.state.commentComposer === t.id) ? (this.state.commentField || null) : null;
     const allComments = this.commentsOf(t, openField);
     const commentStartIndex = Math.max(0, allComments.length - 8);
+    const cover = this.taskCover(t);
     return {
+      coverUrl: cover, hasCover: !!cover,
       id: t.id, name: t.name, status: t.status, assignee: t.assignee, start: t.start, due: t.due,
       pos: t.pos || 0,
       priority: t.priority, channel: t.channel, platform: t.platform,
@@ -11332,6 +11375,10 @@ class Component extends DCLogic {
           if (e.key === 'Escape') self.closeComposer();
         },
         onComposerAdd: function () { self.addFromComposer(st.k); },
+        onComposerPaste: function (e) { self.pasteImageInto(e, 'new', 'composerText'); },
+        draftImgs: self.draftImgs('composerText'),
+        hasDraftImgs: self.draftImgList('composerText').length > 0 || self.draftBusy('composerText') > 0,
+        draftBusySlots: self.draftBusySlots('composerText'),
         onComposerClose: function () { self.closeComposer(); },
         onDragOver: function (e) { e.preventDefault(); },
         onDrop: function (e) {
