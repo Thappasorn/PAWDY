@@ -6693,7 +6693,9 @@ class Component extends DCLogic {
       list: ui.list || 'Q3 Campaigns',
       sortMode: ui.sortMode || '',   // '' = เรียงเอง (ลากสลับ) · new/old = ตามเวลาที่เพิ่ม · due/dueFar = ตามวันครบกำหนด
       sortOpen: false,
-      open: { Marketing: true, Product: true, Operations: true },
+      /* ว่าง = เปิดหมด — ไม่มีคีย์แปลว่ายังไม่เคยกดปิด (ดู sp.open ด้านล่าง)
+         เปิดเว็บใหม่ทุกครั้งจะกางลิสต์ของทุก space ให้เสมอ */
+      open: {},
       query: '',
       selected: null,
       subFocus: null,        // { id, i } — subtask ที่ลิงก์ชี้มา ให้ไฮไลต์ในการ์ด
@@ -11291,8 +11293,8 @@ class Component extends DCLogic {
       const spActive = s.list === '__space:' + sp.name;
       return {
         name: sp.name,
-        open: !!s.open[sp.name],
-        caret: s.open[sp.name] ? '▾' : '▸',
+        open: s.open[sp.name] !== false,
+        caret: s.open[sp.name] !== false ? '▾' : '▸',
         count: s.tasks.filter(function (t) { return !t.deleted && !t.archived && sp.lists.indexOf(t.list) >= 0; }).length,
         rowStyle: 'display:flex;align-items:center;gap:6px;width:100%;padding:6px 8px;border-radius:6px;font-size:12.5px;font-weight:' + (spActive ? '600' : '500') + ';background:' + (spActive ? '#2a2e3b' : 'transparent') + ';color:' + (spActive ? '#fff' : 'var(--pw-border)') + ';',
         dotStyle: 'width:9px;height:9px;border-radius:3px;flex:0 0 9px;background:' + sp.color + ';',
@@ -11306,7 +11308,7 @@ class Component extends DCLogic {
         onToggle: function () {
           self.setState(function (st) {
             const o = Object.assign({}, st.open);
-            o[sp.name] = !o[sp.name];
+            o[sp.name] = o[sp.name] === false;     // ไม่มีคีย์ = เปิดอยู่ -> กดแล้วต้องปิด
             return { open: o };
           });
         },
