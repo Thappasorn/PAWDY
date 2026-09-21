@@ -4816,7 +4816,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                       </div>
                     </sc-if>
                     <sc-if value="{{ cell.isTimelinePicker }}" hint-placeholder-val="{{ false }}">
-                      <button sc-camel-on-click="{{ cell.onOpen }}" title="เลือกช่วงวัน" aria-label="เลือกช่วงวัน Timeline" style="{{ cell.style }}">{{ cell.rangeLabel }}</button>
+                      <button sc-camel-on-click="{{ cell.onOpen }}" title="{{ cell.pickTitle }}" aria-label="{{ cell.pickTitle }}" style="{{ cell.style }}">{{ cell.rangeLabel }}</button>
                     </sc-if>
                     <sc-if value="{{ cell.isActivity }}" hint-placeholder-val="{{ false }}">
                       <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; color: var(--pw-muted2); font-size: 11px; font-family: 'IBM Plex Mono', monospace;">
@@ -5855,7 +5855,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <div style="display: flex; flex-direction: column; gap: 6px;">
                 <span style="{{ detail.miniLabel }}">Due date</span>
                 <div style="display: flex; align-items: center; gap: 7px;">
-                  <input ref="{{ detail.dueRef }}" data-sync="{{ detail.due }}" type="date" value="{{ detail.due }}" sc-camel-on-click="{{ detail.onDatePick }}" sc-camel-on-change="{{ detail.onDue }}" style="{{ detail.dueInputStyle }}">
+                  <button sc-camel-on-click="{{ detail.onDueOpen }}" title="เลือกวันครบกำหนด" aria-label="เลือกวันครบกำหนด" style="{{ detail.dueInputStyle }}">{{ detail.dueLabel }}</button>
                   <sc-if value="{{ detail.overdue }}" hint-placeholder-val="{{ false }}">
                     <span style="{{ detail.overdueChip }}">Overdue</span>
                   </sc-if>
@@ -6399,10 +6399,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   <sc-if value="{{ timelinePicker.open }}" hint-placeholder-val="{{ false }}">
     <div sc-camel-on-click="{{ timelinePicker.onClose }}" style="position:fixed;inset:0;z-index:84;background:transparent;"></div>
     <div data-timeline-picker data-panel style="{{ timelinePicker.style }}">
-      <div style="display:grid;grid-template-columns:1fr 18px 1fr auto;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--pw-line);">
+      <div style="{{ timelinePicker.headStyle }}">
         <button sc-camel-on-click="{{ timelinePicker.onFocusFrom }}" style="{{ timelinePicker.fromStyle }}"><span style="color:#4f46e5;">▣</span>{{ timelinePicker.fromLabel }}</button>
-        <span style="color:var(--pw-muted2);text-align:center;">→</span>
-        <button sc-camel-on-click="{{ timelinePicker.onFocusTo }}" style="{{ timelinePicker.toStyle }}"><span style="color:#4f46e5;">▣</span>{{ timelinePicker.toLabel }}</button>
+        <sc-if value="{{ timelinePicker.isRangeMode }}" hint-placeholder-val="{{ true }}">
+          <span style="color:var(--pw-muted2);text-align:center;">→</span>
+        </sc-if>
+        <sc-if value="{{ timelinePicker.isRangeMode }}" hint-placeholder-val="{{ true }}">
+          <button sc-camel-on-click="{{ timelinePicker.onFocusTo }}" style="{{ timelinePicker.toStyle }}"><span style="color:#4f46e5;">▣</span>{{ timelinePicker.toLabel }}</button>
+        </sc-if>
         <button sc-camel-on-click="{{ timelinePicker.onClose }}" title="ปิด" style="width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--pw-muted2);font-size:16px;cursor:pointer;">×</button>
       </div>
       <div style="display:grid;grid-template-columns:minmax(118px,150px) minmax(176px,1fr);min-height:286px;">
@@ -6426,7 +6430,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
               <button sc-camel-on-click="{{ tday.onPick }}" title="{{ tday.title }}" style="{{ tday.style }}">{{ tday.num }}</button>
             </sc-for>
           </div>
-          <span style="font-size:10px;color:var(--pw-muted2);padding-top:2px;">เลือกวันเริ่ม แล้วเลือกวันสิ้นสุด · ตัวเลือกลัดด้านซ้ายเลือกได้ในคลิกเดียว</span>
+          <span style="font-size:10px;color:var(--pw-muted2);padding-top:2px;">{{ timelinePicker.hint }}</span>
         </div>
       </div>
     </div>
@@ -9182,7 +9186,7 @@ class Component extends DCLogic {
       return t;
     });
   }
-  openTimelinePicker(e, taskId, fieldId, range) {
+  openTimelinePicker(e, taskId, fieldId, range, mode) {
     const target = e && e.currentTarget;
     const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     const vw = Math.max(320, window.innerWidth || 1024);
@@ -9198,8 +9202,14 @@ class Component extends DCLogic {
     const base = from || to || TODAY;
     this.setState({ timelinePicker: {
       taskId: taskId, fieldId: fieldId, from: from, to: to, focus: 'from',
+      mode: mode || 'range',
       month: base.slice(0, 7) + '-01', left: left, top: top
     }});
+  }
+
+  /* Due date ใช้ปฏิทินตัวเดียวกับ Timeline แต่เลือกวันเดียว */
+  openDuePicker(e, taskId, due) {
+    this.openTimelinePicker(e, taskId, null, { from: due || '', to: '' }, 'single');
   }
   closeTimelinePicker() { this.setState({ timelinePicker: null }); }
   focusTimelinePart(part) {
@@ -9220,6 +9230,7 @@ class Component extends DCLogic {
   pickTimelineDay(iso) {
     const p = this.state.timelinePicker;
     if (!p) return;
+    if (p.mode === 'single') { this.patch(p.taskId, 'due', iso); this.closeTimelinePicker(); return; }
     if (p.focus === 'from' || !p.from) {
       const to = p.to && p.to >= iso ? p.to : '';
       this.setState({ timelinePicker: Object.assign({}, p, { from: iso, to: to, focus: 'to' }) });
@@ -9255,6 +9266,13 @@ class Component extends DCLogic {
     }
     if (kind === '2weeks') to = add(now, 14);
     if (kind === '4weeks') to = add(now, 28);
+    if (p.mode === 'single') {
+      /* วันเดียว: "อีก N สัปดาห์" เอาวันปลาย ที่เหลือเอาวันต้นของช่วง */
+      const one = (kind === '2weeks' || kind === '4weeks') ? to : from;
+      this.patch(p.taskId, 'due', isoOf(one));
+      this.closeTimelinePicker();
+      return;
+    }
     this.setTl(p.taskId, p.fieldId, { from: isoOf(from), to: isoOf(to) });
     this.closeTimelinePicker();
   }
@@ -11113,11 +11131,12 @@ class Component extends DCLogic {
               btnStyle: sel + 'display:flex;align-items:center;gap:6px;background:transparent;border:0;padding:0;text-align:left;' };
           },
           due: function () {
-            return { key: 'due', isInput: true, inputType: 'date', value: t.due, valueRef: self.syncRef(t.due),
-              onChange: function (e) { self.patch(t.id, 'due', e.target.value); },
-              onPick: function (e) { self.openPicker(e); },
-              placeholder: '',
-              style: 'background:transparent;border:0;outline:0;font-size:11.5px;font-family:\'IBM Plex Mono\',monospace;color:' + dm2.color + ';width:100%;min-width:0;cursor:pointer;' + (dm2.overdue ? 'font-weight:600;' : '') };
+            return { key: 'due', isTimelinePicker: true, pickTitle: 'เลือกวันครบกำหนด',
+              rangeLabel: t.due ? self.shortDate(t.due) : '— เลือกวัน',
+              onOpen: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.openDuePicker(e, t.id, t.due); },
+              style: 'width:100%;height:26px;display:flex;align-items:center;gap:6px;border:1px solid transparent;border-radius:7px;' +
+                'background:transparent;padding:0 7px;font-size:11.5px;font-family:\'IBM Plex Mono\',monospace;cursor:pointer;' +
+                'color:' + dm2.color + ';' + (t.due ? '' : 'opacity:.55;') };
           },
           priority: function () {
             return { key: 'priority', isSelect: true, options: O.priority, value: t.priority,
@@ -11200,7 +11219,7 @@ class Component extends DCLogic {
           if (f.type === 'timeline') {
             const r = self.tlRange(t, f.id);
             return {
-              key: k, isTimelinePicker: true,
+              key: k, isTimelinePicker: true, pickTitle: 'เลือกช่วงวัน Timeline',
               rangeLabel: r.from ? ('▣ ' + self.shortDate(r.from) + ' → ' + (r.to ? self.shortDate(r.to) : 'เลือกวันสิ้นสุด')) : '▣ เลือกช่วงวัน',
               onOpen: function (e) {
                 if (e && e.stopPropagation) e.stopPropagation();
@@ -11948,6 +11967,8 @@ class Component extends DCLogic {
         priorityRef: this.syncRef(sel.priority),
         startRef: this.syncRef(sel.start),
         dueRef: this.syncRef(sel.due),
+        dueLabel: sel.due ? this.shortDate(sel.due) : '— เลือกวัน',
+        onDueOpen: function (e) { self.openDuePicker(e, sel.id, sel.due); },
         costRef: this.syncRef(sel.cost),
         qtyRef: this.syncRef(sel.qty),
         tagRef: this.syncRef((sel.tags || []).join(', ')),
@@ -12440,11 +12461,16 @@ class Component extends DCLogic {
           const inRange = !!(p.from && p.to && iso > p.from && iso < p.to);
           const today = iso === TODAY;
           const other = d2.getMonth() !== month;
-          let bg = inRange ? 'var(--pw-accent-soft)' : 'transparent';
+          const single = p.mode === 'single';
+          let bg = (!single && inRange) ? 'var(--pw-accent-soft)' : 'transparent';
           let color = other ? 'var(--pw-faint)' : 'var(--pw-text2)';
           let border = today ? '#4f46e5' : 'transparent';
-          if (isFrom) { bg = '#ef4444'; color = '#fff'; border = '#ef4444'; }
-          if (isTo) { bg = '#2563eb'; color = '#fff'; border = '#2563eb'; }
+          if (single) {
+            if (isFrom) { bg = '#4f46e5'; color = '#fff'; border = '#4f46e5'; }
+          } else {
+            if (isFrom) { bg = '#ef4444'; color = '#fff'; border = '#ef4444'; }
+            if (isTo) { bg = '#2563eb'; color = '#fff'; border = '#2563eb'; }
+          }
           days.push({
             num: d2.getDate(), title: iso,
             style: 'height:29px;border:1px solid ' + border + ';border-radius:50%;background:' + bg + ';color:' + color +
@@ -12464,7 +12490,14 @@ class Component extends DCLogic {
           open: true,
           style: 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(520px,calc(100vw - 24px));' +
             'background:var(--pw-surface);border:1px solid var(--pw-border);border-radius:12px;box-shadow:0 22px 54px rgba(8,10,14,.38);z-index:85;overflow:hidden;',
-          fromLabel: p.from ? self.shortDate(p.from) : 'วันเริ่ม',
+          isRangeMode: p.mode !== 'single',
+          isSingleMode: p.mode === 'single',
+          headStyle: 'display:grid;grid-template-columns:' + (p.mode === 'single' ? '1fr auto' : '1fr 18px 1fr auto') +
+            ';align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--pw-line);',
+          hint: p.mode === 'single'
+            ? 'คลิกวันในปฏิทิน หรือใช้ตัวเลือกลัดด้านซ้าย'
+            : 'เลือกวันเริ่ม แล้วเลือกวันสิ้นสุด · ตัวเลือกลัดด้านซ้ายเลือกได้ในคลิกเดียว',
+          fromLabel: p.from ? self.shortDate(p.from) : (p.mode === 'single' ? 'เลือกวันครบกำหนด' : 'วันเริ่ม'),
           toLabel: p.to ? self.shortDate(p.to) : 'วันสิ้นสุด',
           fromStyle: fieldBase + (p.focus === 'from' ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:8px;background:var(--pw-surface2);color:var(--pw-text2);font-size:11.5px;padding:0 10px;cursor:pointer;overflow:hidden;white-space:nowrap;',
           toStyle: fieldBase + (p.focus === 'to' ? '#4f46e5' : 'var(--pw-border)') + ';border-radius:8px;background:var(--pw-surface2);color:var(--pw-text2);font-size:11.5px;padding:0 10px;cursor:pointer;overflow:hidden;white-space:nowrap;',
