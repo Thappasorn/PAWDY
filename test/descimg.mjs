@@ -1,4 +1,4 @@
-// ช่อง Description: paste รูปได้ URL ไม่โชว์ในช่อง รูปขึ้นข้างล่าง
+// Description เป็นช่องแก้ไขที่มีรูปปนกับข้อความจริงๆ (contenteditable)
 import pw from 'playwright';
 const { chromium } = pw;
 const b = await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
@@ -26,82 +26,97 @@ await p.evaluate(({drive})=>{
     id:'T1', name:'งานทดสอบ desc', list:'Official', status:'Backlog', assignee:'Janji', assignees:['Janji'],
     due:'2026-09-25', start:'2026-09-20', tags:[], channel:'—', platform:'—', priority:'Normal',
     subtasks:[], comments:[], attachments:[], qty:1, cost:0, custom:{}, pos:1000,
-    desc: drive + '\n\nตัวอย่าง'
+    desc: drive + '\nตัวอย่าง'
   }]});
 }, {drive:DRIVE});
-await p.waitForTimeout(1200);
+await p.waitForTimeout(1300);
 
-const descBox = () => p.evaluate(()=>{
-  const ta=[...document.querySelectorAll('textarea')].find(t=>(t.placeholder||'').indexOf('รายละเอียดงาน')===0);
-  return ta ? ta.value : null;
+const box = () => p.evaluate(()=>{
+  const el=document.querySelector('[data-descedit]');
+  return el ? { text: el.innerText, imgs: [...el.querySelectorAll('img')].map(i=>i.getAttribute('data-img')) } : null;
 });
-const descImgs = () => p.evaluate(()=>[...document.querySelectorAll('img')]
-  .filter(i=>(i.src||'').includes('task-images') && i.style.maxHeight==='200px').map(i=>i.src));
+const desc = () => p.evaluate(()=>window.__app.state.tasks[0].desc);
 
-// ---- A) ลิงก์ที่ไม่ใช่รูป (Google Drive) ต้องอยู่ในช่องเหมือนเดิม ไม่ถูกตัด
-let box = await descBox();
-if (box === null) fail('ไม่เจอช่อง Description');
-if (!box.includes('drive.google.com')) fail('ลิงก์ Drive หายจากช่อง', box);
-if (!box.includes('ตัวอย่าง')) fail('ข้อความหาย', box);
+// ---- A) ช่องต้องเป็น contenteditable และลิงก์ปกติยังเป็นข้อความ
+const isCE = await p.evaluate(()=>{
+  const el=document.querySelector('[data-descedit]');
+  return !!el && el.getAttribute('contenteditable')==='true' && !document.querySelector('textarea[placeholder^="รายละเอียดงาน"]');
+});
+if (!isCE) fail('ยังไม่ได้เปลี่ยนเป็น contenteditable');
+let v = await box();
+if (!v.text.includes('drive.google.com')) fail('ลิงก์ Drive หาย', v.text);
+if (!v.text.includes('ตัวอย่าง')) fail('ข้อความหาย', v.text);
+if (v.imgs.length) fail('ไม่ควรมีรูป', v.imgs);
 
-// ---- B) paste รูป -> URL ไม่เข้าช่อง แต่รูปขึ้นข้างล่าง
+// ---- B) paste รูป -> <img> โผล่ "ในช่อง" และ URL ไม่เป็นตัวหนังสือ
 const pasted = await p.evaluate(async (u)=>{
   let resolve; const gate=new Promise(r=>{resolve=r;});
   window.PawdySync.uploadImage=()=>gate;
-  const ta=[...document.querySelectorAll('textarea')].find(t=>(t.placeholder||'').indexOf('รายละเอียดงาน')===0);
+  const el=document.querySelector('[data-descedit]');
+  el.focus();
   const dt=new DataTransfer();
   dt.items.add(new File([new Uint8Array([137,80,78,71])],'s.png',{type:'image/png'}));
-  ta.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
+  el.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
   await new Promise(r=>setTimeout(r,300));
   const busy=[...document.querySelectorAll('span')].some(e=>e.innerText==='กำลังอัปโหลด…');
   resolve(u);
-  await new Promise(r=>setTimeout(r,500));
-  return { busy, desc: window.__app.state.tasks[0].desc };
+  await new Promise(r=>setTimeout(r,700));
+  return busy;
 }, PNG);
-if (!pasted.busy) fail('ไม่เห็นช่องกำลังอัปโหลด');
-if (!pasted.desc.includes(PNG)) fail('URL ไม่ได้เข้า desc', pasted.desc);
+if (!pasted) fail('ไม่เห็นตัวบอกกำลังอัปโหลด');
 
-box = await descBox();
-if (box.includes(PNG)) fail('URL รูปโผล่ในช่องพิมพ์', box);
-if (!box.includes('drive.google.com')) fail('ลิงก์ Drive หายไปหลัง paste', box);
-let shown = await descImgs();
-if (shown.length !== 1) fail('รูปไม่ขึ้นใต้ช่อง', shown);
+v = await box();
+if (v.imgs.length !== 1 || v.imgs[0] !== PNG) fail('รูปไม่ได้อยู่ในช่อง', v);
+if (v.text.includes(PNG)) fail('URL รูปโผล่เป็นตัวหนังสือในช่อง', v.text);
+if (!v.text.includes('drive.google.com')) fail('ลิงก์ Drive หายหลัง paste', v.text);
+if (!(await desc()).includes(PNG)) fail('desc ไม่ได้เก็บ URL', await desc());
 
-// ---- C) แก้ข้อความแล้วรูปต้องไม่หาย
-const edited = await p.evaluate(async ()=>{
-  const ta=[...document.querySelectorAll('textarea')].find(t=>(t.placeholder||'').indexOf('รายละเอียดงาน')===0);
-  const setv=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;
-  setv.call(ta,'บรีฟใหม่');
-  ta.dispatchEvent(new Event('input',{bubbles:true}));
-  ta.dispatchEvent(new Event('change',{bubbles:true}));
-  await new Promise(r=>setTimeout(r,500));
-  return window.__app.state.tasks[0].desc;
+// ---- C) พิมพ์ต่อแล้วรูปต้องไม่หาย
+const typed = await p.evaluate(async ()=>{
+  const el=document.querySelector('[data-descedit]');
+  el.focus();
+  const r=document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  document.execCommand('insertText', false, 'บรีฟเพิ่ม');
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  await new Promise(r2=>setTimeout(r2,500));
+  return { desc: window.__app.state.tasks[0].desc,
+           imgs: [...el.querySelectorAll('img')].length };
 });
-if (!edited.includes('บรีฟใหม่')) fail('แก้ข้อความไม่ติด', edited);
-if (!edited.includes(PNG)) fail('แก้ข้อความแล้วรูปหาย', edited);
-shown = await descImgs();
-if (shown.length !== 1) fail('รูปหายจากหน้าจอหลังแก้ข้อความ', shown);
+if (!typed.desc.includes('บรีฟเพิ่ม')) fail('พิมพ์ไม่ติด', typed.desc);
+if (!typed.desc.includes(PNG)) fail('พิมพ์แล้วรูปหายจาก desc', typed.desc);
+if (typed.imgs !== 1) fail('รูปหายจากช่องหลังพิมพ์', typed);
 
-// ---- D) กด × เอารูปออก ข้อความต้องอยู่
+// ---- D) ลบรูปในช่อง (เลือกแล้วลบ) -> desc ต้องไม่มี URL แล้ว
 const removed = await p.evaluate(async ()=>{
-  document.querySelector('button[aria-label="เอารูปนี้ออก"]').click();
+  const el=document.querySelector('[data-descedit]');
+  el.querySelector('img').remove();
+  el.dispatchEvent(new Event('input',{bubbles:true}));
   await new Promise(r=>setTimeout(r,500));
-  return window.__app.state.tasks[0].desc;
+  return { desc: window.__app.state.tasks[0].desc, imgs: el.querySelectorAll('img').length };
 });
-if (removed.includes('task-images')) fail('ลบรูปแล้ว URL ยังอยู่', removed);
-if (!removed.includes('บรีฟใหม่')) fail('ลบรูปแล้วข้อความหาย', removed);
-if ((await descImgs()).length !== 0) fail('รูปยังค้างบนหน้าจอ');
+if (removed.imgs !== 0) fail('รูปยังอยู่');
+if (removed.desc.includes('task-images')) fail('ลบรูปแล้ว URL ยังค้างใน desc', removed.desc);
+if (!removed.desc.includes('บรีฟเพิ่ม')) fail('ลบรูปแล้วข้อความหาย', removed.desc);
 
-// ---- E) paste ข้อความธรรมดาต้องไม่ถูกขัด
-const plain = await p.evaluate(()=>{
-  const ta=[...document.querySelectorAll('textarea')].find(t=>(t.placeholder||'').indexOf('รายละเอียดงาน')===0);
-  const dt=new DataTransfer(); dt.setData('text/plain','abc');
+// ---- E) วางข้อความธรรมดาต้องได้ข้อความล้วน ไม่ลาก markup เข้ามา
+const plain = await p.evaluate(async ()=>{
+  const el=document.querySelector('[data-descedit]');
+  el.focus();
+  const r=document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  const dt=new DataTransfer();
+  dt.setData('text/plain','ข้อความวาง');
+  dt.setData('text/html','<b style="color:red">ข้อความวาง</b>');
   const ev=new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true});
-  ta.dispatchEvent(ev);
-  return ev.defaultPrevented;
+  el.dispatchEvent(ev);
+  await new Promise(r2=>setTimeout(r2,400));
+  return { prevented: ev.defaultPrevented, html: el.innerHTML, desc: window.__app.state.tasks[0].desc };
 });
-if (plain) fail('paste ข้อความถูกขัด');
+if (!plain.prevented) fail('ไม่ได้ดักวางข้อความ');
+if (/<b[ >]|color:red/i.test(plain.html)) fail('markup หลุดเข้ามาในช่อง', plain.html);   // ระวัง <br> ไม่ใช่ <b>
+if (!plain.desc.includes('ข้อความวาง')) fail('ข้อความที่วางไม่เข้า desc', plain.desc);
 
-console.log('desc: ลิงก์ปกติอยู่ครบ · รูปแยกออกมา · แก้ข้อความรูปไม่หาย');
+console.log('desc: contenteditable · รูปอยู่ในช่อง · พิมพ์/ลบ/วาง ครบ');
 console.log(errs.join('\n')||'no errors');
 await b.close();

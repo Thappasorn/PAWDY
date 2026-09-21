@@ -3763,6 +3763,23 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
   }
 
+  /* Description = กล่องเดียวที่มีทั้งช่องพิมพ์และรูป
+     textarea แสดงรูปในตัวเองไม่ได้ เลยย้ายขอบไปไว้ที่กล่องนอก แล้วให้ textarea ใส */
+  [data-descbox] {
+    border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface2);
+    overflow: hidden; transition: border-color .16s ease, background .16s ease;
+  }
+  [data-descbox]:focus-within { border-color: #4f46e5; background: var(--pw-surface); }
+  [data-descedit] {
+    min-height: 150px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65;
+    color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    outline: 0; overflow-y: auto; max-height: 460px; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  [data-descedit]:empty::before { content: attr(data-ph); color: var(--pw-muted2); }
+  [data-descedit] img { cursor: default; }
+  /* คลิกรูปแล้วเห็นว่าเลือกอยู่ กด Delete ลบได้เลย */
+  [data-descedit] img::selection { background: rgba(79,70,229,.3); }
+
   [data-card] {
     transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, border-color .16s ease;
   }
@@ -5919,22 +5936,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 <span style="{{ detail.sectionIcon }}">▤</span>
                 <span style="{{ detail.sectionTitle }}">Description</span>
               </div>
-              <textarea ref="{{ detail.descRef }}" data-sync="{{ detail.desc }}" value="{{ detail.desc }}" sc-camel-on-change="{{ detail.onDesc }}" sc-camel-on-paste="{{ detail.onDescPaste }}" rows="8" placeholder="รายละเอียดงาน · บรีฟ · ลิงก์อ้างอิง" style="min-height: 150px; border: 1px solid var(--pw-border); border-radius: 9px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65; resize: vertical; outline: 0; background: var(--pw-surface2); color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;" style-focus="border-color: #4f46e5; background: var(--pw-surface);"></textarea>
-              <sc-if value="{{ detail.hasDescImgs }}" hint-placeholder-val="{{ false }}">
-                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-                  <sc-for list="{{ detail.descBusySlots }}" as="bz" hint-placeholder-count="1">
-                    <span style="width:120px;height:90px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:11px;">กำลังอัปโหลด…</span>
-                  </sc-for>
-                  <sc-for list="{{ detail.descImgs }}" as="di" hint-placeholder-count="1">
-                    <span style="position:relative;display:inline-block;line-height:0;">
-                      <a href="{{ di.url }}" target="_blank" rel="noopener noreferrer" title="เปิดรูปขนาดเต็ม">
-                        <img src="{{ di.url }}" alt="" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--pw-border);display:block;">
-                      </a>
-                      <button sc-camel-on-click="{{ di.onRemove }}" type="button" title="เอารูปนี้ออก" aria-label="เอารูปนี้ออก" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:#dc2626;color:#fff;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;">×</button>
-                    </span>
-                  </sc-for>
-                </div>
-              </sc-if>
+              <div data-descbox>
+                <div data-descedit contenteditable="true" role="textbox" aria-multiline="true"
+                     aria-label="รายละเอียดงาน" data-ph="รายละเอียดงาน · บรีฟ · ลิงก์อ้างอิง · วางรูปได้เลย"
+                     ref="{{ detail.descRef }}"
+                     sc-camel-on-input="{{ detail.onDesc }}"
+                     sc-camel-on-paste="{{ detail.onDescPaste }}"></div>
+                <sc-if value="{{ detail.hasDescBusy }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 10px;">
+                    <sc-for list="{{ detail.descBusySlots }}" as="bz" hint-placeholder-count="1">
+                      <span style="width:120px;height:90px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:11px;">กำลังอัปโหลด…</span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
             </div>
 
             <!-- ───── Checklist (subtask) ───── -->
@@ -8406,13 +8421,103 @@ class Component extends DCLogic {
 
   /* Description เป็นช่องแก้ข้อความของงานโดยตรง ไม่มีขั้นตอน "กดส่ง"
      รูปที่อัปเสร็จจึงต่อเข้า t.desc เลย แล้วช่องพิมพ์จะซ่อน URL ให้เอง */
+  /* ---- Description เป็นช่องแก้ไขแบบมีรูปปนกับข้อความ (contenteditable) ----
+     <textarea> แสดงรูปในตัวเองไม่ได้เลย จึงต้องใช้ contenteditable
+     ข้อมูลที่เก็บยังเป็น "ข้อความล้วน + URL รูป" เหมือนเดิมทุกอย่าง — sync/ชีต/ค้นหา/undo ไม่ต้องแก้
+     แปลงไปกลับด้วย descHtml() / descFromHtml() เท่านั้น */
+  escHtml_(t) {
+    return String(t == null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  descHtml(desc) {
+    const self = this;
+    let out = '';
+    this.commentParts(desc).forEach(function (p) {
+      if (p.isImg) {
+        const u = self.escHtml_(p.url);
+        out += '<img src="' + u + '" data-img="' + u + '" alt="" contenteditable="false" ' +
+               'style="max-width:100%;max-height:230px;border-radius:8px;display:block;margin:7px 0;">';
+      } else {
+        out += self.escHtml_(p.text).replace(/\n/g, '<br>');
+      }
+    });
+    return out;
+  }
+
+  /* อ่านกลับเป็นข้อความล้วน โดยรูปกลายเป็น URL บรรทัดของตัวเอง */
+  descFromHtml(el) {
+    let out = '';
+    const nl = function () { if (out && !/\n$/.test(out)) out += '\n'; };
+    const walk = function (node) {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const n = node.childNodes[i];
+        if (n.nodeType === 3) { out += n.nodeValue; continue; }
+        if (n.nodeName === 'BR') { out += '\n'; continue; }
+        if (n.nodeName === 'IMG') {
+          nl();
+          out += (n.getAttribute('data-img') || n.getAttribute('src') || '') + '\n';
+          continue;
+        }
+        const block = /^(DIV|P|LI|TR)$/.test(n.nodeName);
+        if (block) nl();
+        walk(n);
+        if (block) nl();
+      }
+    };
+    walk(el);
+    return out.replace(/ /g, ' ').replace(/\n{3,}/g, '\n\n').replace(/[ \t]+$/gm, '').replace(/\s+$/, '');
+  }
+
+  /* เขียน innerHTML ใหม่เฉพาะตอนจำเป็น ไม่งั้นเคอร์เซอร์กระโดดทุกครั้งที่พิมพ์ */
+  descBoxRef(taskId, desc) {
+    const self = this;
+    return function (el) {
+      if (!el) return;
+      const want = String(desc || '');
+      const forced = self._descForce === taskId;
+      if (!forced && el.getAttribute('data-val') === want) return;
+      if (!forced && document.activeElement === el) { el.setAttribute('data-val', want); return; }
+      el.innerHTML = self.descHtml(want);
+      el.setAttribute('data-val', want);
+      if (forced) {
+        self._descForce = null;
+        try {
+          el.focus();
+          const r = document.createRange();
+          r.selectNodeContents(el); r.collapse(false);
+          const sel2 = window.getSelection();
+          sel2.removeAllRanges(); sel2.addRange(r);
+        } catch (e) {}
+      }
+    };
+  }
+
+  onDescInput(e, taskId) {
+    const el = e.target || e.currentTarget;
+    const text = this.descFromHtml(el);
+    el.setAttribute('data-val', text);        // กันไม่ให้ ref เขียนทับตอนเรากำลังพิมพ์
+    this.patch(taskId, 'desc', text);
+  }
+
   pasteImageIntoDesc(e, taskId) {
     const items = (e && e.clipboardData && e.clipboardData.items) || [];
     let file = null;
     for (let i = 0; i < items.length; i++) {
       if (String(items[i].type || '').indexOf('image/') === 0) { file = items[i].getAsFile(); break; }
     }
-    if (!file) return;
+    if (!file) {
+      /* วางข้อความในช่องแบบ contenteditable ต้องบังคับเป็นข้อความล้วน
+         ไม่งั้นก๊อปจากเว็บ/Word จะลาก markup เข้ามาทั้งก้อน */
+      const txt = e.clipboardData && e.clipboardData.getData ? e.clipboardData.getData('text/plain') : '';
+      if (txt) {
+        if (e.preventDefault) e.preventDefault();
+        try { document.execCommand('insertText', false, txt); } catch (err) {}
+        const el = e.target || e.currentTarget;
+        if (el && el.getAttribute) this.patch(taskId, 'desc', this.descFromHtml(el));
+      }
+      return;
+    }
     if (e.preventDefault) e.preventDefault();
 
     const self = this;
@@ -8423,6 +8528,7 @@ class Component extends DCLogic {
     window.PawdySync.uploadImage(file, taskId).then(function (url) {
       bump(-1);
       self.mark('แปะรูปในรายละเอียด');
+      self._descForce = taskId;                 // บังคับให้ช่องวาดใหม่ แม้กำลังโฟกัสอยู่
       self.patchTask(taskId, function (t) {
         return Object.assign({}, t, { desc: self.joinTextImgs(t.desc, [url]) });
       });
@@ -11839,23 +11945,10 @@ class Component extends DCLogic {
         costRef: this.syncRef(sel.cost),
         qtyRef: this.syncRef(sel.qty),
         tagRef: this.syncRef((sel.tags || []).join(', ')),
-        descRef: this.syncRef(this.stripImgUrls(sel.desc)),
-        desc: this.stripImgUrls(sel.desc),
-        descImgs: this.imgUrlsIn(sel.desc).map(function (u) {
-          return {
-            url: u,
-            onRemove: function () {
-              self.patchTask(sel.id, function (t) {
-                return Object.assign({}, t, {
-                  desc: self.joinTextImgs(self.stripImgUrls(t.desc),
-                    self.imgUrlsIn(t.desc).filter(function (x) { return x !== u; }))
-                });
-              });
-            }
-          };
-        }),
-        hasDescImgs: this.imgUrlsIn(sel.desc).length > 0 || (Number(s.descBusy) || 0) > 0,
+        descRef: this.descBoxRef(sel.id, sel.desc),
+        descEmpty: !String(sel.desc || '').trim(),
         descBusySlots: this.descBusySlots(),
+        hasDescBusy: (Number(s.descBusy) || 0) > 0,
         customFields: (s.fields || []).map(function (f) {
           const val = (sel.custom && sel.custom[f.id] !== undefined && sel.custom[f.id] !== null) ? sel.custom[f.id] : '';
           const r = self.tlRange(sel, f.id);
@@ -12077,12 +12170,7 @@ class Component extends DCLogic {
         onPlatformOpen: function (e) { self.openMultiSelect(e, sel.id, '__platform', self.multiValues(sel.platform), null, 'platform'); },
         onCost: function (e) { self.patch(sel.id, 'cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
         onQty: function (e) { self.patch(sel.id, 'qty', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
-        onDesc: function (e) {
-          const v = e.target.value;
-          const cur = (self.state.tasks || []).filter(function (x) { return x.id === sel.id; })[0] || sel;
-          const keep = self.imgUrlsIn(cur.desc);
-          self.patch(sel.id, 'desc', self.joinTextImgs(v, keep));
-        },
+        onDesc: function (e) { self.onDescInput(e, sel.id); },
         onDescPaste: function (e) { self.pasteImageIntoDesc(e, sel.id); },
         onTags: function (e) {
           self.patch(sel.id, 'tags', e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean));
