@@ -1,12 +1,16 @@
-// paste รูป -> อัปขึ้น Storage -> โชว์รูปตัวอย่างในช่อง (ไม่โชว์ URL) -> ส่งแล้วรูปอยู่ในคอมเมนต์
+// ช่องคอมเมนต์เป็นแบบเดียวกับ Description — รูปอยู่ในช่องปนกับข้อความ
 import pw from 'playwright';
 const { chromium } = pw;
 const b = await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
-const p = await b.newPage({viewport:{width:1250,height:900}});
+const p = await b.newPage({viewport:{width:1350,height:950}});
 const errs=[]; p.on('pageerror',e=>errs.push('PAGEERR '+e.message));
 const fail=(m,x)=>{ console.log('FAIL '+m, x===undefined?'':JSON.stringify(x)); process.exit(1); };
 await p.goto('file://' + process.cwd() + '/index.html');
 await p.waitForTimeout(2600);
+
+const PNG='https://zk.supabase.co/storage/v1/object/public/task-images/T101/abc123.png';
+const CARD='[data-richedit][aria-label="เขียนคอมเมนต์"]';
+const SENT='[data-richedit][aria-label="แก้คอมเมนต์"]';
 
 await p.evaluate(()=>{
   const a=document.getElementById('pw-auth'); if(a) a.remove();
@@ -19,137 +23,119 @@ await p.evaluate(()=>{
     if (v && typeof v==='object' && v.state && v.state.tasks!==undefined && typeof v.setState==='function') { inst=v; break; } }
   window.__app=inst;
   window.__alerts=[]; window.alert=(m)=>window.__alerts.push(String(m));
-  window.__mkTask=()=>({id:'T101',name:'งานทดสอบ paste',list:'Official',status:'Backlog',assignee:'Janji',
-    assignees:['Janji'],due:'2026-09-11',start:'2026-09-08',tags:[],channel:'—',platform:'—',priority:'Normal',
+  window.__mk=()=>({id:'T101',name:'งานทดสอบ',list:'Official',status:'Backlog',assignee:'Janji',
+    assignees:['Janji'],due:'2026-09-25',start:'2026-09-20',tags:[],channel:'—',platform:'—',priority:'Normal',
     subtasks:[],comments:[],attachments:[],qty:1,cost:0,desc:'',custom:{},pos:1000});
-  inst.setState({tasks:[window.__mkTask()], view:'table', list:'__all'});
+  inst.setState({tasks:[window.__mk()], view:'table', list:'__all', selected:'T101'});
 });
-await p.waitForTimeout(700);
+await p.waitForTimeout(1200);
 
-const PNG='https://zk.supabase.co/storage/v1/object/public/task-images/T101/abc123.png';
-const thumbCount = () => p.evaluate(()=>[...document.querySelectorAll('img')]
-  .filter(i=>(i.src||'').includes('task-images') && i.style.width==='72px').length);
+const look = (sel) => p.evaluate((s)=>{
+  const el=document.querySelector(s);
+  return el ? { text: el.innerText, imgs: [...el.querySelectorAll('img')].map(i=>i.getAttribute('data-img')) } : null;
+}, sel);
 
-// A) commentParts แยกลิงก์รูปออกจากลิงก์ธรรมดา
-const parts = await p.evaluate((u)=>window.__app.commentParts('ดูรูปนี้ '+u+' นะ')
-  .map(x=>x.isImg?'IMG':(x.isLink?'LINK':'TEXT')), PNG);
-if (JSON.stringify(parts)!==JSON.stringify(['TEXT','IMG','TEXT'])) fail('commentParts', parts);
-const nonImg = await p.evaluate(()=>window.__app.commentParts('https://pawdy.co.th/a')[0].isImg);
-if (nonImg) fail('ลิงก์ปกติกลายเป็นรูป');
+// ---- A) ช่องคอมเมนต์ในการ์ดต้องเป็น contenteditable แล้ว
+if (!await p.$(CARD)) fail('ไม่เจอช่องคอมเมนต์แบบใหม่ในการ์ด');
+if (await p.$('input[placeholder^="เขียนคอมเมนต์"]')) fail('ยังเป็น input อยู่');
 
-// B) paste จริง -> URL ต้อง "ไม่" เข้าไปในช่องพิมพ์ แต่เข้าลิสต์รูป (พิสูจน์ onPaste ใน EVENT_MAP ด้วย)
-await p.evaluate(()=>window.__app.setState({selected:'T101', newComment:'ปกใหม่'}));
-await p.waitForTimeout(800);
-if (!await p.$('input[placeholder^="เขียนคอมเมนต์"]')) fail('ไม่เจอช่องคอมเมนต์ในการ์ด');
-
-const pasted = await p.evaluate(async (u)=>{
+// ---- B) paste รูป -> <img> อยู่ในช่อง ไม่ใช่ URL เป็นตัวหนังสือ
+const pasted = await p.evaluate(async ({u,sel})=>{
   let resolve; const gate=new Promise(r=>{resolve=r;});
   window.PawdySync.uploadImage=()=>gate;
-  const el=document.querySelector('input[placeholder^="เขียนคอมเมนต์"]');
+  const el=document.querySelector(sel);
+  el.focus();
+  document.execCommand('insertText', false, 'ปกใหม่');
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,200));
   const dt=new DataTransfer();
   dt.items.add(new File([new Uint8Array([137,80,78,71])],'s.png',{type:'image/png'}));
   el.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true}));
-  await new Promise(r=>setTimeout(r,300));
-  const busySlots=[...document.querySelectorAll('span')].filter(e=>e.innerText==='กำลัง\nอัปโหลด…').length;
-  const during={ text:window.__app.state.newComment, busy:window.__app.state.newCommentBusy, busySlots };
+  await new Promise(r=>setTimeout(r,250));
+  const busy=[...document.querySelectorAll('span')].some(e=>e.innerText==='กำลัง\nอัปโหลด…');
   resolve(u);
+  await new Promise(r=>setTimeout(r,700));
+  return { busy, state: window.__app.state.newComment };
+}, {u:PNG, sel:CARD});
+if (!pasted.busy) fail('ไม่เห็นตัวบอกกำลังอัปโหลด');
+if (!pasted.state.includes(PNG)) fail('URL ไม่เข้า state', pasted.state);
+if (!pasted.state.includes('ปกใหม่')) fail('ข้อความหาย', pasted.state);
+
+let v = await look(CARD);
+if (v.imgs.length !== 1 || v.imgs[0] !== PNG) fail('รูปไม่ได้อยู่ในช่อง', v);
+if (v.text.includes(PNG)) fail('URL โผล่เป็นตัวหนังสือในช่อง', v.text);
+
+// ---- C) กดส่ง -> comment.text เก็บข้อความ+URL และช่องถูกล้าง
+const sent = await p.evaluate(async (sel)=>{
+  document.querySelector(sel).closest('[data-richbox]').parentElement.querySelector('button').click();
+  await new Promise(r=>setTimeout(r,700));
+  const c=window.__app.state.tasks[0].comments;
+  return { n:c.length, text:c.length?c[0].text:'', box:window.__app.state.newComment };
+}, CARD);
+if (sent.n !== 1) fail('ส่งไม่สำเร็จ', sent);
+if (!sent.text.includes(PNG) || !sent.text.includes('ปกใหม่')) fail('comment.text ไม่ครบ', sent.text);
+if (sent.box !== '') fail('ส่งแล้วไม่ล้างช่อง', sent.box);
+
+// ---- D) คอมเมนต์ที่ส่งแล้วต้องโชว์รูปในช่องแก้ไข ไม่ใช่ URL
+await p.waitForTimeout(500);
+v = await look(SENT);
+if (!v) fail('ไม่เจอช่องแก้คอมเมนต์');
+if (v.imgs.length !== 1) fail('คอมเมนต์ที่ส่งแล้วไม่โชว์รูปในช่อง', v);
+if (v.text.includes('http')) fail('URL โผล่ในช่องแก้คอมเมนต์', v.text);
+
+// ---- E) แก้ข้อความคอมเมนต์ -> รูปต้องไม่หาย
+const edited = await p.evaluate(async (sel)=>{
+  const el=document.querySelector(sel);
+  el.focus();
+  const r=document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  document.execCommand('insertText', false, ' แก้แล้ว');
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  await new Promise(r2=>setTimeout(r2,600));
+  return { text: window.__app.state.tasks[0].comments[0].text,
+           imgs: document.querySelectorAll(sel+' img').length };
+}, SENT);
+if (!edited.text.includes('แก้แล้ว')) fail('แก้ไม่ติด', edited.text);
+if (!edited.text.includes(PNG)) fail('แก้ข้อความแล้วรูปหาย', edited.text);
+if (edited.imgs !== 1) fail('รูปหายจากช่อง', edited);
+
+// ---- F) ลบรูปในช่องแก้คอมเมนต์ -> URL หลุดจาก comment.text
+const removed = await p.evaluate(async (sel)=>{
+  const el=document.querySelector(sel);
+  el.querySelector('img').remove();
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  await new Promise(r=>setTimeout(r,600));
+  return window.__app.state.tasks[0].comments[0].text;
+}, SENT);
+if (removed.includes('task-images')) fail('ลบรูปแล้ว URL ยังค้าง', removed);
+if (!removed.includes('แก้แล้ว')) fail('ลบรูปแล้วข้อความหาย', removed);
+
+// ---- G) วางข้อความธรรมดาต้องไม่ลาก markup
+const plain = await p.evaluate(async (sel)=>{
+  const el=document.querySelector(sel);
+  el.focus();
+  const dt=new DataTransfer();
+  dt.setData('text/plain','ล้วน');
+  dt.setData('text/html','<b style="color:red">ล้วน</b>');
+  const ev=new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true});
+  el.dispatchEvent(ev);
   await new Promise(r=>setTimeout(r,400));
-  return { during, text:window.__app.state.newComment,
-           imgs:window.__app.state.newCommentImgs, busy:window.__app.state.newCommentBusy };
-}, PNG);
+  return { prevented: ev.defaultPrevented, html: el.innerHTML };
+}, CARD);
+if (!plain.prevented) fail('ไม่ได้ดักวางข้อความ');
+if (/<b[ >]|color:red/i.test(plain.html)) fail('markup หลุดเข้ามา', plain.html);
 
-if (pasted.during.busy !== 1)      fail('ตัวนับกำลังอัปไม่ขึ้น', pasted.during);
-if (pasted.during.busySlots !== 1) fail('ไม่เห็นช่องกำลังอัปโหลด', pasted.during);
-if (pasted.during.text !== 'ปกใหม่') fail('ข้อความถูกแก้ตอนกำลังอัป', pasted.during.text);
-if (pasted.text !== 'ปกใหม่')      fail('URL หลุดเข้าช่องพิมพ์', pasted.text);
-if (JSON.stringify(pasted.imgs) !== JSON.stringify([PNG])) fail('URL ไม่เข้าลิสต์รูป', pasted.imgs);
-if (pasted.busy !== 0)             fail('ตัวนับไม่ลดกลับ', pasted.busy);
-if (await thumbCount() !== 1)      fail('ไม่เห็นรูปตัวอย่างในช่อง');
-
-// C) กดส่ง -> ข้อความ + URL ต่อกันลง comment.text (ของเดิมอ่านต่อได้: sync, ชีต, ค้นหา)
-const sent = await p.evaluate(async ()=>{
-  const before=(window.__app.state.tasks[0].comments||[]).length;
-  const inp=document.querySelector('input[placeholder^="เขียนคอมเมนต์"]');
-  inp.parentElement.querySelector('button').click();     // ปุ่มส่งอยู่ข้างช่องพิมพ์
-  await new Promise(r=>setTimeout(r,500));
-  const c=(window.__app.state.tasks[0].comments||[]);
-  return { before, n:c.length, text:c.length?c[c.length-1].text:'',
-           box:window.__app.state.newComment, imgs:window.__app.state.newCommentImgs };
-});
-if (sent.n !== 1) fail('ส่งคอมเมนต์ไม่สำเร็จ', sent);
-if (!sent.text.includes(PNG) || !sent.text.includes('ปกใหม่')) fail('comment.text ไม่ได้เก็บทั้งข้อความและรูป', sent.text);
-if (sent.box !== '' || (sent.imgs||[]).length !== 0) fail('ส่งแล้วไม่เคลียร์ช่อง', sent);
-
-// D) คอมเมนต์ที่ส่งแล้ว: textarea ต้องไม่มี URL แต่ต้องมี <img>
-const shown = await p.evaluate(()=>{
-  const tas=[...document.querySelectorAll('textarea')].map(t=>t.value).filter(v=>v.includes('ปกใหม่'));
-  return { boxes: tas, imgs:[...document.querySelectorAll('img')].filter(i=>(i.src||'').includes('task-images')).length };
-});
-if (!shown.boxes.length) fail('ไม่เจอ textarea ของคอมเมนต์ที่ส่งแล้ว');
-if (shown.boxes.some(v=>v.includes('http'))) fail('URL ยังโชว์ในช่องแก้ข้อความ', shown.boxes);
-if (shown.imgs < 1) fail('ไม่วาด <img> ในคอมเมนต์');
-
-// E) แก้ข้อความคอมเมนต์ที่มีรูป -> รูปต้องไม่หาย
-const edited = await p.evaluate(async ()=>{
-  const ta=[...document.querySelectorAll('textarea')].find(t=>t.value.includes('ปกใหม่'));
-  // React ฟัง input event และเช็คค่าผ่าน native setter ตั้ง .value เฉยๆ ไม่พอ
-  const setv=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;
-  setv.call(ta,'แก้แล้ว');
-  ta.dispatchEvent(new Event('input',{bubbles:true}));
-  ta.dispatchEvent(new Event('change',{bubbles:true}));
-  await new Promise(r=>setTimeout(r,400));
-  const c=window.__app.state.tasks[0].comments[0];
-  return c.text;
-});
-if (!edited.includes('แก้แล้ว') || !edited.includes(PNG)) fail('แก้ข้อความแล้วรูปหาย', edited);
-
-// F) กันกดส่งตอนรูปยังอัปไม่เสร็จ
-const guard = await p.evaluate(()=>{
-  // addCommentTo คือ composer ในแถว -> ต้องเซ็ต key ของแถว
-  window.__app.setState({tasks:[window.__mkTask()], commentComposerText:'x', commentComposerBusy:1});
+// ---- H) กันส่งตอนรูปยังอัปไม่เสร็จ
+const guard = await p.evaluate(async ()=>{
+  window.__app.setState({tasks:[window.__mk()], commentComposerText:'x', richBusy:{rowc:1}});
+  await new Promise(r=>setTimeout(r,200));
   window.__alerts=[];
   window.__app.addCommentTo('T101');
   return { n:(window.__app.state.tasks[0].comments||[]).length, alerted:window.__alerts.join('') };
 });
-if (guard.n !== 0) fail('ส่งออกไปทั้งที่รูปยังอัปไม่เสร็จ');
-if (!guard.alerted.includes('ยังอัปโหลดไม่เสร็จ')) fail('ไม่เตือนตอนกดส่งเร็วเกิน', guard.alerted);
+if (guard.n !== 0) fail('ส่งออกไปทั้งที่รูปยังไม่เสร็จ');
+if (!guard.alerted.includes('ยังอัปโหลดไม่เสร็จ')) fail('ไม่เตือน', guard.alerted);
 
-// G) ปุ่ม × เอารูปออก — ข้อความต้องอยู่
-const removed = await p.evaluate(async (u)=>{
-  window.__app.setState({newCommentBusy:0, newComment:'เก็บข้อความไว้', newCommentImgs:[u]});
-  await new Promise(r=>setTimeout(r,500));
-  const btn=document.querySelector('button[aria-label="เอารูปนี้ออก"]');
-  if (!btn) return { noBtn:true };
-  btn.click();
-  await new Promise(r=>setTimeout(r,400));
-  return { text:window.__app.state.newComment, imgs:window.__app.state.newCommentImgs };
-}, PNG);
-if (removed.noBtn) fail('ไม่มีปุ่มเอารูปออก');
-if (removed.text !== 'เก็บข้อความไว้') fail('ลบรูปแล้วข้อความเพี้ยน', removed.text);
-if ((removed.imgs||[]).length !== 0) fail('รูปไม่หลุดจากลิสต์', removed.imgs);
-if (await thumbCount() !== 0) fail('รูปตัวอย่างไม่หาย');
-
-// H) เปิดคอมเมนต์งานอื่น รูปที่ค้างต้องไม่ตามไป
-const leak = await p.evaluate(async (u)=>{
-  window.__app.setState({commentComposerImgs:[u], commentComposerText:'ของงานเก่า'});
-  window.__app.openCommentComposer ? 0 : 0;
-  window.__app.setState({commentComposer:null, commentField:null, commentComposerText:'', commentComposerImgs:[], commentComposerBusy:0, commentComposerPos:null});
-  await new Promise(r=>setTimeout(r,300));
-  return (window.__app.state.commentComposerImgs||[]).length;
-}, PNG);
-if (leak !== 0) fail('รูปค้างข้ามงาน', leak);
-
-// I) paste ข้อความธรรมดาต้องไม่ถูกขัด
-const plain = await p.evaluate(()=>{
-  window.__app.setState({newComment:'เดิม'});
-  const el=document.querySelector('input[placeholder^="เขียนคอมเมนต์"]');
-  const dt=new DataTransfer(); dt.setData('text/plain','abc');
-  const ev=new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true});
-  el.dispatchEvent(ev);
-  return { prevented:ev.defaultPrevented, text:window.__app.state.newComment };
-});
-if (plain.prevented || plain.text!=='เดิม') fail('paste ข้อความถูกขัด', plain);
-
-console.log('parts:', parts.join('/'), '| URL ไม่โชว์ในช่อง: ok | ส่งแล้วรูปอยู่: ok');
+console.log('คอมเมนต์: contenteditable · รูปในช่อง · ส่ง/แก้/ลบ/วาง ครบ');
 console.log(errs.join('\n')||'no errors');
 await b.close();

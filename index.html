@@ -3765,20 +3765,24 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* Description = กล่องเดียวที่มีทั้งช่องพิมพ์และรูป
      textarea แสดงรูปในตัวเองไม่ได้ เลยย้ายขอบไปไว้ที่กล่องนอก แล้วให้ textarea ใส */
-  [data-descbox] {
+  [data-descbox], [data-richbox] {
     border: 1px solid var(--pw-border); border-radius: 9px; background: var(--pw-surface2);
     overflow: hidden; transition: border-color .16s ease, background .16s ease;
   }
-  [data-descbox]:focus-within { border-color: #4f46e5; background: var(--pw-surface); }
-  [data-descedit] {
-    min-height: 150px; padding: 10px 12px; font-size: 12.5px; line-height: 1.65;
+  [data-descbox]:focus-within, [data-richbox]:focus-within { border-color: #4f46e5; background: var(--pw-surface); }
+  [data-descedit], [data-richedit] {
+    padding: 10px 12px; font-size: 12.5px; line-height: 1.65;
     color: var(--pw-text); font-family: 'IBM Plex Sans', system-ui, sans-serif;
-    outline: 0; overflow-y: auto; max-height: 460px; white-space: pre-wrap; overflow-wrap: anywhere;
+    outline: 0; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere;
   }
-  [data-descedit]:empty::before { content: attr(data-ph); color: var(--pw-muted2); }
-  [data-descedit] img { cursor: default; }
+  [data-descedit] { min-height: 150px; max-height: 460px; }
+  [data-richedit] { min-height: 52px; max-height: 260px; font-size: 12px; line-height: 1.5; padding: 9px 11px; }
+  [data-richedit~="one"] { min-height: 34px; }
+  [data-descedit]:empty::before, [data-richedit]:empty::before { content: attr(data-ph); color: var(--pw-muted2); }
+  [data-descedit] img, [data-richedit] img { cursor: default; }
   /* คลิกรูปแล้วเห็นว่าเลือกอยู่ กด Delete ลบได้เลย */
-  [data-descedit] img::selection { background: rgba(79,70,229,.3); }
+  [data-descedit] img::selection, [data-richedit] img::selection { background: rgba(79,70,229,.3); }
+  [data-richedit] img { max-height: 170px; }
 
   [data-card] {
     transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, border-color .16s ease;
@@ -4842,20 +4846,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                           </sc-for>
                         </div>
                       </sc-if>
-                      <textarea ref="{{ row.commentComposerRef }}" data-sync="{{ row.commentComposerText }}" value="{{ row.commentComposerText }}" sc-camel-on-change="{{ row.onCommentText }}" sc-camel-on-key-down="{{ row.onCommentKey }}" sc-camel-on-paste="{{ row.onCommentPaste }}" rows="2" placeholder="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน" aria-label="เขียน Comment" style="width:100%;min-height:52px;border:1px solid var(--pw-border);border-radius:9px;padding:10px 12px;background:var(--pw-surface);color:var(--pw-text);font:12.5px/1.5 'IBM Plex Sans',system-ui,sans-serif;outline:0;resize:vertical;" style-focus="border-color:#4f46e5;box-shadow:0 0 0 1px rgba(79,70,229,.16);"></textarea>
-                      <sc-if value="{{ row.hasDraftImgs }}" hint-placeholder-val="{{ false }}">
-                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                          <sc-for list="{{ row.draftBusySlots }}" as="bz" hint-placeholder-count="1">
-                            <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
-                          </sc-for>
-                          <sc-for list="{{ row.draftImgs }}" as="di" hint-placeholder-count="1">
-                            <span style="position:relative;display:inline-block;line-height:0;">
-                              <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
-                              <button sc-camel-on-click="{{ di.onRemove }}" type="button" title="เอารูปนี้ออก" aria-label="เอารูปนี้ออก" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:#dc2626;color:#fff;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;">×</button>
-                            </span>
-                          </sc-for>
-                        </div>
-                      </sc-if>
+                      <div data-richbox>
+                        <div data-richedit contenteditable="true" role="textbox" aria-multiline="true"
+                             aria-label="เขียน Comment" data-ph="Comment หรือพิมพ์ @ชื่อ เพื่อแท็กคน"
+                             ref="{{ row.commentComposerRef }}"
+                             sc-camel-on-input="{{ row.onCommentText }}"
+                             sc-camel-on-key-down="{{ row.onCommentKey }}"
+                             sc-camel-on-paste="{{ row.onCommentPaste }}"></div>
+                        <sc-if value="{{ row.hasDraftImgs }}" hint-placeholder-val="{{ false }}">
+                          <div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 11px 9px;">
+                            <sc-for list="{{ row.draftBusySlots }}" as="bz" hint-placeholder-count="1">
+                              <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                      </div>
+                      
                       <div style="display:flex;align-items:center;gap:5px;">
                         <button type="button" title="เพิ่ม" style="width:28px;height:28px;border:0;border-radius:50%;background:var(--pw-surface3);color:var(--pw-muted);cursor:pointer;font-size:17px;">+</button>
                         <span style="width:1px;height:18px;background:var(--pw-line);margin:0 2px;"></span>
@@ -6042,23 +6048,25 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             </div>
 
             <div style="display: flex; gap: 6px;">
-              <input ref="{{ newCommentRef }}" data-sync="{{ newComment }}" value="{{ newComment }}" sc-camel-on-change="{{ onNewComment }}" sc-camel-on-key-down="{{ onCommentKey }}" sc-camel-on-paste="{{ onNewCommentPaste }}" placeholder="เขียนคอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน" style="flex: 1; min-width: 0; border: 1px solid var(--pw-border); border-radius: 7px; padding: 7px 10px; font-size: 12px; outline: 0; background: var(--pw-surface);" style-focus="border-color: #4f46e5;">
+              <div data-richbox style="flex:1;min-width:0;">
+                <div data-richedit="one" contenteditable="true" role="textbox" aria-multiline="true"
+                     aria-label="เขียนคอมเมนต์" data-ph="เขียนคอมเมนต์… ใช้ @ชื่อ เพื่อแท็กคน"
+                     ref="{{ newCommentRef }}"
+                     sc-camel-on-input="{{ onNewComment }}"
+                     sc-camel-on-key-down="{{ onCommentKey }}"
+                     sc-camel-on-paste="{{ onNewCommentPaste }}"></div>
+                <sc-if value="{{ hasDraftImgs }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 11px 9px;">
+                    <sc-for list="{{ draftBusySlots }}" as="bz" hint-placeholder-count="1">
+                      <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
               <button sc-camel-on-click="{{ onAddComment }}" style="background: #4f46e5; color: #fff; border: 0; border-radius: 7px; padding: 7px 13px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #4338ca;">ส่ง</button>
             </div>
 
-            <sc-if value="{{ hasDraftImgs }}" hint-placeholder-val="{{ false }}">
-                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                          <sc-for list="{{ draftBusySlots }}" as="bz" hint-placeholder-count="1">
-                            <span style="width:72px;height:72px;border-radius:8px;border:1px dashed var(--pw-border);background:var(--pw-surface2);color:var(--pw-muted2);display:grid;place-items:center;font-size:10.5px;text-align:center;line-height:1.3;">กำลัง<br>อัปโหลด…</span>
-                          </sc-for>
-                          <sc-for list="{{ draftImgs }}" as="di" hint-placeholder-count="1">
-                            <span style="position:relative;display:inline-block;line-height:0;">
-                              <img src="{{ di.url }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--pw-border);display:block;">
-                              <button sc-camel-on-click="{{ di.onRemove }}" type="button" title="เอารูปนี้ออก" aria-label="เอารูปนี้ออก" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border:0;border-radius:50%;background:#dc2626;color:#fff;cursor:pointer;font-size:11px;line-height:1;display:grid;place-items:center;padding:0;">×</button>
-                            </span>
-                          </sc-for>
-                        </div>
-                      </sc-if>
+            
 
             <div style="display: flex; flex-wrap: wrap; gap: 5px;">
               <sc-for list="{{ detail.mentionChips }}" as="mc" hint-placeholder-count="3">
@@ -6076,14 +6084,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                   <span style="{{ cm.avatarStyle }}">{{ cm.initials }}</span>
                   <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1;">
                     <span style="font-size: 11.5px;"><strong style="font-weight: 600;">{{ cm.author }}</strong> <span title="{{ cm.whenFull }}" style="color: var(--pw-muted2);">{{ cm.when }}</span></span>
-                    <sc-if value="{{ cm.hasImgs }}" hint-placeholder-val="{{ false }}">
-                      <sc-for list="{{ cm.imgs }}" as="cmi" hint-placeholder-count="1">
-                        <a href="{{ cmi.url }}" target="_blank" rel="noopener noreferrer" title="เปิดรูปขนาดเต็ม" style="display:block;">
-                          <img src="{{ cmi.url }}" alt="" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--pw-border);display:block;">
-                        </a>
-                      </sc-for>
-                    </sc-if>
-                    <textarea ref="{{ cm.textRef }}" data-sync="{{ cm.text }}" value="{{ cm.text }}" sc-camel-on-change="{{ cm.onText }}" rows="2" style="border: 1px solid var(--pw-border); border-radius: 8px; padding: 7px 9px; font-size: 12px; line-height: 1.55; color: var(--pw-text2); background: var(--pw-surface); resize: vertical; outline: 0; width: 100%;" style-focus="border-color: #4f46e5;"></textarea>
+                    
+                    <div data-richbox>
+                      <div data-richedit contenteditable="true" role="textbox" aria-multiline="true"
+                           aria-label="แก้คอมเมนต์" data-ph="คอมเมนต์"
+                           ref="{{ cm.textRef }}" sc-camel-on-input="{{ cm.onText }}"
+                           sc-camel-on-paste="{{ cm.onPaste }}"></div>
+                    </div>
                   </div>
                   <button sc-camel-on-click="{{ cm.onDelete }}" title="ลบคอมเมนต์" style="background: transparent; border: 0; color: var(--pw-faint); cursor: pointer; font-size: 13px; line-height: 1; height: 16px;" style-hover="color: #dc2626;">×</button>
                 </div>
@@ -6704,7 +6711,7 @@ class Component extends DCLogic {
       subComposerText: '',
       subComposerDraft: null,
       commentComposer: null, // taskId ที่เปิดกล่องคอมเมนต์จากคอลัมน์ Comment
-      commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0,
+      commentComposerText: '',
       commentComposerPos: null,
       timelinePicker: null,     // date-range popover ของฟิลด์ Timeline ในตาราง
       multiSelectPicker: null,  // custom dropdown แบบเลือกหลายค่า
@@ -6726,7 +6733,7 @@ class Component extends DCLogic {
       filterOpen: false,
       filters: (ui.filters && typeof ui.filters === 'object') ? ui.filters : { status: [], assignee: [], priority: [], channel: [], platform: [], due: '' },
       newSubtask: '',
-      newComment: '', newCommentImgs: [], newCommentBusy: 0
+      newComment: ''
     };
     this.dragId = null;
   }
@@ -8238,8 +8245,8 @@ class Component extends DCLogic {
   openTask(id) {
     this.setState({
       selected: id, subFocus: null, detailMenu: false, detailFields: true,
-      newComment: '', newCommentImgs: [], newCommentBusy: 0, newSubtask: '',
-      commentComposer: null, commentField: null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: null
+      newComment: '', newSubtask: '',
+      commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null
     });
   }
   // เปิดการ์ดงาน แล้วไฮไลต์ subtask ลำดับ i (ใช้ตอนกด subtask หรือเปิดจากลิงก์)
@@ -8247,8 +8254,8 @@ class Component extends DCLogic {
     this._scrollSub = true;
     this.setState({
       selected: id, subFocus: { id: id, i: i }, detailMenu: false, detailFields: true,
-      newComment: '', newCommentImgs: [], newCommentBusy: 0, newSubtask: '',
-      commentComposer: null, commentField: null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: null
+      newComment: '', newSubtask: '',
+      commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null
     });
   }
   // แนบลิงก์/ไฟล์เข้างาน — ใช้ทั้งปุ่ม + Attach file และปุ่มลัดบนการ์ด
@@ -8321,10 +8328,10 @@ class Component extends DCLogic {
     let top = rect ? rect.bottom + 8 : 72;
     left = Math.max(12, Math.min(left, vw - width - 12));
     if (top + height > vh - 12 && rect) top = Math.max(12, rect.top - height - 8);
-    this.setState({ commentComposer: id, commentField: fid || null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: { left: left, top: top } });
+    this.setState({ commentComposer: id, commentField: fid || null, commentComposerText: '', commentComposerPos: { left: left, top: top } });
   }
   closeCommentComposer() {
-    this.setState({ commentComposer: null, commentField: null, commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: null });
+    this.setState({ commentComposer: null, commentField: null, commentComposerText: '', commentComposerPos: null });
   }
   commentParts(text) {
     const value = String(text || '');
@@ -8371,12 +8378,10 @@ class Component extends DCLogic {
   /* รูปที่แปะไว้เก็บแยกจากข้อความ — ช่องพิมพ์จะไม่มี URL โผล่เลย
      พอกดส่งค่อยเอามาต่อท้ายข้อความ เก็บใน comment.text เหมือนเดิม
      ของเดิมจึงใช้ได้ทั้งหมด: sync, ชีต Sync, ค้นหา, undo, อีเมล @mention */
-  IMGKEY(key) {
-    return { newComment: 'newCommentImgs', composerText: 'composerImgs' }[key] || 'commentComposerImgs';
-  }
-  BUSYKEY(key) {
-    return { newComment: 'newCommentBusy', composerText: 'composerBusy' }[key] || 'commentComposerBusy';
-  }
+  /* ใช้กับช่องเพิ่มการ์ดบนบอร์ดที่เดียว — ที่นั่นรูปกลายเป็น "หน้าปก" ไม่ใช่เนื้อหาในช่อง
+     จึงต้องเก็บแยกจากข้อความ ต่างจากช่องคอมเมนต์/Description ที่รูปอยู่ในเนื้อหาเลย */
+  IMGKEY(key) { return 'composerImgs'; }
+  BUSYKEY(key) { return 'composerBusy'; }
   draftImgList(key) { const v = this.state[this.IMGKEY(key)]; return Array.isArray(v) ? v : []; }
   draftBusy(key) { return Number(this.state[this.BUSYKEY(key)] || 0); }
 
@@ -8424,13 +8429,13 @@ class Component extends DCLogic {
   /* ---- Description เป็นช่องแก้ไขแบบมีรูปปนกับข้อความ (contenteditable) ----
      <textarea> แสดงรูปในตัวเองไม่ได้เลย จึงต้องใช้ contenteditable
      ข้อมูลที่เก็บยังเป็น "ข้อความล้วน + URL รูป" เหมือนเดิมทุกอย่าง — sync/ชีต/ค้นหา/undo ไม่ต้องแก้
-     แปลงไปกลับด้วย descHtml() / descFromHtml() เท่านั้น */
+     แปลงไปกลับด้วย richHtml() / richFromHtml() เท่านั้น */
   escHtml_(t) {
     return String(t == null ? '' : t)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  descHtml(desc) {
+  richHtml(desc) {
     const self = this;
     let out = '';
     this.commentParts(desc).forEach(function (p) {
@@ -8446,7 +8451,7 @@ class Component extends DCLogic {
   }
 
   /* อ่านกลับเป็นข้อความล้วน โดยรูปกลายเป็น URL บรรทัดของตัวเอง */
-  descFromHtml(el) {
+  richFromHtml(el) {
     let out = '';
     const nl = function () { if (out && !/\n$/.test(out)) out += '\n'; };
     const walk = function (node) {
@@ -8470,18 +8475,18 @@ class Component extends DCLogic {
   }
 
   /* เขียน innerHTML ใหม่เฉพาะตอนจำเป็น ไม่งั้นเคอร์เซอร์กระโดดทุกครั้งที่พิมพ์ */
-  descBoxRef(taskId, desc) {
+  richBoxRef(key, desc) {
     const self = this;
     return function (el) {
       if (!el) return;
       const want = String(desc || '');
-      const forced = self._descForce === taskId;
+      const forced = self._richForce === key;
       if (!forced && el.getAttribute('data-val') === want) return;
       if (!forced && document.activeElement === el) { el.setAttribute('data-val', want); return; }
-      el.innerHTML = self.descHtml(want);
+      el.innerHTML = self.richHtml(want);
       el.setAttribute('data-val', want);
       if (forced) {
-        self._descForce = null;
+        self._richForce = null;
         try {
           el.focus();
           const r = document.createRange();
@@ -8493,57 +8498,64 @@ class Component extends DCLogic {
     };
   }
 
-  onDescInput(e, taskId) {
+  onRichInput(e, save) {
     const el = e.target || e.currentTarget;
-    const text = this.descFromHtml(el);
+    const text = this.richFromHtml(el);
     el.setAttribute('data-val', text);        // กันไม่ให้ ref เขียนทับตอนเรากำลังพิมพ์
-    this.patch(taskId, 'desc', text);
+    save(text);
   }
 
-  pasteImageIntoDesc(e, taskId) {
+  /* วางรูปในช่องแก้ไขแบบ rich ช่องไหนก็ได้
+     save(text) = ตัวบันทึกของช่องนั้น (desc ลงงาน, composer ลง state, คอมเมนต์ลง comment.text) */
+  pasteImageIntoRich(e, taskId, key, save) {
     const items = (e && e.clipboardData && e.clipboardData.items) || [];
+    const el = e.target || e.currentTarget;
     let file = null;
     for (let i = 0; i < items.length; i++) {
       if (String(items[i].type || '').indexOf('image/') === 0) { file = items[i].getAsFile(); break; }
     }
+
     if (!file) {
-      /* วางข้อความในช่องแบบ contenteditable ต้องบังคับเป็นข้อความล้วน
+      /* ช่อง contenteditable ต้องบังคับวางเป็นข้อความล้วน
          ไม่งั้นก๊อปจากเว็บ/Word จะลาก markup เข้ามาทั้งก้อน */
       const txt = e.clipboardData && e.clipboardData.getData ? e.clipboardData.getData('text/plain') : '';
       if (txt) {
         if (e.preventDefault) e.preventDefault();
         try { document.execCommand('insertText', false, txt); } catch (err) {}
-        const el = e.target || e.currentTarget;
-        if (el && el.getAttribute) this.patch(taskId, 'desc', this.descFromHtml(el));
+        if (el && el.getAttribute) save(this.richFromHtml(el));
       }
       return;
     }
     if (e.preventDefault) e.preventDefault();
 
     const self = this;
-    const bump = function (d) {
-      self.setState({ descBusy: Math.max(0, (Number(self.state.descBusy) || 0) + d) });
-    };
-    bump(1);
-    window.PawdySync.uploadImage(file, taskId).then(function (url) {
-      bump(-1);
-      self.mark('แปะรูปในรายละเอียด');
-      self._descForce = taskId;                 // บังคับให้ช่องวาดใหม่ แม้กำลังโฟกัสอยู่
-      self.patchTask(taskId, function (t) {
-        return Object.assign({}, t, { desc: self.joinTextImgs(t.desc, [url]) });
-      });
+    this.richBump(key, 1);
+    window.PawdySync.uploadImage(file, taskId || 'misc').then(function (url) {
+      self.richBump(key, -1);
+      self._richForce = key;                    // บังคับวาดใหม่ แม้กำลังโฟกัสอยู่
+      save(self.joinTextImgs(el && el.getAttribute ? self.richFromHtml(el) : '', [url]));
     }).catch(function (err) {
-      bump(-1);
+      self.richBump(key, -1);
       window.alert('อัปรูปไม่สำเร็จ: ' + ((err && err.message) || err) +
                    '\n\nถ้าขึ้นว่าไม่พบ bucket ให้รัน 9-storage-รูปแนบ.sql ใน Supabase ก่อน');
     });
   }
 
-  descBusySlots() {
+  /* ตัวนับ "กำลังอัปโหลด" แยกตามช่อง จะได้ไม่ขึ้นพร้อมกันทุกช่อง */
+  richBump(key, d) {
+    const m = Object.assign({}, this.state.richBusy || {});
+    m[key] = Math.max(0, (Number(m[key]) || 0) + d);
+    if (!m[key]) delete m[key];
+    this.setState({ richBusy: m });
+  }
+
+  richBusySlots(key) {
+    const n = Number((this.state.richBusy || {})[key]) || 0;
     const out = [];
-    for (let i = 0; i < (Number(this.state.descBusy) || 0); i++) out.push({ i: i });
+    for (let i = 0; i < n; i++) out.push({ i: i });
     return out;
   }
+
 
   pasteImageInto(e, taskId, key) {
     const items = (e && e.clipboardData && e.clipboardData.items) || [];
@@ -8573,8 +8585,8 @@ class Component extends DCLogic {
   }
 
   addCommentTo(id) {
-    if (this.draftBusy('commentComposerText') > 0) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
-    const v = this.joinTextImgs(this.state.commentComposerText, this.draftImgList('commentComposerText'));
+    if (this.richBusySlots('rowc').length) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
+    const v = String(this.state.commentComposerText || '').trim();   // รูปอยู่ในเนื้อหาแล้ว
     const task = (this.state.tasks || []).filter(function (t) { return t.id === id; })[0];
     if (!v || !task) return;
     this.mark('เพิ่มคอมเมนต์');
@@ -8603,7 +8615,7 @@ class Component extends DCLogic {
     this._focusRowComment = true;
     const pos = this.state.commentComposerPos;
     const nextPos = pos ? Object.assign({}, pos, { top: Math.max(12, Math.min(pos.top, (window.innerHeight || 768) - 298)) }) : pos;
-    this.setState({ commentComposerText: '', commentComposerImgs: [], commentComposerBusy: 0, commentComposerPos: nextPos });
+    this.setState({ commentComposerText: '', commentComposerPos: nextPos });
   }
   toggleSub(id, idx) {
     this.mark('ติ๊ก subtask');
@@ -10265,7 +10277,7 @@ class Component extends DCLogic {
       return {
         tasks: [t].concat(s.tasks),
         selected: id, subFocus: null, detailMenu: false, detailFields: true,
-        calAdd: null, calAddText: '', newComment: '', newCommentImgs: [], newCommentBusy: 0, newSubtask: ''
+        calAdd: null, calAddText: '', newComment: '', newSubtask: ''
       };
     }, () => this.persist());
   }
@@ -11015,26 +11027,20 @@ class Component extends DCLogic {
         const p = self.state.commentComposerPos || { left: 12, top: 72 };
         return 'position:fixed;left:' + p.left + 'px;top:' + p.top + 'px;width:min(440px,calc(100vw - 24px));z-index:55;';
       })(),
-      commentComposerRef: function (el) {
-        if (!el) return;
-        const v = self.state.commentComposer === t.id ? (self.state.commentComposerText || '') : '';
-        if (el.value !== v) el.value = v;
-        if (self.state.commentComposer === t.id && self._focusRowComment) {
-          el.focus();
-          el.setSelectionRange(el.value.length, el.value.length);
-          self._focusRowComment = false;
-        }
+      commentComposerRef: self.richBoxRef('rowc', self.state.commentComposerText),
+      onCommentText: function (e) {
+        self.onRichInput(e, function (t) { self.setState({ commentComposerText: t }); });
       },
-      onCommentText: function (e) { self.setState({ commentComposerText: e.target.value }); },
       onCommentKey: function (e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); self.addCommentTo(t.id); }
         if (e.key === 'Escape') { e.preventDefault(); self.closeCommentComposer(); }
       },
       onCommentSubmit: function () { self.addCommentTo(t.id); },
-      onCommentPaste: function (e) { self.pasteImageInto(e, t.id); },
-      draftImgs: self.draftImgs('commentComposerText'),
-      hasDraftImgs: self.draftImgList('commentComposerText').length > 0 || self.draftBusy('commentComposerText') > 0,
-      draftBusySlots: self.draftBusySlots('commentComposerText'),
+      onCommentPaste: function (e) {
+        self.pasteImageIntoRich(e, t.id, 'rowc', function (x) { self.setState({ commentComposerText: x }); });
+      },
+      hasDraftImgs: self.richBusySlots('rowc').length > 0,
+      draftBusySlots: self.richBusySlots('rowc'),
       onCommentClose: function () { self.closeCommentComposer(); },
       onDelete: function (e) { if (e && e.stopPropagation) e.stopPropagation(); self.removeTask(t.id); },
       onDragStart: function (e) { self.dragId = t.id; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
@@ -11945,10 +11951,10 @@ class Component extends DCLogic {
         costRef: this.syncRef(sel.cost),
         qtyRef: this.syncRef(sel.qty),
         tagRef: this.syncRef((sel.tags || []).join(', ')),
-        descRef: this.descBoxRef(sel.id, sel.desc),
+        descRef: this.richBoxRef('desc:' + sel.id, sel.desc),
         descEmpty: !String(sel.desc || '').trim(),
-        descBusySlots: this.descBusySlots(),
-        hasDescBusy: (Number(s.descBusy) || 0) > 0,
+        descBusySlots: this.richBusySlots('desc:' + sel.id),
+        hasDescBusy: this.richBusySlots('desc:' + sel.id).length > 0,
         customFields: (s.fields || []).map(function (f) {
           const val = (sel.custom && sel.custom[f.id] !== undefined && sel.custom[f.id] !== null) ? sel.custom[f.id] : '';
           const r = self.tlRange(sel, f.id);
@@ -12111,21 +12117,27 @@ class Component extends DCLogic {
         }),
         comments: sel.comments.map(function (c, ci) {
           return {
-            author: c.author, text: self.stripImgUrls(c.text), when: self.commentAgo(c), whenFull: self.commentWhenFull(c),
-            imgs: self.commentParts(c.text).filter(function (x) { return x.isImg; }),
-            hasImgs: self.commentParts(c.text).some(function (x) { return x.isImg; }),
-            textRef: self.syncRef(self.stripImgUrls(c.text)),
+            author: c.author, when: self.commentAgo(c), whenFull: self.commentWhenFull(c),
+            textRef: self.richBoxRef('cm:' + sel.id + ':' + ci, c.text),
+            onPaste: function (e) {
+              self.pasteImageIntoRich(e, sel.id, 'cm:' + sel.id + ':' + ci, function (t) {
+                self.patchTask(sel.id, function (x) {
+                  return Object.assign({}, x, {
+                    comments: x.comments.map(function (y, j) { return j === ci ? Object.assign({}, y, { text: t }) : y; })
+                  });
+                });
+              });
+            },
             initials: self.initials(c.author),
             avatarStyle: self.avatar(c.author, 24),
             onText: function (e) {
-              const v = e.target.value;
-              self.patchTask(sel.id, function (t) {
-                t.comments = t.comments.map(function (x, j) {
-                  if (j !== ci) return x;
-                  // ช่องแก้ข้อความไม่โชว์ URL รูป -> ต้องเอาลิงก์เดิมกลับไปต่อ ไม่งั้นรูปหายตอนแก้ข้อความ
-                  return Object.assign({}, x, { text: self.joinTextImgs(v, self.imgUrlsIn(x.text)) });
+              self.onRichInput(e, function (v) {
+                self.patchTask(sel.id, function (t) {
+                  t.comments = t.comments.map(function (x, j) {
+                    return j === ci ? Object.assign({}, x, { text: v }) : x;
+                  });
+                  return t;
                 });
-                return t;
               });
             },
             onDelete: function () {
@@ -12170,8 +12182,10 @@ class Component extends DCLogic {
         onPlatformOpen: function (e) { self.openMultiSelect(e, sel.id, '__platform', self.multiValues(sel.platform), null, 'platform'); },
         onCost: function (e) { self.patch(sel.id, 'cost', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
         onQty: function (e) { self.patch(sel.id, 'qty', Number(e.target.value.replace(/[^0-9.]/g, '')) || 0); },
-        onDesc: function (e) { self.onDescInput(e, sel.id); },
-        onDescPaste: function (e) { self.pasteImageIntoDesc(e, sel.id); },
+        onDesc: function (e) { self.onRichInput(e, function (t) { self.patch(sel.id, 'desc', t); }); },
+        onDescPaste: function (e) {
+          self.pasteImageIntoRich(e, sel.id, 'desc:' + sel.id, function (t) { self.patch(sel.id, 'desc', t); });
+        },
         onTags: function (e) {
           self.patch(sel.id, 'tags', e.target.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean));
         },
@@ -12186,8 +12200,8 @@ class Component extends DCLogic {
       self.setState({ newSubtask: '' });
     };
     const addComment = function () {
-      if (self.draftBusy('newComment') > 0) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
-      const v = self.joinTextImgs(self.state.newComment, self.draftImgList('newComment'));
+      if (self.richBusySlots('cardc').length) { window.alert('รูปยังอัปโหลดไม่เสร็จ รออีกนิด'); return; }
+      const v = String(self.state.newComment || '').trim();          // รูปอยู่ในเนื้อหาแล้ว
       if (!v || !sel) return;
       self.mark('เพิ่มคอมเมนต์');
       self.patchTask(sel.id, function (t) { t.comments = t.comments.concat([{ author: self.me().n, text: v, when: 'just now', at: Date.now() }]); return t; });
@@ -12204,7 +12218,7 @@ class Component extends DCLogic {
         self.sendEmail({ name: m.n, email: m.email }, subject, self.me().n + ' แท็กคุณในคอมเมนต์', '“' + v + '”', sel.id, 'mention');
       });
 
-      self.setState({ newComment: '', newCommentImgs: [], newCommentBusy: 0 });
+      self.setState({ newComment: '' });
     };
 
     const listMeta = s.spaces.filter(function (sp) { return sp.lists.indexOf(s.list) >= 0; })[0];
@@ -13345,15 +13359,20 @@ class Component extends DCLogic {
         if (el.value !== v) el.value = v;
         if (self._focusNewSub) { self._focusNewSub = false; try { el.focus(); el.scrollIntoView({ block: 'center' }); } catch (e) {} }
       },
-      newCommentRef: self.syncRef(s.newComment),
+      newCommentRef: self.richBoxRef('cardc', s.newComment),
       onNewSubtask: function (e) { self.setState({ newSubtask: e.target.value }); },
-      onNewComment: function (e) { self.setState({ newComment: e.target.value }); },
+      onNewComment: function (e) {
+        self.onRichInput(e, function (t) { self.setState({ newComment: t }); });
+      },
       onSubtaskKey: function (e) { if (e.key === 'Enter') addSub(); },
-      onCommentKey: function (e) { if (e.key === 'Enter') addComment(); },
-      onNewCommentPaste: function (e) { self.pasteImageInto(e, sel && sel.id, 'newComment'); },
-      draftImgs: self.draftImgs('newComment'),
-      hasDraftImgs: self.draftImgList('newComment').length > 0 || self.draftBusy('newComment') > 0,
-      draftBusySlots: self.draftBusySlots('newComment'),
+      onCommentKey: function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(); }   // contenteditable ไม่งั้นขึ้นบรรทัดใหม่
+      },
+      onNewCommentPaste: function (e) {
+        self.pasteImageIntoRich(e, sel && sel.id, 'cardc', function (x) { self.setState({ newComment: x }); });
+      },
+      hasDraftImgs: self.richBusySlots('cardc').length > 0,
+      draftBusySlots: self.richBusySlots('cardc'),
       onAddSubtask: addSub,
       onAddComment: addComment,
       onAddAttachment: function () { if (sel) self.promptAttachment(sel.id); },

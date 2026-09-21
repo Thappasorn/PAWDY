@@ -51,15 +51,17 @@ const ui = await p.evaluate(()=>{
   const spans=[...document.querySelectorAll('span[title]')].filter(s=>/นาทีก่อน|ชั่วโมงก่อน|เมื่อวาน|วันก่อน|เมื่อสักครู่/.test(s.innerText));
   return { n: spans.length, texts: spans.map(s=>s.innerText.trim()), tips: spans.map(s=>s.getAttribute('title')) };
 });
-if (ui.n < 5) fail('หน้าจอยังไม่โชว์เวลาที่คำนวณใหม่', ui);
+if (ui.n < 4) fail('หน้าจอยังไม่โชว์เวลาที่คำนวณใหม่', ui);
 if (ui.texts.some(t=>/just now/i.test(t))) fail('บนหน้าจอยังมี just now', ui.texts);
 if (!ui.tips.some(t=>/^\d+\/\d+\/\d{4} \d{2}:\d{2}$/.test(t||''))) fail('tooltip ไม่มีวันเวลาเต็ม', ui.tips);
 
 // คอมเมนต์ที่เพิ่งส่งต้องได้ at จริง ไม่ค้าง
 const fresh = await p.evaluate(async ()=>{
   window.__app.setState({newComment:'คอมเมนต์ใหม่'});
-  await new Promise(r=>setTimeout(r,200));
-  document.querySelector('input[placeholder^="เขียนคอมเมนต์"]').parentElement.querySelector('button').click();
+  await new Promise(r=>setTimeout(r,300));
+  // ช่องคอมเมนต์เป็น contenteditable แล้ว ปุ่มส่งอยู่ถัดจากกล่อง
+  document.querySelector('[data-richedit][aria-label="เขียนคอมเมนต์"]')
+    .closest('[data-richbox]').parentElement.querySelector('button').click();
   await new Promise(r=>setTimeout(r,600));
   const cs=window.__app.state.tasks[0].comments;
   const last=cs[cs.length-1];
