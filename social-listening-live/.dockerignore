@@ -1,0 +1,5 @@
+app.part*
+app.tgz.b64
+*.zip
+*.tgz
+__pycache__/
