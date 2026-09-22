@@ -1,9 +1,10 @@
 FROM python:3.13-slim
-RUN apt-get update && apt-get install -y --no-install-recommends unzip ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-COPY app.part* ./
-RUN cat app.part1 app.part2 app.part3 app.part4 app.part5 app.part6 | base64 -d > app.zip \
- && unzip -q app.zip -d /opt/pawdy \
+COPY app.tgz.b64 ./
+RUN base64 -d app.tgz.b64 > app.tgz \
+ && echo "768f3a46bfbea2265bea3a4154b7929b138fa4ae062043775852c6eb218567cf  app.tgz" | sha256sum -c - \
+ && mkdir -p /opt/pawdy \
+ && tar -xzf app.tgz -C /opt/pawdy \
  && pip install --no-cache-dir -r /opt/pawdy/pawdy-social-listening-live/requirements.txt \
  && rm -rf /build/*
 WORKDIR /opt/pawdy/pawdy-social-listening-live
