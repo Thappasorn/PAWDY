@@ -67,6 +67,14 @@ def init_db():
         CREATE TABLE IF NOT EXISTS daily_insights(
           day TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS keywords(
+          id TEXT PRIMARY KEY, keyword TEXT UNIQUE NOT NULL, category TEXT DEFAULT 'custom',
+          enabled INTEGER DEFAULT 1, created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS provider_health(
+          provider TEXT PRIMARY KEY, ok INTEGER NOT NULL, detail TEXT,
+          checked_at TEXT NOT NULL
+        );
         ''')
 
 def admin(authorization: str|None=Header(default=None)):
@@ -173,11 +181,49 @@ def _num(v):
     try: return int(float(v or 0))
     except: return 0
 
+
+DEFAULT_KEYWORDS = [
+ ('Pawdy','brand'),('พอดี้','brand'),('Pawdy Senior','brand'),('AstaReal','ingredient'),
+ ('อาหารหมา','category'),('อาหารสุนัข','category'),('อาหารหมาแก่','life_stage'),
+ ('อาหารลูกหมา','life_stage'),('อาหารแมว','category'),('หมาแก่กินน้อย','pain_point'),
+ ('หมาไม่กินอาหาร','pain_point'),('หมาแพ้อาหาร','pain_point'),('หมาอ้วน','pain_point'),
+ ('หมาขนร่วง','pain_point'),('หมาข้อเสื่อม','pain_point'),('หมาแก่กินอะไรดี','intent'),
+ ('อาหารหมาอะไรดี','intent'),('อาหารหมาแก่ยี่ห้อไหนดี','intent'),
+ ('Astaxanthin หมา','ingredient'),('Omega 3 หมา','ingredient'),('โปรตีนจระเข้','ingredient')
+]
+
+def seed_keywords():
+    with db() as c:
+        for kw,cat in DEFAULT_KEYWORDS:
+            c.execute('INSERT OR IGNORE INTO keywords(id,keyword,category,enabled,created_at) VALUES(?,?,?,?,?)',
+                      (uid(),kw,cat,1,now_iso()))
+
+def set_provider_health(provider, ok, detail):
+    with db() as c:
+        c.execute('INSERT OR REPLACE INTO provider_health(provider,ok,detail,checked_at) VALUES(?,?,?,?)',
+                  (provider,1 if ok else 0,str(detail)[:1000],now_iso()))
+
+async def probe_tiktok_oembed():
+    sample='https://www.tiktok.com/@scout2015/video/6718335390845095173'
+    try:
+        async with httpx.AsyncClient(timeout=20,follow_redirects=True) as client:
+            r=await client.get('https://www.tiktok.com/oembed',params={'url':sample},
+                               headers={'User-Agent':'PawdySocialIntelligence/1.0'})
+            r.raise_for_status(); d=r.json()
+        ok=bool(d.get('html') or d.get('title'))
+        set_provider_health('tiktok_oembed',ok,{'author':d.get('author_name'),'title':(d.get('title') or '')[:120]})
+        return {'ok':ok,'author':d.get('author_name'),'title':(d.get('title') or '')[:120]}
+    except Exception as e:
+        set_provider_health('tiktok_oembed',False,str(e))
+        return {'ok':False,'error':str(e)}
+
 def provider_status():
+    with db() as c:
+        ph={x['provider']:dict(x) for x in c.execute('SELECT * FROM provider_health').fetchall()}
     return {
       'meltwater': {'configured': bool(MELTWATER_API_TOKEN and MELTWATER_SEARCH_ID), 'search_id': MELTWATER_SEARCH_ID or None},
       'tiktok_owned': {'configured': bool(TIKTOK_ACCESS_TOKEN)},
-      'tiktok_oembed': {'configured': True},
+      'tiktok_oembed': {'configured': True, 'health': ph.get('tiktok_oembed')},
       'openai': {'configured': bool(OPENAI_API_KEY), 'model': OPENAI_MODEL if OPENAI_API_KEY else 'fallback-rules-v2'}
     }
 
@@ -206,7 +252,7 @@ def upsert_items(items, source='provider', search_keyword=None):
             count+=1
     return count
 
-async def import_tiktok_urls(urls):
+async def import_tiktok_urls(urls, keyword='Manual TikTok URL'):
     items=[]; errors=[]
     async with httpx.AsyncClient(timeout=30,follow_redirects=True) as client:
         for raw in urls[:100]:
@@ -220,12 +266,12 @@ async def import_tiktok_urls(urls):
                 pid=m.group(1) if m else 'oembed-'+uuid.uuid5(uuid.NAMESPACE_URL,url).hex
                 items.append({
                   'platform_video_id':pid,'url':url,'creator':{'username':d.get('author_name')},
-                  'caption':d.get('title') or '', 'transcript':'','search_keyword':'Manual TikTok URL',
+                  'caption':d.get('title') or '', 'transcript':'','search_keyword':keyword or 'Manual TikTok URL',
                   'view_count':0,'like_count':0,'comment_count':0,'share_count':0,'comments':[]
                 })
             except Exception as e:
                 errors.append({'url':url,'error':str(e)})
-    return {'ingested':upsert_items(items,'tiktok_oembed','Manual TikTok URL'),'errors':errors}
+    return {'ingested':upsert_items(items,'tiktok_oembed',keyword or 'Manual TikTok URL'),'errors':errors}
 
 async def sync_tiktok_owned():
     if not TIKTOK_ACCESS_TOKEN: return {'skipped':'TIKTOK_ACCESS_TOKEN not configured'}
@@ -302,7 +348,13 @@ async def provider_sync():
 
 @app.on_event('startup')
 def startup():
-    init_db(); threading.Thread(target=scheduler,daemon=True).start()
+    init_db(); seed_keywords()
+    def _probe():
+        import asyncio
+        try: asyncio.run(probe_tiktok_oembed())
+        except Exception as e: print('probe',e,flush=True)
+    threading.Thread(target=_probe,daemon=True).start()
+    threading.Thread(target=scheduler,daemon=True).start()
 
 @app.get('/health')
 def health():
@@ -318,10 +370,37 @@ def ingest(body:dict,_=Depends(ingest_auth)):
 def providers(_=Depends(admin)):
     return provider_status()
 
+
+@app.get('/api/keywords')
+def get_keywords(_=Depends(admin)):
+    with db() as c:
+        rows=[dict(x) for x in c.execute('SELECT * FROM keywords ORDER BY category,keyword').fetchall()]
+    return {'keywords':rows}
+
+@app.post('/api/keywords')
+def add_keyword(body:dict,_=Depends(admin)):
+    kw=str(body.get('keyword') or '').strip()
+    if not kw: raise HTTPException(400,'keyword required')
+    cat=str(body.get('category') or 'custom').strip()[:80]
+    with db() as c:
+        c.execute('INSERT OR IGNORE INTO keywords(id,keyword,category,enabled,created_at) VALUES(?,?,?,?,?)',
+                  (uid(),kw,cat,1,now_iso()))
+    return {'ok':True,'keyword':kw,'category':cat}
+
+@app.delete('/api/keywords/{keyword_id}')
+def delete_keyword(keyword_id:str,_=Depends(admin)):
+    with db() as c: c.execute('DELETE FROM keywords WHERE id=?',(keyword_id,))
+    return {'ok':True}
+
+@app.post('/api/providers/probe')
+async def probe_providers(_=Depends(admin)):
+    return {'tiktok_oembed':await probe_tiktok_oembed(),'status':provider_status()}
+
 @app.post('/api/tiktok/import_urls')
 async def tiktok_import_urls(body:dict,_=Depends(admin)):
     urls=body.get('urls') if isinstance(body.get('urls'),list) else []
-    return {'ok':True,**(await import_tiktok_urls(urls))}
+    keyword=str(body.get('keyword') or 'Manual TikTok URL').strip()
+    return {'ok':True,**(await import_tiktok_urls(urls,keyword))}
 
 @app.post('/api/tiktok/owned/sync')
 async def tiktok_owned_sync(_=Depends(admin)):
@@ -352,23 +431,26 @@ def dashboard(_=Depends(admin)):
     with db() as c:
         feed=[dict(x) for x in c.execute('''SELECT v.*,a.topic,a.sentiment,a.sentiment_score,a.purchase_intent,a.opportunity,a.opportunity_score,a.risk_level,a.summary FROM videos v LEFT JOIN analyses a ON a.video_id=v.id ORDER BY v.collected_at DESC LIMIT 300''').fetchall()]
         di=c.execute('SELECT payload FROM daily_insights ORDER BY day DESC LIMIT 1').fetchone()
+        kws=[dict(x) for x in c.execute('SELECT * FROM keywords WHERE enabled=1 ORDER BY category,keyword').fetchall()]
     views=sum(int(x.get('view_count') or 0) for x in feed[:100]); eng=sum(int(x.get('like_count') or 0)+int(x.get('comment_count') or 0)+int(x.get('share_count') or 0) for x in feed[:100])
     insight=json.loads(di['payload']) if di else {'rising_topics':[],'consumer_questions':[],'pain_points':[],'content_ideas':[],'risks':[]}
-    return {'generatedAt':now_iso(),'summary':{'videos':len(feed),'views':views,'engagement_rate':round(eng/max(views,1)*100,2),'high_risk':sum(1 for x in feed if x.get('risk_level') in ('high','critical'))},'insight':insight,'feed':feed}
+    return {'generatedAt':now_iso(),'summary':{'videos':len(feed),'views':views,'engagement_rate':round(eng/max(views,1)*100,2),'high_risk':sum(1 for x in feed if x.get('risk_level') in ('high','critical'))},'providers':provider_status(),'keywords':kws,'insight':insight,'feed':feed}
 
 def scheduler():
-    last_daily=''; last_provider=0.0
+    last_daily=''; last_provider=0.0; last_probe=0.0
     while True:
         try:
             n=datetime.now(TZ); day=n.date().isoformat(); ts=time.time()
             if ts-last_provider >= max(PROVIDER_SYNC_MINUTES,10)*60:
                 import asyncio; asyncio.run(provider_sync()); last_provider=ts
+            if ts-last_probe >= 21600:
+                import asyncio; asyncio.run(probe_tiktok_oembed()); last_probe=ts
             if n.hour==RUN_HOUR and last_daily!=day:
                 import asyncio; asyncio.run(analyze_pending(500)); generate_insight(); last_daily=day
         except Exception as e: print('scheduler',e,flush=True)
         time.sleep(30)
 
-HTML='''<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pawdy Social Intelligence</title><style>body{font-family:system-ui;margin:0;background:#f4f7f2;color:#172012}header{background:#193c1b;color:white;padding:20px 5vw}main{padding:24px 5vw}.row{display:flex;gap:12px;flex-wrap:wrap}.card{background:white;border-radius:16px;padding:18px;box-shadow:0 2px 12px #0001;flex:1;min-width:220px;margin-bottom:16px}.big{font-size:32px;font-weight:800}.tag{background:#e9f4df;border-radius:999px;padding:6px 10px;display:inline-block;margin:3px}button,input{padding:10px 12px;border-radius:10px;border:1px solid #ccd6c6}button{background:#98ca40;border:0;font-weight:700;cursor:pointer}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:9px;border-bottom:1px solid #eee;font-size:14px}.muted{color:#667}</style><header><h1>Pawdy Social Intelligence</h1><div>TikTok Listening → AI Analysis → Daily Content Insight</div></header><main><div class="row"><input id="t" type="password" placeholder="Admin token"><button onclick="connect()">Connect</button><button onclick="run()">Run Pipeline</button><button onclick="syncProviders()">Sync Providers</button></div><div class="card" style="margin-top:16px"><h3>Import TikTok URL</h3><textarea id="urls" style="width:100%;min-height:90px" placeholder="วาง TikTok URL ทีละบรรทัด"></textarea><br><button onclick="importUrls()">Import URLs</button><div id="providerStatus" class="muted" style="margin-top:10px"></div></div><div id="app" style="margin-top:20px"></div></main><script>let token=localStorage.pawdyToken||'';document.getElementById('t').value=token;async function api(path,opt={}){opt.headers=Object.assign({'Authorization':'Bearer '+token},opt.headers||{});let r=await fetch(path,opt);if(!r.ok)throw new Error(await r.text());return r.json()}function connect(){token=document.getElementById('t').value.trim();localStorage.pawdyToken=token;load()}async function run(){await api('/api/pipeline/run',{method:'POST'});load()}async function syncProviders(){await api('/api/providers/sync',{method:'POST'});await loadStatus();load()}async function importUrls(){let urls=document.getElementById('urls').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);let r=await api('/api/tiktok/import_urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls})});alert('Imported '+r.ingested+' URLs');await run()}async function loadStatus(){try{let p=await api('/api/providers/status');document.getElementById('providerStatus').textContent='Provider status: '+Object.entries(p).map(([k,v])=>k+'='+(v.configured?'ready':'not connected')).join(' • ')}catch(e){}}function fmt(n){return new Intl.NumberFormat().format(n||0)}async function load(){try{let d=await api('/api/dashboard');let s=d.summary,i=d.insight;document.getElementById('app').innerHTML=`<div class=row><div class=card><div class=muted>Videos</div><div class=big>${fmt(s.videos)}</div></div><div class=card><div class=muted>Views</div><div class=big>${fmt(s.views)}</div></div><div class=card><div class=muted>Engagement</div><div class=big>${s.engagement_rate}%</div></div><div class=card><div class=muted>High Risk</div><div class=big>${s.high_risk}</div></div></div><div class=card><h2>🔥 Rising Topics</h2>${(i.rising_topics||[]).map(x=>`<span class=tag>${x.topic} ${x.growth_pct>=0?'+':''}${x.growth_pct}% · ${x.opportunity_score}/100</span>`).join('')||'ยังไม่มีข้อมูล'}</div><div class=row><div class=card><h2>💬 Questions</h2>${(i.consumer_questions||[]).map(x=>`<div>• ${Array.isArray(x)?x[0]:x}</div>`).join('')||'ยังไม่มีข้อมูล'}</div><div class=card><h2>💡 Content Ideas</h2>${(i.content_ideas||[]).map(x=>`<div><b>${x.score}</b> · ${x.idea}</div>`).join('')||'ยังไม่มีข้อมูล'}</div></div><div class=card><h2>Latest Feed</h2><table><thead><tr><th>Creator</th><th>Caption</th><th>Topic</th><th>Views</th><th>Score</th><th>Risk</th></tr></thead><tbody>${(d.feed||[]).slice(0,50).map(x=>`<tr><td>${x.creator||''}</td><td><a href="${x.url}" target=_blank>${(x.caption||'').slice(0,80)}</a></td><td>${x.topic||'-'}</td><td>${fmt(x.view_count)}</td><td>${x.opportunity_score||'-'}</td><td>${x.risk_level||'-'}</td></tr>`).join('')}</tbody></table></div>`}catch(e){document.getElementById('app').innerHTML='<div class=card>เชื่อมต่อไม่สำเร็จ: '+e.message+'</div>'}}if(token){loadStatus();load()}</script></html>'''
+HTML='''<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pawdy Social Intelligence</title><style>body{font-family:system-ui;margin:0;background:#f4f7f2;color:#172012}header{background:#193c1b;color:white;padding:20px 5vw}main{padding:24px 5vw}.row{display:flex;gap:12px;flex-wrap:wrap}.card{background:white;border-radius:16px;padding:18px;box-shadow:0 2px 12px #0001;flex:1;min-width:220px;margin-bottom:16px}.big{font-size:32px;font-weight:800}.tag{background:#e9f4df;border-radius:999px;padding:6px 10px;display:inline-block;margin:3px}button,input{padding:10px 12px;border-radius:10px;border:1px solid #ccd6c6}button{background:#98ca40;border:0;font-weight:700;cursor:pointer}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:9px;border-bottom:1px solid #eee;font-size:14px}.muted{color:#667}</style><header><h1>Pawdy Social Intelligence</h1><div>TikTok Listening → AI Analysis → Daily Content Insight</div></header><main><div class="row"><input id="t" type="password" placeholder="Admin token"><button onclick="connect()">Connect</button><button onclick="run()">Run Pipeline</button><button onclick="syncProviders()">Sync Providers</button></div><div class="card" style="margin-top:16px"><h3>Listening Workspace</h3><div class="row"><input id="newkw" placeholder="เพิ่ม keyword เช่น หมาแก่กินน้อย"><button onclick="addKeyword()">Add Keyword</button><button onclick="probe()">Test TikTok Connection</button></div><div id="keywords" style="margin:12px 0"></div><select id="kwselect" style="padding:10px;border-radius:10px;border:1px solid #ccd6c6"></select><textarea id="urls" style="width:100%;min-height:90px;margin-top:8px" placeholder="วาง TikTok URL ทีละบรรทัด แล้วเลือก keyword ด้านบน"></textarea><br><button onclick="importUrls()">Import + Analyze</button><div id="providerStatus" class="muted" style="margin-top:10px"></div></div><div id="app" style="margin-top:20px"></div></main><script>let token=localStorage.pawdyToken||'';document.getElementById('t').value=token;async function api(path,opt={}){opt.headers=Object.assign({'Authorization':'Bearer '+token},opt.headers||{});let r=await fetch(path,opt);if(!r.ok)throw new Error(await r.text());return r.json()}function connect(){token=document.getElementById('t').value.trim();localStorage.pawdyToken=token;load()}async function run(){await api('/api/pipeline/run',{method:'POST'});load()}async function syncProviders(){await api('/api/providers/sync',{method:'POST'});await loadStatus();load()}async function importUrls(){let urls=document.getElementById('urls').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);let r=await api('/api/tiktok/import_urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls})});alert('Imported '+r.ingested+' URLs');await run()}async function loadStatus(){try{let p=await api('/api/providers/status');document.getElementById('providerStatus').textContent='Provider status: '+Object.entries(p).map(([k,v])=>k+'='+(v.configured?'ready':'not connected')).join(' • ')}catch(e){}}function fmt(n){return new Intl.NumberFormat().format(n||0)}async function load(){try{let d=await api('/api/dashboard');let s=d.summary,i=d.insight;document.getElementById('app').innerHTML=`<div class=row><div class=card><div class=muted>Videos</div><div class=big>${fmt(s.videos)}</div></div><div class=card><div class=muted>Views</div><div class=big>${fmt(s.views)}</div></div><div class=card><div class=muted>Engagement</div><div class=big>${s.engagement_rate}%</div></div><div class=card><div class=muted>High Risk</div><div class=big>${s.high_risk}</div></div></div><div class=card><h2>🔥 Rising Topics</h2>${(i.rising_topics||[]).map(x=>`<span class=tag>${x.topic} ${x.growth_pct>=0?'+':''}${x.growth_pct}% · ${x.opportunity_score}/100</span>`).join('')||'ยังไม่มีข้อมูล'}</div><div class=row><div class=card><h2>💬 Questions</h2>${(i.consumer_questions||[]).map(x=>`<div>• ${Array.isArray(x)?x[0]:x}</div>`).join('')||'ยังไม่มีข้อมูล'}</div><div class=card><h2>💡 Content Ideas</h2>${(i.content_ideas||[]).map(x=>`<div><b>${x.score}</b> · ${x.idea}</div>`).join('')||'ยังไม่มีข้อมูล'}</div></div><div class=card><h2>Latest Feed</h2><table><thead><tr><th>Creator</th><th>Caption</th><th>Topic</th><th>Views</th><th>Score</th><th>Risk</th></tr></thead><tbody>${(d.feed||[]).slice(0,50).map(x=>`<tr><td>${x.creator||''}</td><td><a href="${x.url}" target=_blank>${(x.caption||'').slice(0,80)}</a></td><td>${x.topic||'-'}</td><td>${fmt(x.view_count)}</td><td>${x.opportunity_score||'-'}</td><td>${x.risk_level||'-'}</td></tr>`).join('')}</tbody></table></div>`}catch(e){document.getElementById('app').innerHTML='<div class=card>เชื่อมต่อไม่สำเร็จ: '+e.message+'</div>'}}if(token){loadStatus();loadKeywords();load()}</script></html>'''
 
 @app.get('/',response_class=HTMLResponse)
 def root(): return HTML
