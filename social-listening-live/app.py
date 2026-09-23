@@ -361,6 +361,25 @@ def health():
     with db() as c: n=c.execute('SELECT count(*) n FROM videos').fetchone()['n']
     return {'ok':True,'version':'4.1','db':True,'videos':n,'ai_mode':'openai' if OPENAI_API_KEY else 'fallback','providers':provider_status()}
 
+@app.get('/ready')
+def ready():
+    with db() as c:
+        videos=c.execute('SELECT count(*) n FROM videos').fetchone()['n']
+        keywords=c.execute('SELECT count(*) n FROM keywords WHERE enabled=1').fetchone()['n']
+        ph=c.execute("SELECT ok,detail,checked_at FROM provider_health WHERE provider='tiktok_oembed'").fetchone()
+    probe=dict(ph) if ph else None
+    return {
+      'ready': bool(probe and probe.get('ok')),
+      'version':'4.2',
+      'database':True,
+      'video_count':videos,
+      'keyword_count':keywords,
+      'tiktok_oembed':probe,
+      'ai_mode':'openai' if OPENAI_API_KEY else 'fallback',
+      'owned_tiktok_connected':bool(TIKTOK_ACCESS_TOKEN),
+      'market_provider_connected':bool(MELTWATER_API_TOKEN and MELTWATER_SEARCH_ID)
+    }
+
 @app.post('/api/ingest')
 def ingest(body:dict,_=Depends(ingest_auth)):
     items=body.get('videos') if isinstance(body.get('videos'),list) else []
