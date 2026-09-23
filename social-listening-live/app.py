@@ -35,6 +35,7 @@ APP_SECRET_KEY = os.getenv('APP_SECRET_KEY','').strip()
 TIKTOK_REDIRECT_URI = os.getenv('TIKTOK_REDIRECT_URI','https://pawdycontent.vercel.app/tiktok-callback.html').strip()
 TIKTOK_BUSINESS_BASE = 'https://business-api.tiktok.com/open_api/v1.3'
 TIKTOK_BUSINESS_CALLBACK = os.getenv('TIKTOK_BUSINESS_CALLBACK','https://pawdy-social-listening-production.up.railway.app/api/tiktok/business/callback').strip()
+TIKTOK_BUSINESS_SCOPES = os.getenv('TIKTOK_BUSINESS_SCOPES','video.list,video.insights').strip()
 
 app = FastAPI(title='Pawdy Social Intelligence', version='4.0')
 
@@ -92,6 +93,10 @@ def meltwater_token(): return get_secret('meltwater_api_token','MELTWATER_API_TO
 def meltwater_search_id(): return get_secret('meltwater_search_id','MELTWATER_SEARCH_ID')
 def tiktok_client_key(): return get_secret('tiktok_client_key','TIKTOK_CLIENT_KEY')
 def tiktok_client_secret(): return get_secret('tiktok_client_secret','TIKTOK_CLIENT_SECRET')
+def tiktok_business_app_id():
+    return get_secret('tiktok_business_app_id','TIKTOK_BUSINESS_APP_ID') or tiktok_client_key()
+def tiktok_business_app_secret():
+    return get_secret('tiktok_business_app_secret','TIKTOK_BUSINESS_APP_SECRET') or tiktok_client_secret()
 
 def init_db():
     with db() as c:
@@ -363,7 +368,7 @@ def provider_status():
     return {
       'apify': {'configured': bool(apify_token()), 'search_actor': APIFY_SEARCH_ACTOR, 'comments_actor': APIFY_COMMENTS_ACTOR, 'region': APIFY_REGION, 'health': ph.get('apify')},
       'meltwater': {'configured': bool(meltwater_token() and meltwater_search_id()), 'search_id': meltwater_search_id() or None},
-      'tiktok_owned': {'configured': bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')), 'oauth_ready': bool(tiktok_client_key() and tiktok_client_secret()), 'redirect_uri': TIKTOK_REDIRECT_URI, 'business_callback': TIKTOK_BUSINESS_CALLBACK},
+      'tiktok_owned': {'configured': bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')), 'oauth_ready': bool(tiktok_business_app_id() and tiktok_business_app_secret()), 'redirect_uri': TIKTOK_REDIRECT_URI, 'business_callback': TIKTOK_BUSINESS_CALLBACK},
       'tiktok_mentions': {'configured': bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')), 'scope': get_secret('tiktok_business_scope') or None, 'health': ph.get('tiktok_business_mentions')},
       'tiktok_oembed': {'configured': True, 'health': ph.get('tiktok_oembed')},
       'openai': {'configured': bool(openai_key()), 'model': OPENAI_MODEL if openai_key() else 'fallback-rules-v2'}
@@ -426,7 +431,7 @@ async def get_valid_tiktok_token():
         except: pass
     if access and not refresh: return access
     if not refresh: return ''
-    ck=tiktok_client_key(); cs=tiktok_client_secret()
+    ck=tiktok_business_app_id(); cs=tiktok_business_app_secret()
     if not (ck and cs): return access or ''
     payload={'client_id':ck,'client_secret':cs,'grant_type':'refresh_token','refresh_token':refresh}
     async with httpx.AsyncClient(timeout=45) as client:
@@ -679,8 +684,8 @@ async def sync_meltwater(hours=6):
 
 async def provider_sync():
     out={}
-    try: out['tiktok_owned']=await sync_tiktok_owned()
-    except Exception as e: out['tiktok_owned']={'error':str(e)}
+    try: out['tiktok_official']=await sync_tiktok_mentions()
+    except Exception as e: out['tiktok_official']={'error':str(e)}
     if apify_token():
         try: out['apify']=await sync_apify_search()
         except Exception as e: out['apify']={'error':str(e)}
@@ -744,8 +749,8 @@ def ready():
       'tiktok_oembed':probe,
       'ai_mode':'openai' if OPENAI_API_KEY else 'fallback',
       'owned_tiktok_connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
-      'tiktok_app_id_ready':bool(tiktok_client_key()),
-      'tiktok_app_secret_ready':bool(tiktok_client_secret()),
+      'tiktok_app_id_ready':bool(tiktok_business_app_id()),
+      'tiktok_app_secret_ready':bool(tiktok_business_app_secret()),
       'tiktok_redirect_uri':TIKTOK_REDIRECT_URI,
       'market_provider_connected':bool(apify_token() or (meltwater_token() and meltwater_search_id()))
     }
@@ -763,15 +768,17 @@ def settings_status(_=Depends(admin)):
       'apify_results_per_keyword':APIFY_RESULTS_PER_KEYWORD,
       'meltwater_token':bool(meltwater_token()),
       'meltwater_search_id':bool(meltwater_search_id()),
-      'tiktok_client_key':bool(tiktok_client_key()),
-      'tiktok_client_secret':bool(tiktok_client_secret()),
+      'tiktok_client_key':bool(tiktok_business_app_id()),
+      'tiktok_client_secret':bool(tiktok_business_app_secret()),
+      'tiktok_business_app_id_ready':bool(tiktok_business_app_id()),
+      'tiktok_business_app_secret_ready':bool(tiktok_business_app_secret()),
       'tiktok_connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
       'tiktok_redirect_uri':TIKTOK_REDIRECT_URI,'tiktok_business_callback':TIKTOK_BUSINESS_CALLBACK,'tiktok_scope':get_secret('tiktok_business_scope') or None
     }
 
 @app.post('/api/settings/secrets')
 def settings_secrets(body:dict,_=Depends(admin)):
-    allowed={'openai_api_key','apify_api_token','meltwater_api_token','meltwater_search_id','tiktok_client_key','tiktok_client_secret'}
+    allowed={'openai_api_key','apify_api_token','meltwater_api_token','meltwater_search_id','tiktok_client_key','tiktok_client_secret','tiktok_business_app_id','tiktok_business_app_secret'}
     saved=[]
     for name in allowed:
         val=body.get(name)
@@ -818,21 +825,22 @@ async def apify_comments_enrich(body:dict|None=None,_=Depends(admin)):
 
 @app.get('/api/tiktok/oauth/url')
 def tiktok_oauth_url(_=Depends(admin)):
-    ck=tiktok_client_key()
-    if not (ck and tiktok_client_secret()):
-        raise HTTPException(400,'TikTok App ID / Secret not configured')
+    app_id=tiktok_business_app_id()
+    if not (app_id and tiktok_business_app_secret()):
+        raise HTTPException(400,'TikTok Business App ID / App Secret not configured')
     state=secrets.token_urlsafe(32)
     with db() as c:
         c.execute('DELETE FROM oauth_states WHERE expires_at < ?',(now_iso(),))
         c.execute('INSERT INTO oauth_states(state,provider,expires_at) VALUES(?,?,?)',
                   (state,'tiktok_business',(datetime.now(timezone.utc)+timedelta(minutes=15)).isoformat()))
-    # Omit scope intentionally: TikTok docs state this grants all currently approved
-    # permissions for the developer app, including Mentions when approved.
-    params={'client_key':ck,'response_type':'code','redirect_uri':TIKTOK_REDIRECT_URI,'state':state}
+    params={'client_key':app_id,'response_type':'code','redirect_uri':TIKTOK_REDIRECT_URI,'state':state}
+    if TIKTOK_BUSINESS_SCOPES:
+        params['scope']=TIKTOK_BUSINESS_SCOPES
     return {
       'url':'https://www.tiktok.com/v2/auth/authorize?'+urlencode(params),
       'redirect_uri':TIKTOK_REDIRECT_URI,
-      'business_callback':TIKTOK_BUSINESS_CALLBACK
+      'business_callback':TIKTOK_BUSINESS_CALLBACK,
+      'scopes':TIKTOK_BUSINESS_SCOPES
     }
 
 @app.get('/api/tiktok/business/callback',response_class=HTMLResponse)
@@ -850,8 +858,8 @@ async def tiktok_business_callback(auth_code:str|None=None,code:str|None=None,st
         return HTMLResponse('<meta charset="utf-8"><h2>Invalid or expired OAuth state</h2><p>กรุณากด Connect TikTok ใหม่จาก Dashboard</p>',status_code=400)
     try:
         payload={
-          'client_id':tiktok_client_key(),
-          'client_secret':tiktok_client_secret(),
+          'client_id':tiktok_business_app_id(),
+          'client_secret':tiktok_business_app_secret(),
           'grant_type':'authorization_code',
           'auth_code':auth_code,
           'redirect_uri':TIKTOK_REDIRECT_URI
@@ -889,12 +897,50 @@ async def tiktok_oauth_callback(auth_code:str|None=None,code:str|None=None,state
 async def tiktok_business_status(_=Depends(admin)):
     return {
       'connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
-      'oauth_ready':bool(tiktok_client_key() and tiktok_client_secret()),
+      'oauth_ready':bool(tiktok_business_app_id() and tiktok_business_app_secret()),
       'redirect_uri':TIKTOK_REDIRECT_URI,
       'scope':get_secret('tiktok_business_scope') or None,
       'open_id_present':bool(get_secret('tiktok_business_open_id')),
       'token_info':await tiktok_business_token_info()
     }
+
+@app.get('/api/tiktok/business/diagnostic')
+async def tiktok_business_diagnostic(_=Depends(admin)):
+    info=await tiktok_business_token_info()
+    saved_scope=get_secret('tiktok_business_scope') or ''
+    token_data=info.get('data') if isinstance(info,dict) else None
+    live_scope=''
+    if isinstance(token_data,dict):
+        live_scope=str(token_data.get('scope') or token_data.get('scopes') or '')
+    scope=live_scope or saved_scope
+    scopes=[x.strip() for x in scope.split(',') if x.strip()]
+    return {
+      'connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
+      'app_id_ready':bool(tiktok_business_app_id()),
+      'app_secret_ready':bool(tiktok_business_app_secret()),
+      'redirect_uri':TIKTOK_REDIRECT_URI,
+      'relay_target':TIKTOK_BUSINESS_CALLBACK,
+      'open_id_present':bool(get_secret('tiktok_business_open_id')),
+      'scope':scope or None,
+      'scopes':scopes,
+      'token_info_ok':bool(info.get('ok')) if isinstance(info,dict) else False,
+      'token_info_message':info.get('message') if isinstance(info,dict) else None,
+      'mentions_content_test':(await sync_tiktok_mentions()).get('content',{}) if get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN') else {'ok':False,'message':'not connected'}
+    }
+
+@app.get('/api/tiktok/business/relay-template')
+def tiktok_business_relay_template(_=Depends(admin)):
+    html='''<!doctype html><html lang="th"><meta charset="utf-8"><title>TikTok Authorization</title>
+<body style="font-family:system-ui;padding:40px"><h2>กำลังเชื่อม TikTok กับ Pawdy Social Intelligence…</h2>
+<p id="s">กำลังส่ง authorization code ไปยังระบบที่ปลอดภัย</p>
+<script>
+const q=new URLSearchParams(location.search);
+const target=new URL("https://pawdy-social-listening-production.up.railway.app/api/tiktok/business/callback");
+["auth_code","code","state","error","error_description"].forEach(k=>{const v=q.get(k);if(v)target.searchParams.set(k,v)});
+if((q.get("auth_code")||q.get("code")) && q.get("state")) location.replace(target.toString());
+else document.getElementById("s").textContent="ไม่พบ auth_code/state กรุณากลับไปกด Connect TikTok Business ใหม่";
+</script></body></html>'''
+    return {'path':'/tiktok-callback.html','html':html,'relay_target':TIKTOK_BUSINESS_CALLBACK}
 
 @app.post('/api/tiktok/mentions/sync')
 async def tiktok_mentions_sync(_=Depends(admin)):
@@ -1036,10 +1082,10 @@ textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{t
   <span class="muted">Market: TH • rotating keywords • budget-safe</span>
 </div>
 <div class="row" style="margin-top:8px">
-  <input id="ttKey" type="password" placeholder="TikTok App ID">
-  <input id="ttSecret" type="password" placeholder="TikTok App Secret">
+  <input id="ttKey" type="password" placeholder="TikTok Business App ID">
+  <input id="ttSecret" type="password" placeholder="TikTok Business App Secret">
   <button onclick="saveSecrets()">Save & Test</button>
-  <button onclick="connectTikTok()">Connect TikTok</button>
+  <button onclick="connectTikTok()">Connect TikTok Business</button>
   <button onclick="enrichComments()">Enrich Comments</button>
 </div>
 <div id="settingsStatus" class="muted" style="margin-top:10px"></div>
@@ -1134,7 +1180,7 @@ async function loadStatus(){
 async function loadSettings(){
   try{
     const x=await api('/api/settings/status');
-    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Apify='+(x.apify_token?'connected':'not connected')+' ('+x.apify_region+', '+x.apify_keywords_per_run+' keywords/run × '+x.apify_results_per_keyword+' videos) • TikTok='+(x.tiktok_connected?'connected':(x.tiktok_client_key&&x.tiktok_client_secret?'ready to authorize':'optional'));
+    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Apify='+(x.apify_token?'connected':'not connected')+' ('+x.apify_region+', '+x.apify_keywords_per_run+' keywords/run × '+x.apify_results_per_keyword+' videos) • TikTok Official='+(x.tiktok_connected?'connected':(x.tiktok_business_app_id_ready&&x.tiktok_business_app_secret_ready?'ready to authorize':'needs App ID/Secret'))+(x.tiktok_scope?' • Scope: '+x.tiktok_scope:'');
   }catch(e){$('settingsStatus').textContent=e.message}
 }
 async function saveSecrets(){
@@ -1142,8 +1188,8 @@ async function saveSecrets(){
     const body={
       openai_api_key:$('openaiKey').value,
       apify_api_token:$('apifyToken').value,
-      tiktok_client_key:$('ttKey').value,
-      tiktok_client_secret:$('ttSecret').value
+      tiktok_business_app_id:$('ttKey').value,
+      tiktok_business_app_secret:$('ttSecret').value
     };
     await api('/api/settings/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const t=await api('/api/settings/test',{method:'POST'});
