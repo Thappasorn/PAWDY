@@ -598,7 +598,205 @@ def scheduler():
         except Exception as e: print('scheduler',e,flush=True)
         time.sleep(30)
 
-HTML='''<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pawdy Social Intelligence</title><style>body{font-family:system-ui;margin:0;background:#f4f7f2;color:#172012}header{background:#193c1b;color:white;padding:20px 5vw}main{padding:24px 5vw}.row{display:flex;gap:12px;flex-wrap:wrap}.card{background:white;border-radius:16px;padding:18px;box-shadow:0 2px 12px #0001;flex:1;min-width:220px;margin-bottom:16px}.big{font-size:32px;font-weight:800}.tag{background:#e9f4df;border-radius:999px;padding:6px 10px;display:inline-block;margin:3px}button,input{padding:10px 12px;border-radius:10px;border:1px solid #ccd6c6}button{background:#98ca40;border:0;font-weight:700;cursor:pointer}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:9px;border-bottom:1px solid #eee;font-size:14px}.muted{color:#667}</style><header><h1>Pawdy Social Intelligence</h1><div>TikTok Listening → AI Analysis → Daily Content Insight</div></header><main><div class="row"><input id="t" type="password" placeholder="Admin token"><button onclick="connect()">Connect</button><button onclick="run()">Run Pipeline</button><button onclick="syncProviders()">Sync Providers</button></div><div class="card" style="margin-top:16px"><h3>🔐 Secure Connections</h3><div class="row"><input id="openaiKey" type="password" placeholder="OpenAI API key"><input id="mwToken" type="password" placeholder="Meltwater API token"><input id="mwSearch" placeholder="Meltwater Search ID"></div><div class="row" style="margin-top:8px"><input id="ttKey" type="password" placeholder="TikTok Client Key"><input id="ttSecret" type="password" placeholder="TikTok Client Secret"><button onclick="saveSecrets()">Save & Test</button><button onclick="connectTikTok()">Connect TikTok</button></div><div id="settingsStatus" class="muted" style="margin-top:10px"></div></div><div class="card" style="margin-top:16px"><h3>Listening Workspace</h3><div class="row"><input id="newkw" placeholder="เพิ่ม keyword เช่น หมาแก่กินน้อย"><button onclick="addKeyword()">Add Keyword</button><button onclick="probe()">Test TikTok Connection</button></div><div id="keywords" style="margin:12px 0"></div><select id="kwselect" style="padding:10px;border-radius:10px;border:1px solid #ccd6c6"></select><textarea id="urls" style="width:100%;min-height:90px;margin-top:8px" placeholder="วาง TikTok URL ทีละบรรทัด แล้วเลือก keyword ด้านบน"></textarea><br><button onclick="importUrls()">Import + Analyze</button><div id="providerStatus" class="muted" style="margin-top:10px"></div></div><div id="app" style="margin-top:20px"></div></main><script>let token=localStorage.pawdyToken||'';document.getElementById('t').value=token;async function api(path,opt={}){opt.headers=Object.assign({'Authorization':'Bearer '+token},opt.headers||{});let r=await fetch(path,opt);if(!r.ok)throw new Error(await r.text());return r.json()}function connect(){token=document.getElementById('t').value.trim();localStorage.pawdyToken=token;load()}async function run(){await api('/api/pipeline/run',{method:'POST'});load()}async function syncProviders(){await api('/api/providers/sync',{method:'POST'});await loadStatus();load()}async function importUrls(){let urls=document.getElementById('urls').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);let r=await api('/api/tiktok/import_urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls})});alert('Imported '+r.ingested+' URLs');await run()}async function loadStatus(){try{let p=await api('/api/providers/status');document.getElementById('providerStatus').textContent='Provider status: '+Object.entries(p).map(([k,v])=>k+'='+(v.configured?'ready':'not connected')).join(' • ')}catch(e){}}async function loadSettings(){try{let x=await api('/api/settings/status');document.getElementById('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Meltwater='+(x.meltwater_token&&x.meltwater_search_id?'connected':'not connected')+' • TikTok='+(x.tiktok_connected?'connected':(x.tiktok_client_key&&x.tiktok_client_secret?'ready to authorize':'needs app credentials'))+' • Redirect URI: '+x.tiktok_redirect_uri}catch(e){}}async function saveSecrets(){let body={openai_api_key:document.getElementById('openaiKey').value,meltwater_api_token:document.getElementById('mwToken').value,meltwater_search_id:document.getElementById('mwSearch').value,tiktok_client_key:document.getElementById('ttKey').value,tiktok_client_secret:document.getElementById('ttSecret').value};await api('/api/settings/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let t=await api('/api/settings/test',{method:'POST'});alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Meltwater: '+(t.meltwater.ok?'OK':'FAILED'));['openaiKey','mwToken','ttKey','ttSecret'].forEach(id=>document.getElementById(id).value='');loadSettings();loadStatus()}async function connectTikTok(){let r=await api('/api/tiktok/oauth/url');location.href=r.url}function fmt(n){return new Intl.NumberFormat().format(n||0)}async function load(){try{let d=await api('/api/dashboard');let s=d.summary,i=d.insight;document.getElementById('app').innerHTML=`<div class=row><div class=card><div class=muted>Videos</div><div class=big>${fmt(s.videos)}</div></div><div class=card><div class=muted>Views</div><div class=big>${fmt(s.views)}</div></div><div class=card><div class=muted>Engagement</div><div class=big>${s.engagement_rate}%</div></div><div class=card><div class=muted>High Risk</div><div class=big>${s.high_risk}</div></div></div><div class=card><h2>🔥 Rising Topics</h2>${(i.rising_topics||[]).map(x=>`<span class=tag>${x.topic} ${x.growth_pct>=0?'+':''}${x.growth_pct}% · ${x.opportunity_score}/100</span>`).join('')||'ยังไม่มีข้อมูล'}</div><div class=row><div class=card><h2>💬 Questions</h2>${(i.consumer_questions||[]).map(x=>`<div>• ${Array.isArray(x)?x[0]:x}</div>`).join('')||'ยังไม่มีข้อมูล'}</div><div class=card><h2>💡 Content Ideas</h2>${(i.content_ideas||[]).map(x=>`<div><b>${x.score}</b> · ${x.idea}</div>`).join('')||'ยังไม่มีข้อมูล'}</div></div><div class=card><h2>Latest Feed</h2><table><thead><tr><th>Creator</th><th>Caption</th><th>Topic</th><th>Views</th><th>Score</th><th>Risk</th></tr></thead><tbody>${(d.feed||[]).slice(0,50).map(x=>`<tr><td>${x.creator||''}</td><td><a href="${x.url}" target=_blank>${(x.caption||'').slice(0,80)}</a></td><td>${x.topic||'-'}</td><td>${fmt(x.view_count)}</td><td>${x.opportunity_score||'-'}</td><td>${x.risk_level||'-'}</td></tr>`).join('')}</tbody></table></div>`}catch(e){document.getElementById('app').innerHTML='<div class=card>เชื่อมต่อไม่สำเร็จ: '+e.message+'</div>'}}if(token){loadStatus();loadSettings();loadKeywords();load()}</script></html>'''
+HTML=r'''<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pawdy Social Intelligence</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f4f7f2;color:#172012}
+header{background:#193c1b;color:white;padding:20px 5vw}
+main{padding:24px 5vw}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.card{background:white;border-radius:16px;padding:18px;box-shadow:0 2px 12px #0001;flex:1;min-width:220px;margin-bottom:16px}
+.big{font-size:32px;font-weight:800}.tag{background:#e9f4df;border-radius:999px;padding:6px 10px;display:inline-block;margin:3px;text-decoration:none;color:#27411c}
+button,input,select,textarea{padding:10px 12px;border-radius:10px;border:1px solid #ccd6c6;font:inherit}
+button{background:#98ca40;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}
+textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:9px;border-bottom:1px solid #eee;font-size:14px}
+.muted{color:#667}.ok{color:#237a29;font-weight:700}.bad{color:#b3261e;font-weight:700}.status{padding:9px 12px;border-radius:10px;background:#eef3ea}
+</style>
+</head>
+<body>
+<header><h1>Pawdy Social Intelligence</h1><div>TikTok Listening → AI Analysis → Daily Content Insight</div></header>
+<main>
+<div class="row">
+  <input id="t" type="password" placeholder="Admin token" autocomplete="current-password">
+  <button id="connectBtn" onclick="connect()">Connect</button>
+  <button onclick="run()">Run Pipeline</button>
+  <button onclick="syncProviders()">Sync Providers</button>
+  <span id="loginStatus" class="status muted">Not connected</span>
+</div>
+
+<div class="card" style="margin-top:16px">
+<h3>🔐 Secure Connections</h3>
+<div class="row">
+  <input id="openaiKey" type="password" placeholder="OpenAI API key">
+  <input id="mwToken" type="password" placeholder="Meltwater API token">
+  <input id="mwSearch" placeholder="Meltwater Search ID">
+</div>
+<div class="row" style="margin-top:8px">
+  <input id="ttKey" type="password" placeholder="TikTok Client Key">
+  <input id="ttSecret" type="password" placeholder="TikTok Client Secret">
+  <button onclick="saveSecrets()">Save & Test</button>
+  <button onclick="connectTikTok()">Connect TikTok</button>
+</div>
+<div id="settingsStatus" class="muted" style="margin-top:10px"></div>
+</div>
+
+<div class="card">
+<h3>Listening Workspace</h3>
+<div class="row">
+  <input id="newkw" placeholder="เพิ่ม keyword เช่น หมาแก่กินน้อย">
+  <button onclick="addKeyword()">Add Keyword</button>
+  <button onclick="probe()">Test TikTok Connection</button>
+</div>
+<div id="keywords" style="margin:12px 0"></div>
+<select id="kwselect"></select>
+<textarea id="urls" style="width:100%;min-height:90px;margin-top:8px" placeholder="วาง TikTok URL ทีละบรรทัด แล้วเลือก keyword ด้านบน"></textarea><br>
+<button onclick="importUrls()">Import + Analyze</button>
+<div id="providerStatus" class="muted" style="margin-top:10px"></div>
+</div>
+
+<div id="app"></div>
+</main>
+
+<script>
+let token=localStorage.pawdyToken||'';
+const $=id=>document.getElementById(id);
+$('t').value=token;
+
+function esc(v){
+  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function safeUrl(v){
+  try{let u=new URL(v);return u.protocol==='https:'?u.href:'#'}catch{return '#'}
+}
+function setLogin(text,kind='muted'){
+  $('loginStatus').className='status '+kind;
+  $('loginStatus').textContent=text;
+}
+async function api(path,opt={}){
+  opt.headers=Object.assign({'Authorization':'Bearer '+token},opt.headers||{});
+  const r=await fetch(path,opt);
+  if(r.status===401) throw new Error('Admin Token ไม่ถูกต้อง');
+  if(!r.ok) throw new Error((await r.text())||('HTTP '+r.status));
+  return r.json();
+}
+async function connect(){
+  token=$('t').value.trim();
+  if(!token){setLogin('กรุณาใส่ Admin Token','bad');return}
+  localStorage.pawdyToken=token;
+  $('connectBtn').disabled=true;
+  setLogin('Connecting…');
+  try{
+    await api('/api/dashboard');
+    setLogin('Connected ✓','ok');
+    await Promise.all([loadStatus(),loadSettings(),loadKeywords()]);
+    await load();
+  }catch(e){
+    setLogin(e.message,'bad');
+    $('app').innerHTML='<div class="card bad">'+esc(e.message)+'</div>';
+  }finally{$('connectBtn').disabled=false}
+}
+async function run(){
+  try{setLogin('Running pipeline…');await api('/api/pipeline/run',{method:'POST'});setLogin('Connected ✓','ok');await load()}
+  catch(e){setLogin(e.message,'bad')}
+}
+async function syncProviders(){
+  try{await api('/api/providers/sync',{method:'POST'});await Promise.all([loadStatus(),load()])}
+  catch(e){setLogin(e.message,'bad')}
+}
+async function importUrls(){
+  const urls=$('urls').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  if(!urls.length){alert('กรุณาวาง TikTok URL อย่างน้อย 1 URL');return}
+  const keyword=$('kwselect').value||'Manual TikTok URL';
+  try{
+    const r=await api('/api/tiktok/import_urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls,keyword})});
+    await api('/api/pipeline/run',{method:'POST'});
+    alert('Imported '+r.ingested+' URLs'+(r.errors?.length?' • '+r.errors.length+' errors':''));
+    await load();
+  }catch(e){alert(e.message)}
+}
+async function loadStatus(){
+  try{
+    const p=await api('/api/providers/status');
+    const oe=p.tiktok_oembed?.health;
+    $('providerStatus').textContent='TikTok URL='+(oe?.ok?'LIVE':'checking')+' • Owned TikTok='+(p.tiktok_owned.configured?'connected':'not connected')+' • Meltwater='+(p.meltwater.configured?'connected':'not connected')+' • AI='+(p.openai.configured?'OpenAI':'fallback rules');
+  }catch(e){$('providerStatus').textContent=e.message}
+}
+async function loadSettings(){
+  try{
+    const x=await api('/api/settings/status');
+    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Meltwater='+(x.meltwater_token&&x.meltwater_search_id?'connected':'not connected')+' • TikTok='+(x.tiktok_connected?'connected':(x.tiktok_client_key&&x.tiktok_client_secret?'ready to authorize':'needs app credentials'))+' • Redirect URI: '+x.tiktok_redirect_uri;
+  }catch(e){$('settingsStatus').textContent=e.message}
+}
+async function saveSecrets(){
+  try{
+    const body={
+      openai_api_key:$('openaiKey').value,
+      meltwater_api_token:$('mwToken').value,
+      meltwater_search_id:$('mwSearch').value,
+      tiktok_client_key:$('ttKey').value,
+      tiktok_client_secret:$('ttSecret').value
+    };
+    await api('/api/settings/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const t=await api('/api/settings/test',{method:'POST'});
+    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Meltwater: '+(t.meltwater.ok?'OK':'FAILED'));
+    ['openaiKey','mwToken','ttKey','ttSecret'].forEach(id=>$(id).value='');
+    await Promise.all([loadSettings(),loadStatus()]);
+  }catch(e){alert(e.message)}
+}
+async function connectTikTok(){
+  try{const r=await api('/api/tiktok/oauth/url');location.href=r.url}catch(e){alert(e.message)}
+}
+async function loadKeywords(){
+  try{
+    const r=await api('/api/keywords'), k=r.keywords||[];
+    $('keywords').innerHTML=k.map(x=>'<a class="tag" target="_blank" rel="noopener" href="https://www.tiktok.com/search?q='+encodeURIComponent(x.keyword)+'">'+esc(x.keyword)+'</a>').join('');
+    $('kwselect').innerHTML=k.map(x=>'<option value="'+esc(x.keyword)+'">'+esc(x.keyword)+'</option>').join('');
+  }catch(e){$('keywords').textContent=e.message}
+}
+async function addKeyword(){
+  const keyword=$('newkw').value.trim();
+  if(!keyword)return;
+  try{
+    await api('/api/keywords',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyword,category:'custom'})});
+    $('newkw').value='';
+    await loadKeywords();
+  }catch(e){alert(e.message)}
+}
+async function probe(){
+  try{
+    const r=await api('/api/providers/probe',{method:'POST'});
+    alert('TikTok oEmbed: '+(r.tiktok_oembed.ok?'LIVE':'FAILED'));
+    await loadStatus();
+  }catch(e){alert(e.message)}
+}
+function fmt(n){return new Intl.NumberFormat().format(n||0)}
+async function load(){
+  try{
+    const d=await api('/api/dashboard'), s=d.summary, i=d.insight;
+    $('app').innerHTML=
+      '<div class="row">'+
+      '<div class="card"><div class="muted">Videos</div><div class="big">'+fmt(s.videos)+'</div></div>'+
+      '<div class="card"><div class="muted">Views</div><div class="big">'+fmt(s.views)+'</div></div>'+
+      '<div class="card"><div class="muted">Engagement</div><div class="big">'+esc(s.engagement_rate)+'%</div></div>'+
+      '<div class="card"><div class="muted">High Risk</div><div class="big">'+fmt(s.high_risk)+'</div></div></div>'+
+      '<div class="card"><h2>🔥 Rising Topics</h2>'+((i.rising_topics||[]).map(x=>'<span class="tag">'+esc(x.topic)+' '+(x.growth_pct>=0?'+':'')+esc(x.growth_pct)+'% · '+esc(x.opportunity_score)+'/100</span>').join('')||'ยังไม่มีข้อมูล')+'</div>'+
+      '<div class="row"><div class="card"><h2>💬 Questions</h2>'+((i.consumer_questions||[]).map(x=>'<div>• '+esc(Array.isArray(x)?x[0]:x)+'</div>').join('')||'ยังไม่มีข้อมูล')+'</div>'+
+      '<div class="card"><h2>💡 Content Ideas</h2>'+((i.content_ideas||[]).map(x=>'<div><b>'+esc(x.score)+'</b> · '+esc(x.idea)+'</div>').join('')||'ยังไม่มีข้อมูล')+'</div></div>'+
+      '<div class="card"><h2>Latest Feed</h2><table><thead><tr><th>Creator</th><th>Caption</th><th>Topic</th><th>Views</th><th>Score</th><th>Risk</th></tr></thead><tbody>'+
+      (d.feed||[]).slice(0,50).map(x=>'<tr><td>'+esc(x.creator)+'</td><td><a href="'+safeUrl(x.url)+'" target="_blank" rel="noopener">'+esc((x.caption||'').slice(0,80))+'</a></td><td>'+esc(x.topic||'-')+'</td><td>'+fmt(x.view_count)+'</td><td>'+esc(x.opportunity_score||'-')+'</td><td>'+esc(x.risk_level||'-')+'</td></tr>').join('')+
+      '</tbody></table></div>';
+  }catch(e){
+    $('app').innerHTML='<div class="card bad">เชื่อมต่อไม่สำเร็จ: '+esc(e.message)+'</div>';
+    throw e;
+  }
+}
+if(token){connect()}
+</script>
+</body>
+</html>'''
 
 @app.get('/',response_class=HTMLResponse)
 def root(): return HTML
