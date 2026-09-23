@@ -207,15 +207,31 @@ async def ai_analysis(video: dict):
 async def analyze_pending(limit=200):
     with db() as c:
         rows=[dict(x) for x in c.execute('SELECT v.* FROM videos v LEFT JOIN analyses a ON a.video_id=v.id WHERE a.video_id IS NULL ORDER BY v.collected_at LIMIT ?', (limit,)).fetchall()]
-    done=0; failed=[]
-    for v in rows:
-        try:
-            a=await ai_analysis(v)
-            with db() as c:
-                c.execute('''INSERT OR REPLACE INTO analyses(video_id,topic,sentiment,sentiment_score,pain_points,questions,purchase_intent,opportunity,opportunity_score,risk_level,summary,model,analyzed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',(v['id'],a['topic'],a['sentiment'],a['sentiment_score'],json.dumps(a['pain_points'],ensure_ascii=False),json.dumps(a['questions'],ensure_ascii=False),a['purchase_intent'],a['opportunity'],a['opportunity_score'],a['risk_level'],a['summary'],a['model'],now_iso()))
-            done+=1
-        except Exception as e: failed.append({'video_id':v['id'],'error':str(e)})
-    return {'analyzed':done,'failed':failed}
+    if not rows:
+        set_provider_health('openai_analysis',True,{'analyzed':0,'pending':0,'message':'up to date'})
+        return {'analyzed':0,'failed':[],'pending':0}
+    import asyncio
+    sem=asyncio.Semaphore(5)
+    async def one(v):
+        async with sem:
+            try:
+                a=await ai_analysis(v)
+                with db() as c:
+                    c.execute('''INSERT OR REPLACE INTO analyses(video_id,topic,sentiment,sentiment_score,pain_points,questions,purchase_intent,opportunity,opportunity_score,risk_level,summary,model,analyzed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                      (v['id'],a['topic'],a['sentiment'],a['sentiment_score'],json.dumps(a['pain_points'],ensure_ascii=False),
+                       json.dumps(a['questions'],ensure_ascii=False),a['purchase_intent'],a['opportunity'],a['opportunity_score'],
+                       a['risk_level'],a['summary'],a['model'],now_iso()))
+                return {'ok':True,'video_id':v['id']}
+            except Exception as e:
+                print('analysis failed',v.get('id'),str(e)[:500],flush=True)
+                return {'ok':False,'video_id':v['id'],'error':str(e)}
+    results=await asyncio.gather(*(one(v) for v in rows))
+    done=sum(1 for x in results if x['ok'])
+    failed=[x for x in results if not x['ok']]
+    with db() as c:
+        pending=c.execute('SELECT count(*) n FROM videos v LEFT JOIN analyses a ON a.video_id=v.id WHERE a.video_id IS NULL').fetchone()['n']
+    set_provider_health('openai_analysis',not failed,{'analyzed':done,'failed':len(failed),'pending':pending,'model':OPENAI_MODEL if openai_key() else 'fallback-rules-v2'})
+    return {'analyzed':done,'failed':failed[:20],'pending':pending}
 
 
 async def reanalyze_fallback(limit=500):
@@ -618,6 +634,12 @@ async def provider_sync():
         out['market_provider']={'skipped':'Apify/Meltwater not configured'}
     return out
 
+async def refresh_market_and_analysis():
+    providers=await provider_sync()
+    analysis=await analyze_pending(200)
+    daily=generate_insight()
+    return {'providers':providers,'analysis':analysis,'daily':daily}
+
 @app.on_event('startup')
 def startup():
     init_db(); seed_keywords()
@@ -696,7 +718,10 @@ async def settings_test(_=Depends(admin)):
     else: out['openai']={'ok':False,'error':'not configured'}
     out['apify']=await test_apify()
     if out['apify'].get('ok'):
-        try: out['apify']['sync']=await sync_apify_search()
+        try:
+            out['apify']['sync']=await sync_apify_search()
+            out['analysis']=await analyze_pending(200)
+            out['daily']=generate_insight()
         except Exception as e: out['apify']['sync_error']=str(e)
     if meltwater_token():
         out['meltwater']={'configured':True}
@@ -798,7 +823,7 @@ async def meltwater_sync(_=Depends(admin)):
 
 @app.post('/api/providers/sync')
 async def providers_sync(_=Depends(admin)):
-    return {'ok':True,'providers':await provider_sync()}
+    return {'ok':True,**(await refresh_market_and_analysis())}
 
 @app.post('/api/import/csv')
 async def import_csv(file:UploadFile=File(...),_=Depends(admin)):
@@ -810,7 +835,7 @@ async def import_csv(file:UploadFile=File(...),_=Depends(admin)):
 
 @app.post('/api/pipeline/run')
 async def pipeline(_=Depends(admin)):
-    p=await provider_sync(); a=await analyze_pending(); d=generate_insight(); return {'ok':True,'providers':p,'analysis':a,'daily':d}
+    return {'ok':True,**(await refresh_market_and_analysis())}
 
 @app.get('/api/dashboard')
 def dashboard(_=Depends(admin)):
@@ -819,8 +844,9 @@ def dashboard(_=Depends(admin)):
         di=c.execute('SELECT payload FROM daily_insights ORDER BY day DESC LIMIT 1').fetchone()
         kws=[dict(x) for x in c.execute('SELECT * FROM keywords WHERE enabled=1 ORDER BY category,keyword').fetchall()]
     views=sum(int(x.get('view_count') or 0) for x in feed[:100]); eng=sum(int(x.get('like_count') or 0)+int(x.get('comment_count') or 0)+int(x.get('share_count') or 0) for x in feed[:100])
+    analyzed=sum(1 for x in feed if x.get('topic'))
     insight=json.loads(di['payload']) if di else {'rising_topics':[],'consumer_questions':[],'pain_points':[],'content_ideas':[],'risks':[]}
-    return {'generatedAt':now_iso(),'summary':{'videos':len(feed),'views':views,'engagement_rate':round(eng/max(views,1)*100,2),'high_risk':sum(1 for x in feed if x.get('risk_level') in ('high','critical'))},'providers':provider_status(),'keywords':kws,'insight':insight,'feed':feed}
+    return {'generatedAt':now_iso(),'summary':{'videos':len(feed),'analyzed':analyzed,'pending':max(len(feed)-analyzed,0),'views':views,'engagement_rate':round(eng/max(views,1)*100,2),'high_risk':sum(1 for x in feed if x.get('risk_level') in ('high','critical'))},'providers':provider_status(),'keywords':kws,'insight':insight,'feed':feed}
 
 def scheduler():
     last_daily=''; last_provider=0.0; last_probe=0.0
@@ -828,7 +854,9 @@ def scheduler():
         try:
             n=datetime.now(TZ); day=n.date().isoformat(); ts=time.time()
             if ts-last_provider >= max(PROVIDER_SYNC_MINUTES,10)*60:
-                import asyncio; asyncio.run(provider_sync()); last_provider=ts
+                import asyncio
+                asyncio.run(refresh_market_and_analysis())
+                last_provider=ts
             if ts-last_probe >= 21600:
                 import asyncio; asyncio.run(probe_tiktok_oembed()); last_probe=ts
             if n.hour==RUN_HOUR and last_daily!=day:
@@ -865,7 +893,7 @@ textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{t
   <input id="t" type="password" placeholder="Admin token" autocomplete="current-password">
   <button id="connectBtn" onclick="connect()">Connect</button>
   <button onclick="run()">Run Pipeline</button>
-  <button onclick="syncProviders()">Sync Providers</button>
+  <button onclick="syncProviders()">Sync + Analyze</button>
   <span id="loginStatus" class="status muted">Not connected</span>
 </div>
 
@@ -946,8 +974,13 @@ async function run(){
   catch(e){setLogin(e.message,'bad')}
 }
 async function syncProviders(){
-  try{await api('/api/providers/sync',{method:'POST'});await Promise.all([loadStatus(),load()])}
-  catch(e){setLogin(e.message,'bad')}
+  try{
+    setLogin('Syncing + analyzing…');
+    const r=await api('/api/providers/sync',{method:'POST'});
+    setLogin('Connected ✓','ok');
+    alert('เสร็จแล้ว: วิเคราะห์ '+(r.analysis?.analyzed||0)+' คลิป • ค้าง '+(r.analysis?.pending||0));
+    await Promise.all([loadStatus(),load()]);
+  }catch(e){setLogin(e.message,'bad');alert(e.message)}
 }
 async function importUrls(){
   const urls=$('urls').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);
@@ -1029,6 +1062,7 @@ async function load(){
     $('app').innerHTML=
       '<div class="row">'+
       '<div class="card"><div class="muted">Videos</div><div class="big">'+fmt(s.videos)+'</div></div>'+
+      '<div class="card"><div class="muted">Analyzed</div><div class="big">'+fmt(s.analyzed)+'</div><div class="muted">Pending '+fmt(s.pending)+'</div></div>'+
       '<div class="card"><div class="muted">Views</div><div class="big">'+fmt(s.views)+'</div></div>'+
       '<div class="card"><div class="muted">Engagement</div><div class="big">'+esc(s.engagement_rate)+'%</div></div>'+
       '<div class="card"><div class="muted">High Risk</div><div class="big">'+fmt(s.high_risk)+'</div></div></div>'+
