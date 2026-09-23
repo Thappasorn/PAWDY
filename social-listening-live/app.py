@@ -738,6 +738,9 @@ def ready():
       'tiktok_oembed':probe,
       'ai_mode':'openai' if OPENAI_API_KEY else 'fallback',
       'owned_tiktok_connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
+      'tiktok_app_id_ready':bool(tiktok_client_key()),
+      'tiktok_app_secret_ready':bool(tiktok_client_secret()),
+      'tiktok_redirect_uri':TIKTOK_REDIRECT_URI,
       'market_provider_connected':bool(apify_token() or (meltwater_token() and meltwater_search_id()))
     }
 
