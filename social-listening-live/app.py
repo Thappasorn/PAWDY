@@ -808,6 +808,14 @@ async def settings_test(_=Depends(admin)):
         except Exception as e: out['apify']['sync_error']=str(e)
     if meltwater_token():
         out['meltwater']={'configured':True}
+    out['tiktok_business']={
+      'app_id_ready':bool(tiktok_business_app_id()),
+      'app_secret_ready':bool(tiktok_business_app_secret()),
+      'connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
+      'redirect_uri':TIKTOK_REDIRECT_URI
+    }
+    if out['tiktok_business']['connected']:
+        out['tiktok_business']['token_info']=await tiktok_business_token_info()
     return out
 
 @app.post('/api/apify/sync')
@@ -1086,6 +1094,7 @@ textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{t
   <input id="ttSecret" type="password" placeholder="TikTok Business App Secret">
   <button onclick="saveSecrets()">Save & Test</button>
   <button onclick="connectTikTok()">Connect TikTok Business</button>
+  <button onclick="checkTikTok()">Check TikTok Official</button>
   <button onclick="enrichComments()">Enrich Comments</button>
 </div>
 <div id="settingsStatus" class="muted" style="margin-top:10px"></div>
@@ -1180,7 +1189,8 @@ async function loadStatus(){
 async function loadSettings(){
   try{
     const x=await api('/api/settings/status');
-    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Apify='+(x.apify_token?'connected':'not connected')+' ('+x.apify_region+', '+x.apify_keywords_per_run+' keywords/run × '+x.apify_results_per_keyword+' videos) • TikTok Official='+(x.tiktok_connected?'connected':(x.tiktok_business_app_id_ready&&x.tiktok_business_app_secret_ready?'ready to authorize':'needs App ID/Secret'))+(x.tiktok_scope?' • Scope: '+x.tiktok_scope:'');
+    const tt=x.tiktok_connected?'connected ✓':(!x.tiktok_business_app_secret_ready?'ต้องใส่ App Secret':(x.tiktok_business_app_id_ready?'พร้อม authorize':'ต้องใส่ App ID/Secret'));
+    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Apify='+(x.apify_token?'connected':'not connected')+' ('+x.apify_region+', '+x.apify_keywords_per_run+' keywords/run × '+x.apify_results_per_keyword+' videos) • TikTok Official='+tt+(x.tiktok_scope?' • Scope: '+x.tiktok_scope:'');
   }catch(e){$('settingsStatus').textContent=e.message}
 }
 async function saveSecrets(){
@@ -1193,7 +1203,7 @@ async function saveSecrets(){
     };
     await api('/api/settings/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const t=await api('/api/settings/test',{method:'POST'});
-    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Apify: '+(t.apify.ok?'OK':'FAILED')+(t.apify.sync?' • '+(t.apify.sync.ingested||0)+' videos imported':''));
+    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Apify: '+(t.apify.ok?'OK':'FAILED')+(t.apify.sync?' • '+(t.apify.sync.ingested||0)+' videos imported':'')+' • TikTok App ID: '+(t.tiktok_business?.app_id_ready?'OK':'MISSING')+' • TikTok Secret: '+(t.tiktok_business?.app_secret_ready?'OK':'MISSING'));
     ['openaiKey','apifyToken','ttKey','ttSecret'].forEach(id=>$(id).value='');
     await Promise.all([loadSettings(),loadStatus()]);
   }catch(e){alert(e.message)}
@@ -1204,6 +1214,13 @@ async function enrichComments(){
     const r=await api('/api/apify/comments/enrich',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit_videos:5,comments_per_video:20})});
     alert('Enriched '+(r.result.enriched||0)+' videos • '+(r.result.comments||0)+' comments');
     await load();
+  }catch(e){alert(e.message)}
+}
+async function checkTikTok(){
+  try{
+    const r=await api('/api/tiktok/business/diagnostic');
+    alert('TikTok Official: '+(r.connected?'CONNECTED':'NOT CONNECTED')+' • App ID '+(r.app_id_ready?'OK':'MISSING')+' • Secret '+(r.app_secret_ready?'OK':'MISSING')+' • Token '+(r.token_info_ok?'OK':'NOT READY')+(r.scope?' • Scope: '+r.scope:''));
+    await loadSettings();
   }catch(e){alert(e.message)}
 }
 async function connectTikTok(){
