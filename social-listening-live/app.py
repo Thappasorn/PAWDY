@@ -707,6 +707,12 @@ async def refresh_market_and_analysis():
 @app.on_event('startup')
 def startup():
     init_db(); seed_keywords()
+    print('tiktok readiness '+json.dumps({
+      'app_id_ready':bool(tiktok_client_key()),
+      'app_secret_ready':bool(tiktok_client_secret()),
+      'redirect_uri':TIKTOK_REDIRECT_URI,
+      'connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN'))
+    }),flush=True)
     def _probe():
         import asyncio
         try: asyncio.run(probe_tiktok_oembed())
