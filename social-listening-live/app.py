@@ -21,7 +21,16 @@ RUN_HOUR = int(os.getenv('DAILY_RUN_HOUR','9'))
 MELTWATER_API_TOKEN = os.getenv('MELTWATER_API_TOKEN','').strip()
 MELTWATER_SEARCH_ID = os.getenv('MELTWATER_SEARCH_ID','').strip()
 TIKTOK_ACCESS_TOKEN = os.getenv('TIKTOK_ACCESS_TOKEN','').strip()
-PROVIDER_SYNC_MINUTES = int(os.getenv('PROVIDER_SYNC_MINUTES','60'))
+PROVIDER_SYNC_MINUTES = int(os.getenv('PROVIDER_SYNC_MINUTES','360'))
+APIFY_SEARCH_ACTOR = os.getenv('APIFY_SEARCH_ACTOR','stanvanrooy6~tiktok-search-scraper').strip()
+APIFY_COMMENTS_ACTOR = os.getenv('APIFY_COMMENTS_ACTOR','abotapi~tiktok-comments-scraper').strip()
+APIFY_KEYWORDS_PER_RUN = int(os.getenv('APIFY_KEYWORDS_PER_RUN','5'))
+APIFY_RESULTS_PER_KEYWORD = int(os.getenv('APIFY_RESULTS_PER_KEYWORD','10'))
+APIFY_COMMENTS_VIDEOS_DAILY = int(os.getenv('APIFY_COMMENTS_VIDEOS_DAILY','5'))
+APIFY_COMMENTS_PER_VIDEO = int(os.getenv('APIFY_COMMENTS_PER_VIDEO','20'))
+APIFY_REGION = os.getenv('APIFY_REGION','TH').strip()
+APIFY_LANGUAGE = os.getenv('APIFY_LANGUAGE','th').strip()
+APIFY_PUBLISHED_WITHIN = os.getenv('APIFY_PUBLISHED_WITHIN','week').strip()
 APP_SECRET_KEY = os.getenv('APP_SECRET_KEY','').strip()
 TIKTOK_REDIRECT_URI = os.getenv('TIKTOK_REDIRECT_URI','https://pawdy-social-listening-production.up.railway.app/api/tiktok/oauth/callback/').strip()
 
@@ -76,6 +85,7 @@ def get_secret(name:str, env_name:str|None=None):
     return os.getenv(env_name,'').strip() if env_name else ''
 
 def openai_key(): return get_secret('openai_api_key','OPENAI_API_KEY')
+def apify_token(): return get_secret('apify_api_token','APIFY_API_TOKEN')
 def meltwater_token(): return get_secret('meltwater_api_token','MELTWATER_API_TOKEN')
 def meltwater_search_id(): return get_secret('meltwater_search_id','MELTWATER_SEARCH_ID')
 def tiktok_client_key(): return get_secret('tiktok_client_key','TIKTOK_CLIENT_KEY')
@@ -114,7 +124,20 @@ def init_db():
         CREATE TABLE IF NOT EXISTS oauth_states(
           state TEXT PRIMARY KEY, provider TEXT NOT NULL, expires_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS app_state(
+          name TEXT PRIMARY KEY, value TEXT, updated_at TEXT NOT NULL
+        );
         ''')
+
+
+def get_state(name:str, default=''):
+    with db() as c:
+        row=c.execute('SELECT value FROM app_state WHERE name=?',(name,)).fetchone()
+    return row['value'] if row else default
+
+def set_state(name:str, value):
+    with db() as c:
+        c.execute('INSERT OR REPLACE INTO app_state(name,value,updated_at) VALUES(?,?,?)',(name,str(value),now_iso()))
 
 def admin(authorization: str|None=Header(default=None)):
     if not ADMIN_TOKEN or authorization != f'Bearer {ADMIN_TOKEN}':
@@ -319,6 +342,7 @@ def provider_status():
     with db() as c:
         ph={x['provider']:dict(x) for x in c.execute('SELECT * FROM provider_health').fetchall()}
     return {
+      'apify': {'configured': bool(apify_token()), 'search_actor': APIFY_SEARCH_ACTOR, 'comments_actor': APIFY_COMMENTS_ACTOR, 'region': APIFY_REGION, 'health': ph.get('apify')},
       'meltwater': {'configured': bool(meltwater_token() and meltwater_search_id()), 'search_id': meltwater_search_id() or None},
       'tiktok_owned': {'configured': bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')), 'oauth_ready': bool(tiktok_client_key() and tiktok_client_secret()), 'redirect_uri': TIKTOK_REDIRECT_URI},
       'tiktok_oembed': {'configured': True, 'health': ph.get('tiktok_oembed')},
@@ -341,7 +365,7 @@ def upsert_items(items, source='provider', search_keyword=None):
               url=excluded.url,creator=excluded.creator,caption=excluded.caption,transcript=excluded.transcript,
               search_keyword=excluded.search_keyword,source=excluded.source,view_count=excluded.view_count,
               like_count=excluded.like_count,comment_count=excluded.comment_count,share_count=excluded.share_count,
-              comments_json=excluded.comments_json,published_at=COALESCE(excluded.published_at,videos.published_at),
+              comments_json=CASE WHEN excluded.comments_json!='[]' THEN excluded.comments_json ELSE videos.comments_json END,published_at=COALESCE(excluded.published_at,videos.published_at),
               collected_at=excluded.collected_at''',
               (vid,pid,url,creator,item.get('caption'),item.get('transcript'),
                item.get('search_keyword') or search_keyword,source,_num(item.get('view_count')),_num(item.get('like_count')),
@@ -418,6 +442,130 @@ async def sync_tiktok_owned():
             cursor=data.get('cursor')
     return {'ingested':upsert_items(items,'tiktok_display_api','Owned TikTok'),'pages':pages}
 
+
+async def test_apify():
+    token=apify_token()
+    if not token: return {'ok':False,'error':'not configured'}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            r=await client.get('https://api.apify.com/v2/users/me',headers={'Authorization':f'Bearer {token}'})
+        ok=r.status_code==200
+        detail={'status':r.status_code}
+        if ok:
+            d=(r.json().get('data') or {})
+            detail.update({'username':d.get('username'),'plan':d.get('plan')})
+        else:
+            detail['error']=r.text[:300]
+        set_provider_health('apify',ok,detail)
+        return {'ok':ok,**detail}
+    except Exception as e:
+        set_provider_health('apify',False,str(e))
+        return {'ok':False,'error':str(e)}
+
+async def sync_apify_search():
+    token=apify_token()
+    if not token: return {'skipped':'APIFY_API_TOKEN not configured'}
+    with db() as c:
+        keywords=[x['keyword'] for x in c.execute('SELECT keyword FROM keywords WHERE enabled=1 ORDER BY category,keyword').fetchall()]
+    if not keywords: return {'skipped':'no enabled keywords'}
+    batch_size=max(1,min(APIFY_KEYWORDS_PER_RUN,len(keywords)))
+    try: cursor=int(get_state('apify_keyword_cursor','0') or 0)
+    except: cursor=0
+    cursor=cursor%len(keywords)
+    batch=[keywords[(cursor+i)%len(keywords)] for i in range(batch_size)]
+    next_cursor=(cursor+batch_size)%len(keywords)
+
+    payload={
+      'keywords':batch,'region':APIFY_REGION,'language':APIFY_LANGUAGE,
+      'maxResults':max(1,min(APIFY_RESULTS_PER_KEYWORD,100)),
+      'sort':'relevance','publishedWithin':APIFY_PUBLISHED_WITHIN,
+      'deepSearch':False,'includeAds':False
+    }
+    url=f'https://api.apify.com/v2/actors/{APIFY_SEARCH_ACTOR}/run-sync-get-dataset-items'
+    async with httpx.AsyncClient(timeout=290) as client:
+        r=await client.post(url,headers={'Authorization':f'Bearer {token}','Content-Type':'application/json','Accept':'application/json'},json=payload)
+    if r.status_code not in (200,201):
+        set_provider_health('apify',False,{'status':r.status_code,'error':r.text[:500]})
+        raise RuntimeError(f'Apify search failed {r.status_code}: {r.text[:500]}')
+    rows=r.json() if isinstance(r.json(),list) else []
+    items=[]
+    for x in rows:
+        pid=str(x.get('video_id') or x.get('id') or '').strip()
+        vurl=str(x.get('url') or x.get('share_url') or '').strip()
+        if not pid or not vurl: continue
+        author=x.get('author') or {}
+        if isinstance(author,str): creator=author
+        else: creator=author.get('unique_id') or author.get('username') or author.get('nickname')
+        stats=x.get('stats') or {}
+        published=x.get('create_time')
+        if not isinstance(published,str):
+            published=x.get('createTimeISO') or x.get('create_timestamp')
+            if isinstance(published,(int,float)):
+                published=datetime.fromtimestamp(published,timezone.utc).isoformat()
+        items.append({
+          'platform_video_id':pid,'url':vurl,'creator':{'username':creator},
+          'caption':x.get('desc') or x.get('caption') or x.get('text') or '',
+          'transcript':'','search_keyword':x.get('keyword') or '',
+          'view_count':stats.get('play_count') or x.get('playCount') or x.get('views') or 0,
+          'like_count':stats.get('digg_count') or x.get('diggCount') or x.get('likes') or 0,
+          'comment_count':stats.get('comment_count') or x.get('commentCount') or x.get('comments') or 0,
+          'share_count':stats.get('share_count') or x.get('shareCount') or x.get('shares') or 0,
+          'published_at':published,'comments':[]
+        })
+    ingested=upsert_items(items,'apify_tiktok_search',None)
+    set_state('apify_keyword_cursor',next_cursor)
+    detail={'keywords':batch,'rows':len(rows),'ingested':ingested,'next_cursor':next_cursor}
+    set_provider_health('apify',True,detail)
+    return detail
+
+async def enrich_apify_comments(limit_videos=None, comments_per_video=None):
+    token=apify_token()
+    if not token: return {'skipped':'APIFY_API_TOKEN not configured'}
+    lv=max(1,min(int(limit_videos or APIFY_COMMENTS_VIDEOS_DAILY),20))
+    cp=max(1,min(int(comments_per_video or APIFY_COMMENTS_PER_VIDEO),100))
+    with db() as c:
+        videos=[dict(x) for x in c.execute("""
+          SELECT * FROM videos
+          WHERE source='apify_tiktok_search' AND comment_count>0
+            AND (comments_json IS NULL OR comments_json='[]')
+          ORDER BY comment_count DESC, view_count DESC, collected_at DESC LIMIT ?
+        """,(lv,)).fetchall()]
+    if not videos: return {'enriched':0,'comments':0,'message':'no unenriched videos'}
+    payload={
+      'mode':'videos','videoUrls':[v['url'] for v in videos],
+      'maxCommentsPerVideo':cp,'minCommentLikes':0,'excludeReplies':True,
+      'commentsSinceDays':14,'fetchReplies':False,'proxyTier':'datacenter'
+    }
+    url=f'https://api.apify.com/v2/actors/{APIFY_COMMENTS_ACTOR}/run-sync-get-dataset-items'
+    async with httpx.AsyncClient(timeout=290) as client:
+        r=await client.post(url,headers={'Authorization':f'Bearer {token}','Content-Type':'application/json','Accept':'application/json'},json=payload)
+    if r.status_code not in (200,201):
+        raise RuntimeError(f'Apify comments failed {r.status_code}: {r.text[:500]}')
+    rows=r.json() if isinstance(r.json(),list) else []
+    grouped={}
+    for x in rows:
+        txt=str(x.get('text') or '').strip()
+        if not txt: continue
+        vid=str(x.get('videoId') or x.get('video_id') or '').strip()
+        vurl=str(x.get('videoUrl') or x.get('inputVideo') or '')
+        key=vid or vurl
+        if not key: continue
+        grouped.setdefault(key,[]).append({
+          'text':txt,'author':x.get('authorUsername') or x.get('authorNickname'),
+          'likes':_num(x.get('diggCount') or x.get('likes')),
+          'published_at':x.get('createTimeIso') or x.get('create_time')
+        })
+    enriched=0; total_comments=0
+    with db() as c:
+        for v in videos:
+            comments=grouped.get(str(v['platform_video_id'])) or grouped.get(v['url']) or []
+            if not comments: continue
+            c.execute('UPDATE videos SET comments_json=?, collected_at=? WHERE id=?',
+                      (json.dumps(comments[:cp],ensure_ascii=False),now_iso(),v['id']))
+            c.execute('DELETE FROM analyses WHERE video_id=?',(v['id'],))
+            enriched+=1; total_comments+=len(comments[:cp])
+    return {'enriched':enriched,'comments':total_comments,'requested_videos':len(videos)}
+
 async def sync_meltwater(hours=6):
     token=meltwater_token(); search_id=meltwater_search_id()
     if not (token and search_id):
@@ -460,10 +608,15 @@ async def provider_sync():
     out={}
     try: out['tiktok_owned']=await sync_tiktok_owned()
     except Exception as e: out['tiktok_owned']={'error':str(e)}
-    try: out['meltwater']=await sync_meltwater()
-    except Exception as e: out['meltwater']={'error':str(e)}
+    if apify_token():
+        try: out['apify']=await sync_apify_search()
+        except Exception as e: out['apify']={'error':str(e)}
+    elif meltwater_token() and meltwater_search_id():
+        try: out['meltwater']=await sync_meltwater()
+        except Exception as e: out['meltwater']={'error':str(e)}
+    else:
+        out['market_provider']={'skipped':'Apify/Meltwater not configured'}
     return out
-
 
 @app.on_event('startup')
 def startup():
@@ -489,24 +642,38 @@ def ready():
     probe=dict(ph) if ph else None
     return {
       'ready': bool(probe and probe.get('ok')),
-      'version':'4.2',
+      'version':'5.0',
       'database':True,
       'video_count':videos,
       'keyword_count':keywords,
       'tiktok_oembed':probe,
       'ai_mode':'openai' if OPENAI_API_KEY else 'fallback',
       'owned_tiktok_connected':bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')),
-      'market_provider_connected':bool(meltwater_token() and meltwater_search_id())
+      'market_provider_connected':bool(apify_token() or (meltwater_token() and meltwater_search_id()))
     }
 
 
 @app.get('/api/settings/status')
 def settings_status(_=Depends(admin)):
-    return {'openai':bool(openai_key()),'meltwater_token':bool(meltwater_token()),'meltwater_search_id':bool(meltwater_search_id()),'tiktok_client_key':bool(tiktok_client_key()),'tiktok_client_secret':bool(tiktok_client_secret()),'tiktok_connected':bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')),'tiktok_redirect_uri':TIKTOK_REDIRECT_URI}
+    return {
+      'openai':bool(openai_key()),
+      'apify_token':bool(apify_token()),
+      'apify_search_actor':APIFY_SEARCH_ACTOR,
+      'apify_comments_actor':APIFY_COMMENTS_ACTOR,
+      'apify_region':APIFY_REGION,
+      'apify_keywords_per_run':APIFY_KEYWORDS_PER_RUN,
+      'apify_results_per_keyword':APIFY_RESULTS_PER_KEYWORD,
+      'meltwater_token':bool(meltwater_token()),
+      'meltwater_search_id':bool(meltwater_search_id()),
+      'tiktok_client_key':bool(tiktok_client_key()),
+      'tiktok_client_secret':bool(tiktok_client_secret()),
+      'tiktok_connected':bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')),
+      'tiktok_redirect_uri':TIKTOK_REDIRECT_URI
+    }
 
 @app.post('/api/settings/secrets')
 def settings_secrets(body:dict,_=Depends(admin)):
-    allowed={'openai_api_key','meltwater_api_token','meltwater_search_id','tiktok_client_key','tiktok_client_secret'}
+    allowed={'openai_api_key','apify_api_token','meltwater_api_token','meltwater_search_id','tiktok_client_key','tiktok_client_secret'}
     saved=[]
     for name in allowed:
         val=body.get(name)
@@ -527,26 +694,26 @@ async def settings_test(_=Depends(admin)):
                 out['openai']['reanalyze']=await reanalyze_fallback(500)
         except Exception as e: out['openai']={'ok':False,'error':str(e)}
     else: out['openai']={'ok':False,'error':'not configured'}
+    out['apify']=await test_apify()
+    if out['apify'].get('ok'):
+        try: out['apify']['sync']=await sync_apify_search()
+        except Exception as e: out['apify']['sync_error']=str(e)
     if meltwater_token():
-        try:
-            boot=await bootstrap_meltwater_search()
-            out['meltwater']=boot
-            if boot.get('ok'):
-                try:
-                    out['meltwater']['sync']=await sync_meltwater(24)
-                except Exception as e:
-                    out['meltwater']['sync_error']=str(e)
-        except Exception as e: out['meltwater']={'ok':False,'error':str(e)}
-    else: out['meltwater']={'ok':False,'error':'not configured'}
+        out['meltwater']={'configured':True}
     return out
 
-@app.post('/api/meltwater/bootstrap')
-async def meltwater_bootstrap(_=Depends(admin)):
-    result=await bootstrap_meltwater_search()
-    if result.get('ok'):
-        try: result['sync']=await sync_meltwater(24)
-        except Exception as e: result['sync_error']=str(e)
-    return result
+@app.post('/api/apify/sync')
+async def apify_sync(_=Depends(admin)):
+    return {'ok':True,'result':await sync_apify_search()}
+
+@app.post('/api/apify/comments/enrich')
+async def apify_comments_enrich(body:dict|None=None,_=Depends(admin)):
+    body=body or {}
+    result=await enrich_apify_comments(body.get('limit_videos'),body.get('comments_per_video'))
+    if result.get('enriched'):
+        result['analysis']=await analyze_pending(100)
+        result['daily']=generate_insight()
+    return {'ok':True,'result':result}
 
 @app.get('/api/tiktok/oauth/url')
 def tiktok_oauth_url(_=Depends(admin)):
@@ -665,7 +832,11 @@ def scheduler():
             if ts-last_probe >= 21600:
                 import asyncio; asyncio.run(probe_tiktok_oembed()); last_probe=ts
             if n.hour==RUN_HOUR and last_daily!=day:
-                import asyncio; asyncio.run(analyze_pending(500)); generate_insight(); last_daily=day
+                import asyncio
+                if apify_token():
+                    try: asyncio.run(enrich_apify_comments())
+                    except Exception as e: print('apify comments',e,flush=True)
+                asyncio.run(analyze_pending(500)); generate_insight(); last_daily=day
         except Exception as e: print('scheduler',e,flush=True)
         time.sleep(30)
 
@@ -702,14 +873,15 @@ textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{t
 <h3>🔐 Secure Connections</h3>
 <div class="row">
   <input id="openaiKey" type="password" placeholder="OpenAI API key">
-  <input id="mwToken" type="password" placeholder="Meltwater API token">
-  <input id="mwSearch" placeholder="Meltwater Search ID (optional)">
+  <input id="apifyToken" type="password" placeholder="Apify API token">
+  <span class="muted">Market: TH • rotating keywords • budget-safe</span>
 </div>
 <div class="row" style="margin-top:8px">
   <input id="ttKey" type="password" placeholder="TikTok Client Key">
   <input id="ttSecret" type="password" placeholder="TikTok Client Secret">
   <button onclick="saveSecrets()">Save & Test</button>
   <button onclick="connectTikTok()">Connect TikTok</button>
+  <button onclick="enrichComments()">Enrich Comments</button>
 </div>
 <div id="settingsStatus" class="muted" style="margin-top:10px"></div>
 </div>
@@ -792,29 +964,36 @@ async function loadStatus(){
   try{
     const p=await api('/api/providers/status');
     const oe=p.tiktok_oembed?.health;
-    $('providerStatus').textContent='TikTok URL='+(oe?.ok?'LIVE':'checking')+' • Owned TikTok='+(p.tiktok_owned.configured?'connected':'not connected')+' • Meltwater='+(p.meltwater.configured?'connected':'not connected')+' • AI='+(p.openai.configured?'OpenAI':'fallback rules');
+    $('providerStatus').textContent='TikTok URL='+(oe?.ok?'LIVE':'checking')+' • Owned TikTok='+(p.tiktok_owned.configured?'connected':'not connected')+' • Apify='+(p.apify?.configured?'connected':'not connected')+' • AI='+(p.openai.configured?'OpenAI':'fallback rules');
   }catch(e){$('providerStatus').textContent=e.message}
 }
 async function loadSettings(){
   try{
     const x=await api('/api/settings/status');
-    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Meltwater='+(x.meltwater_token&&x.meltwater_search_id?'connected':'not connected')+' • TikTok='+(x.tiktok_connected?'connected':(x.tiktok_client_key&&x.tiktok_client_secret?'ready to authorize':'needs app credentials'))+' • Redirect URI: '+x.tiktok_redirect_uri;
+    $('settingsStatus').textContent='OpenAI='+(x.openai?'connected':'not connected')+' • Apify='+(x.apify_token?'connected':'not connected')+' ('+x.apify_region+', '+x.apify_keywords_per_run+' keywords/run × '+x.apify_results_per_keyword+' videos) • TikTok='+(x.tiktok_connected?'connected':(x.tiktok_client_key&&x.tiktok_client_secret?'ready to authorize':'optional'));
   }catch(e){$('settingsStatus').textContent=e.message}
 }
 async function saveSecrets(){
   try{
     const body={
       openai_api_key:$('openaiKey').value,
-      meltwater_api_token:$('mwToken').value,
-      meltwater_search_id:$('mwSearch').value,
+      apify_api_token:$('apifyToken').value,
       tiktok_client_key:$('ttKey').value,
       tiktok_client_secret:$('ttSecret').value
     };
     await api('/api/settings/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const t=await api('/api/settings/test',{method:'POST'});
-    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Meltwater: '+(t.meltwater.ok?'OK':'FAILED')+(t.meltwater.search_id?' • Search '+t.meltwater.search_id:''));
-    ['openaiKey','mwToken','ttKey','ttSecret'].forEach(id=>$(id).value='');
+    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Apify: '+(t.apify.ok?'OK':'FAILED')+(t.apify.sync?' • '+(t.apify.sync.ingested||0)+' videos imported':''));
+    ['openaiKey','apifyToken','ttKey','ttSecret'].forEach(id=>$(id).value='');
     await Promise.all([loadSettings(),loadStatus()]);
+  }catch(e){alert(e.message)}
+}
+async function enrichComments(){
+  try{
+    if(!confirm('ดึง comments ของคลิปใหม่ที่ engagement สูงสุด ระบบจะใช้ Apify credits ต่อหรือไม่?'))return;
+    const r=await api('/api/apify/comments/enrich',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({limit_videos:5,comments_per_video:20})});
+    alert('Enriched '+(r.result.enriched||0)+' videos • '+(r.result.comments||0)+' comments');
+    await load();
   }catch(e){alert(e.message)}
 }
 async function connectTikTok(){
