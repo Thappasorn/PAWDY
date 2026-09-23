@@ -231,6 +231,7 @@ async def analyze_pending(limit=200):
     with db() as c:
         pending=c.execute('SELECT count(*) n FROM videos v LEFT JOIN analyses a ON a.video_id=v.id WHERE a.video_id IS NULL').fetchone()['n']
     set_provider_health('openai_analysis',not failed,{'analyzed':done,'failed':len(failed),'pending':pending,'model':OPENAI_MODEL if openai_key() else 'fallback-rules-v2'})
+    print('analysis complete',json.dumps({'analyzed':done,'failed':len(failed),'pending':pending,'model':OPENAI_MODEL if openai_key() else 'fallback-rules-v2'}),flush=True)
     return {'analyzed':done,'failed':failed[:20],'pending':pending}
 
 
@@ -635,10 +636,17 @@ async def provider_sync():
     return out
 
 async def refresh_market_and_analysis():
+    before=await analyze_pending(200)
     providers=await provider_sync()
-    analysis=await analyze_pending(200)
+    after=await analyze_pending(200)
     daily=generate_insight()
-    return {'providers':providers,'analysis':analysis,'daily':daily}
+    combined={
+      'analyzed':int(before.get('analyzed') or 0)+int(after.get('analyzed') or 0),
+      'pending':after.get('pending',before.get('pending',0)),
+      'failed':(before.get('failed') or [])+(after.get('failed') or [])
+    }
+    print('refresh complete',json.dumps({'analysis':{'analyzed':combined['analyzed'],'pending':combined['pending'],'failed':len(combined['failed'])},'providers':list(providers.keys())},ensure_ascii=False),flush=True)
+    return {'providers':providers,'analysis':combined,'daily':daily}
 
 @app.on_event('startup')
 def startup():
@@ -661,12 +669,15 @@ def ready():
         videos=c.execute('SELECT count(*) n FROM videos').fetchone()['n']
         keywords=c.execute('SELECT count(*) n FROM keywords WHERE enabled=1').fetchone()['n']
         ph=c.execute("SELECT ok,detail,checked_at FROM provider_health WHERE provider='tiktok_oembed'").fetchone()
+        analyzed=c.execute('SELECT count(*) n FROM analyses').fetchone()['n']
     probe=dict(ph) if ph else None
     return {
       'ready': bool(probe and probe.get('ok')),
       'version':'5.0',
       'database':True,
       'video_count':videos,
+      'analyzed_count':analyzed,
+      'pending_count':max(videos-analyzed,0),
       'keyword_count':keywords,
       'tiktok_oembed':probe,
       'ai_mode':'openai' if OPENAI_API_KEY else 'fallback',
