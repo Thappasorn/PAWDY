@@ -32,7 +32,9 @@ APIFY_REGION = os.getenv('APIFY_REGION','TH').strip()
 APIFY_LANGUAGE = os.getenv('APIFY_LANGUAGE','th').strip()
 APIFY_PUBLISHED_WITHIN = os.getenv('APIFY_PUBLISHED_WITHIN','week').strip()
 APP_SECRET_KEY = os.getenv('APP_SECRET_KEY','').strip()
-TIKTOK_REDIRECT_URI = os.getenv('TIKTOK_REDIRECT_URI','https://pawdy-social-listening-production.up.railway.app/api/tiktok/oauth/callback/').strip()
+TIKTOK_REDIRECT_URI = os.getenv('TIKTOK_REDIRECT_URI','https://pawdycontent.vercel.app/tiktok-callback.html').strip()
+TIKTOK_BUSINESS_BASE = 'https://business-api.tiktok.com/open_api/v1.3'
+TIKTOK_BUSINESS_CALLBACK = os.getenv('TIKTOK_BUSINESS_CALLBACK','https://pawdy-social-listening-production.up.railway.app/api/tiktok/business/callback').strip()
 
 app = FastAPI(title='Pawdy Social Intelligence', version='4.0')
 
@@ -361,7 +363,8 @@ def provider_status():
     return {
       'apify': {'configured': bool(apify_token()), 'search_actor': APIFY_SEARCH_ACTOR, 'comments_actor': APIFY_COMMENTS_ACTOR, 'region': APIFY_REGION, 'health': ph.get('apify')},
       'meltwater': {'configured': bool(meltwater_token() and meltwater_search_id()), 'search_id': meltwater_search_id() or None},
-      'tiktok_owned': {'configured': bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')), 'oauth_ready': bool(tiktok_client_key() and tiktok_client_secret()), 'redirect_uri': TIKTOK_REDIRECT_URI},
+      'tiktok_owned': {'configured': bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')), 'oauth_ready': bool(tiktok_client_key() and tiktok_client_secret()), 'redirect_uri': TIKTOK_REDIRECT_URI, 'business_callback': TIKTOK_BUSINESS_CALLBACK},
+      'tiktok_mentions': {'configured': bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')), 'scope': get_secret('tiktok_business_scope') or None, 'health': ph.get('tiktok_business_mentions')},
       'tiktok_oembed': {'configured': True, 'health': ph.get('tiktok_oembed')},
       'openai': {'configured': bool(openai_key()), 'model': OPENAI_MODEL if openai_key() else 'fallback-rules-v2'}
     }
@@ -413,9 +416,9 @@ async def import_tiktok_urls(urls, keyword='Manual TikTok URL'):
     return {'ingested':upsert_items(items,'tiktok_oembed',keyword or 'Manual TikTok URL'),'errors':errors}
 
 async def get_valid_tiktok_token():
-    access=get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')
-    refresh=get_secret('tiktok_refresh_token','TIKTOK_REFRESH_TOKEN')
-    exp=get_secret('tiktok_access_expires_at')
+    access=get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')
+    refresh=get_secret('tiktok_business_refresh_token','TIKTOK_REFRESH_TOKEN')
+    exp=get_secret('tiktok_business_access_expires_at')
     if access and exp:
         try:
             if datetime.fromisoformat(exp) > datetime.now(timezone.utc)+timedelta(minutes=10):
@@ -425,39 +428,92 @@ async def get_valid_tiktok_token():
     if not refresh: return ''
     ck=tiktok_client_key(); cs=tiktok_client_secret()
     if not (ck and cs): return access or ''
+    payload={'client_id':ck,'client_secret':cs,'grant_type':'refresh_token','refresh_token':refresh}
     async with httpx.AsyncClient(timeout=45) as client:
-        r=await client.post('https://open.tiktokapis.com/v2/oauth/token/',
-          headers={'Content-Type':'application/x-www-form-urlencoded'},
-          data={'client_key':ck,'client_secret':cs,'grant_type':'refresh_token','refresh_token':refresh})
-        r.raise_for_status(); d=r.json()
-    if d.get('access_token'):
-        set_secret('tiktok_access_token',d['access_token'])
-        set_secret('tiktok_refresh_token',d.get('refresh_token') or refresh)
-        set_secret('tiktok_access_expires_at',(datetime.now(timezone.utc)+timedelta(seconds=int(d.get('expires_in') or 86400))).isoformat())
-        return d['access_token']
-    return ''
+        r=await client.post(TIKTOK_BUSINESS_BASE+'/tt_user/oauth2/refresh_token/',
+          headers={'Content-Type':'application/json'},json=payload)
+        d=r.json()
+    if r.status_code!=200 or d.get('code') not in (0,None):
+        print('TikTok refresh failed',str(d)[:800],flush=True)
+        return access or ''
+    data=d.get('data') or {}
+    if data.get('access_token'):
+        set_secret('tiktok_business_access_token',data['access_token'])
+        set_secret('tiktok_business_refresh_token',data.get('refresh_token') or refresh)
+        set_secret('tiktok_business_access_expires_at',(datetime.now(timezone.utc)+timedelta(seconds=int(data.get('expires_in') or 86400))).isoformat())
+        if data.get('scope'): set_secret('tiktok_business_scope',str(data.get('scope')))
+        if data.get('open_id'): set_secret('tiktok_business_open_id',str(data.get('open_id')))
+        return data['access_token']
+    return access or ''
+
+async def tiktok_business_token_info():
+    token=await get_valid_tiktok_token()
+    if not token: return {'ok':False,'error':'not connected'}
+    async with httpx.AsyncClient(timeout=30) as client:
+        r=await client.get(TIKTOK_BUSINESS_BASE+'/tt_user/token_info/get/',
+          headers={'Access-Token':token,'Accept':'application/json'})
+        try: d=r.json()
+        except: return {'ok':False,'status':r.status_code,'error':r.text[:500]}
+    ok=r.status_code==200 and d.get('code') in (0,None)
+    return {'ok':ok,'status':r.status_code,'data':d.get('data'),'message':d.get('message'),'code':d.get('code')}
+
+def _mention_items(payload):
+    data=payload.get('data') or {}
+    for key in ('videos','video_list','list','items','mention_list'):
+        if isinstance(data.get(key),list): return data.get(key)
+    if isinstance(data,list): return data
+    return []
+
+async def sync_tiktok_mentions():
+    token=await get_valid_tiktok_token()
+    if not token: return {'skipped':'TikTok API for Business not connected'}
+    endpoints=[
+      ('content','/business/mention/video/list/'),
+      ('comments','/business/mention/comment/list/')
+    ]
+    out={'ingested':0,'content':{},'comments':{}}
+    async with httpx.AsyncClient(timeout=45) as client:
+        for kind,path in endpoints:
+            try:
+                r=await client.get(TIKTOK_BUSINESS_BASE+path,
+                  headers={'Access-Token':token,'Accept':'application/json'})
+                try: d=r.json()
+                except: d={'message':r.text[:700]}
+                ok=r.status_code==200 and d.get('code') in (0,None)
+                out[kind]={'ok':ok,'status':r.status_code,'code':d.get('code'),'message':d.get('message')}
+                if not ok: continue
+                if kind=='content':
+                    items=[]
+                    for x in _mention_items(d):
+                        pid=str(x.get('video_id') or x.get('item_id') or x.get('id') or '').strip()
+                        url=str(x.get('share_url') or x.get('url') or x.get('video_url') or '').strip()
+                        if not pid: continue
+                        if not url: url=f'https://www.tiktok.com/video/{pid}'
+                        creator=x.get('creator') or x.get('author') or {}
+                        if isinstance(creator,dict):
+                            creator=creator.get('username') or creator.get('unique_id') or creator.get('display_name')
+                        stats=x.get('stats') or x.get('metrics') or {}
+                        items.append({
+                          'platform_video_id':pid,'url':url,'creator':{'username':creator or 'tiktok_mention'},
+                          'caption':x.get('caption') or x.get('text') or x.get('video_description') or '',
+                          'transcript':'','search_keyword':'TikTok Official Mention',
+                          'view_count':stats.get('view_count') or stats.get('views') or x.get('view_count') or 0,
+                          'like_count':stats.get('like_count') or stats.get('likes') or x.get('like_count') or 0,
+                          'comment_count':stats.get('comment_count') or stats.get('comments') or x.get('comment_count') or 0,
+                          'share_count':stats.get('share_count') or stats.get('shares') or x.get('share_count') or 0,
+                          'published_at':x.get('create_time') or x.get('published_at'),'comments':[]
+                        })
+                    n=upsert_items(items,'tiktok_business_mentions','TikTok Official Mention')
+                    out['content']['items']=len(items); out['ingested']+=n
+            except Exception as e:
+                out[kind]={'ok':False,'error':str(e)}
+    set_provider_health('tiktok_business_mentions',bool(out['content'].get('ok')),out)
+    return out
 
 async def sync_tiktok_owned():
-    token=await get_valid_tiktok_token()
-    if not token: return {'skipped':'TikTok OAuth not connected'}
-    fields='id,title,video_description,create_time,share_url,like_count,comment_count,share_count,view_count'
-    items=[]; cursor=None; pages=0
-    async with httpx.AsyncClient(timeout=45) as client:
-        while pages<5:
-            body={'max_count':20}
-            if cursor: body['cursor']=cursor
-            r=await client.post('https://open.tiktokapis.com/v2/video/list/',params={'fields':fields},
-              headers={'Authorization':f'Bearer {token}','Content-Type':'application/json'},json=body)
-            r.raise_for_status(); d=r.json()
-            err=d.get('error') or {}
-            if err.get('code') not in (None,'ok',0): raise RuntimeError(str(err))
-            data=d.get('data') or {}
-            for v in data.get('videos') or []:
-                items.append({'platform_video_id':str(v.get('id')),'url':v.get('share_url') or f"https://www.tiktok.com/video/{v.get('id')}",'creator':{'username':'owned_tiktok'},'caption':v.get('video_description') or v.get('title') or '','transcript':'','search_keyword':'Owned TikTok','view_count':v.get('view_count',0),'like_count':v.get('like_count',0),'comment_count':v.get('comment_count',0),'share_count':v.get('share_count',0),'published_at':datetime.fromtimestamp(v.get('create_time',0),timezone.utc).isoformat() if v.get('create_time') else None,'comments':[]})
-            pages+=1
-            if not data.get('has_more'): break
-            cursor=data.get('cursor')
-    return {'ingested':upsert_items(items,'tiktok_display_api','Owned TikTok'),'pages':pages}
+    # Business API is now the canonical TikTok connection. Mentions sync is the useful
+    # market signal; owned-account sync can be added once Account Media permission is granted.
+    return await sync_tiktok_mentions()
 
 
 async def test_apify():
@@ -681,7 +737,7 @@ def ready():
       'keyword_count':keywords,
       'tiktok_oembed':probe,
       'ai_mode':'openai' if OPENAI_API_KEY else 'fallback',
-      'owned_tiktok_connected':bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')),
+      'owned_tiktok_connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
       'market_provider_connected':bool(apify_token() or (meltwater_token() and meltwater_search_id()))
     }
 
@@ -700,8 +756,8 @@ def settings_status(_=Depends(admin)):
       'meltwater_search_id':bool(meltwater_search_id()),
       'tiktok_client_key':bool(tiktok_client_key()),
       'tiktok_client_secret':bool(tiktok_client_secret()),
-      'tiktok_connected':bool(get_secret('tiktok_access_token','TIKTOK_ACCESS_TOKEN')),
-      'tiktok_redirect_uri':TIKTOK_REDIRECT_URI
+      'tiktok_connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
+      'tiktok_redirect_uri':TIKTOK_REDIRECT_URI,'tiktok_business_callback':TIKTOK_BUSINESS_CALLBACK,'tiktok_scope':get_secret('tiktok_business_scope') or None
     }
 
 @app.post('/api/settings/secrets')
@@ -754,34 +810,89 @@ async def apify_comments_enrich(body:dict|None=None,_=Depends(admin)):
 @app.get('/api/tiktok/oauth/url')
 def tiktok_oauth_url(_=Depends(admin)):
     ck=tiktok_client_key()
-    if not (ck and tiktok_client_secret()): raise HTTPException(400,'TikTok client key/secret not configured')
+    if not (ck and tiktok_client_secret()):
+        raise HTTPException(400,'TikTok App ID / Secret not configured')
     state=secrets.token_urlsafe(32)
     with db() as c:
         c.execute('DELETE FROM oauth_states WHERE expires_at < ?',(now_iso(),))
-        c.execute('INSERT INTO oauth_states(state,provider,expires_at) VALUES(?,?,?)',(state,'tiktok',(datetime.now(timezone.utc)+timedelta(minutes=15)).isoformat()))
-    params={'client_key':ck,'response_type':'code','scope':'user.info.basic,video.list','redirect_uri':TIKTOK_REDIRECT_URI,'state':state,'disable_auto_auth':'1'}
-    return {'url':'https://www.tiktok.com/v2/auth/authorize/?'+urlencode(params),'redirect_uri':TIKTOK_REDIRECT_URI}
+        c.execute('INSERT INTO oauth_states(state,provider,expires_at) VALUES(?,?,?)',
+                  (state,'tiktok_business',(datetime.now(timezone.utc)+timedelta(minutes=15)).isoformat()))
+    # Omit scope intentionally: TikTok docs state this grants all currently approved
+    # permissions for the developer app, including Mentions when approved.
+    params={'client_key':ck,'response_type':'code','redirect_uri':TIKTOK_REDIRECT_URI,'state':state}
+    return {
+      'url':'https://www.tiktok.com/v2/auth/authorize?'+urlencode(params),
+      'redirect_uri':TIKTOK_REDIRECT_URI,
+      'business_callback':TIKTOK_BUSINESS_CALLBACK
+    }
 
-@app.get('/api/tiktok/oauth/callback/',response_class=HTMLResponse)
-async def tiktok_oauth_callback(code:str|None=None,state:str|None=None,error:str|None=None,error_description:str|None=None):
-    if error: return HTMLResponse(f'<h2>TikTok authorization failed</h2><p>{error}: {error_description or ""}</p>',status_code=400)
-    if not code or not state: return HTMLResponse('<h2>Missing TikTok authorization code/state</h2>',status_code=400)
+@app.get('/api/tiktok/business/callback',response_class=HTMLResponse)
+async def tiktok_business_callback(auth_code:str|None=None,code:str|None=None,state:str|None=None,
+                                   error:str|None=None,error_description:str|None=None):
+    if error:
+        return HTMLResponse('<meta charset="utf-8"><h2>TikTok authorization failed</h2><p>'+str(error)+'</p>',status_code=400)
+    auth_code=auth_code or code
+    if not auth_code or not state:
+        return HTMLResponse('<meta charset="utf-8"><h2>Missing TikTok auth_code/state</h2>',status_code=400)
     with db() as c:
-        row=c.execute("SELECT * FROM oauth_states WHERE state=? AND provider='tiktok'",(state,)).fetchone()
+        row=c.execute("SELECT * FROM oauth_states WHERE state=? AND provider='tiktok_business'",(state,)).fetchone()
         if row: c.execute('DELETE FROM oauth_states WHERE state=?',(state,))
-    if not row or row['expires_at'] < now_iso(): return HTMLResponse('<h2>Invalid or expired OAuth state</h2>',status_code=400)
+    if not row or row['expires_at'] < now_iso():
+        return HTMLResponse('<meta charset="utf-8"><h2>Invalid or expired OAuth state</h2><p>กรุณากด Connect TikTok ใหม่จาก Dashboard</p>',status_code=400)
     try:
+        payload={
+          'client_id':tiktok_client_key(),
+          'client_secret':tiktok_client_secret(),
+          'grant_type':'authorization_code',
+          'auth_code':auth_code,
+          'redirect_uri':TIKTOK_REDIRECT_URI
+        }
         async with httpx.AsyncClient(timeout=45) as client:
-            r=await client.post('https://open.tiktokapis.com/v2/oauth/token/',headers={'Content-Type':'application/x-www-form-urlencoded'},data={'client_key':tiktok_client_key(),'client_secret':tiktok_client_secret(),'code':code,'grant_type':'authorization_code','redirect_uri':TIKTOK_REDIRECT_URI})
-            r.raise_for_status(); d=r.json()
-        if not d.get('access_token'): raise RuntimeError(str(d))
-        set_secret('tiktok_access_token',d['access_token'])
-        set_secret('tiktok_refresh_token',d.get('refresh_token') or '')
-        set_secret('tiktok_access_expires_at',(datetime.now(timezone.utc)+timedelta(seconds=int(d.get('expires_in') or 86400))).isoformat())
-        sync=await sync_tiktok_owned()
-        return HTMLResponse('<meta charset="utf-8"><div style="font-family:system-ui;padding:40px"><h2>✅ TikTok connected</h2><p>Authorization สำเร็จและ sync แล้ว</p><pre>'+json.dumps(sync,ensure_ascii=False,indent=2)+'</pre><p><a href="/">กลับ Dashboard</a></p></div>')
+            r=await client.post(TIKTOK_BUSINESS_BASE+'/tt_user/oauth2/token/',
+              headers={'Content-Type':'application/json'},json=payload)
+            d=r.json()
+        if r.status_code!=200 or d.get('code') not in (0,None):
+            raise RuntimeError('TikTok token exchange: '+json.dumps(d,ensure_ascii=False)[:1000])
+        data=d.get('data') or {}
+        if not data.get('access_token'): raise RuntimeError('No access_token returned')
+        set_secret('tiktok_business_access_token',data['access_token'])
+        set_secret('tiktok_business_refresh_token',data.get('refresh_token') or '')
+        set_secret('tiktok_business_access_expires_at',(datetime.now(timezone.utc)+timedelta(seconds=int(data.get('expires_in') or 86400))).isoformat())
+        set_secret('tiktok_business_refresh_expires_at',(datetime.now(timezone.utc)+timedelta(seconds=int(data.get('refresh_token_expires_in') or 31536000))).isoformat())
+        set_secret('tiktok_business_scope',str(data.get('scope') or ''))
+        set_secret('tiktok_business_open_id',str(data.get('open_id') or ''))
+        info=await tiktok_business_token_info()
+        mentions=await sync_tiktok_mentions()
+        await analyze_pending(200)
+        generate_insight()
+        return HTMLResponse('<meta charset="utf-8"><div style="font-family:system-ui;max-width:720px;margin:60px auto;padding:24px"><h2>✅ TikTok API for Business connected</h2><p>Token ถูกเก็บแบบเข้ารหัสแล้ว</p><p><b>Scopes:</b> '+str(data.get('scope') or '-')+'</p><p><b>Mentions Content:</b> '+('OK' if mentions.get('content',{}).get('ok') else 'ยังใช้ไม่ได้')+'</p><p><b>Mentions Comment:</b> '+('OK' if mentions.get('comments',{}).get('ok') else 'ยังใช้ไม่ได้')+'</p><p><a href="https://pawdy-social-listening-production.up.railway.app/">กลับ Dashboard</a></p></div>')
     except Exception as e:
-        return HTMLResponse('<h2>TikTok token exchange failed</h2><pre>'+str(e)+'</pre>',status_code=500)
+        print('TikTok business callback failed',str(e),flush=True)
+        return HTMLResponse('<meta charset="utf-8"><h2>TikTok token exchange failed</h2><pre>'+str(e)+'</pre>',status_code=500)
+
+# Backward-compatible Railway callback: Vercel bridge should forward here.
+@app.get('/api/tiktok/oauth/callback/',response_class=HTMLResponse)
+async def tiktok_oauth_callback(auth_code:str|None=None,code:str|None=None,state:str|None=None,
+                                error:str|None=None,error_description:str|None=None):
+    return await tiktok_business_callback(auth_code,code,state,error,error_description)
+
+@app.get('/api/tiktok/business/status')
+async def tiktok_business_status(_=Depends(admin)):
+    return {
+      'connected':bool(get_secret('tiktok_business_access_token','TIKTOK_ACCESS_TOKEN')),
+      'oauth_ready':bool(tiktok_client_key() and tiktok_client_secret()),
+      'redirect_uri':TIKTOK_REDIRECT_URI,
+      'scope':get_secret('tiktok_business_scope') or None,
+      'open_id_present':bool(get_secret('tiktok_business_open_id')),
+      'token_info':await tiktok_business_token_info()
+    }
+
+@app.post('/api/tiktok/mentions/sync')
+async def tiktok_mentions_sync(_=Depends(admin)):
+    r=await sync_tiktok_mentions()
+    a=await analyze_pending(200)
+    d=generate_insight()
+    return {'ok':True,'mentions':r,'analysis':a,'daily':d}
 
 @app.post('/api/ingest')
 def ingest(body:dict,_=Depends(ingest_auth)):
@@ -916,8 +1027,8 @@ textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{t
   <span class="muted">Market: TH • rotating keywords • budget-safe</span>
 </div>
 <div class="row" style="margin-top:8px">
-  <input id="ttKey" type="password" placeholder="TikTok Client Key">
-  <input id="ttSecret" type="password" placeholder="TikTok Client Secret">
+  <input id="ttKey" type="password" placeholder="TikTok App ID">
+  <input id="ttSecret" type="password" placeholder="TikTok App Secret">
   <button onclick="saveSecrets()">Save & Test</button>
   <button onclick="connectTikTok()">Connect TikTok</button>
   <button onclick="enrichComments()">Enrich Comments</button>
@@ -1008,7 +1119,7 @@ async function loadStatus(){
   try{
     const p=await api('/api/providers/status');
     const oe=p.tiktok_oembed?.health;
-    $('providerStatus').textContent='TikTok URL='+(oe?.ok?'LIVE':'checking')+' • Owned TikTok='+(p.tiktok_owned.configured?'connected':'not connected')+' • Apify='+(p.apify?.configured?'connected':'not connected')+' • AI='+(p.openai.configured?'OpenAI':'fallback rules');
+    $('providerStatus').textContent='TikTok URL='+(oe?.ok?'LIVE':'checking')+' • TikTok Official='+(p.tiktok_mentions?.configured?'connected':'not connected')+' • Apify='+(p.apify?.configured?'connected':'not connected')+' • AI='+(p.openai.configured?'OpenAI':'fallback rules');
   }catch(e){$('providerStatus').textContent=e.message}
 }
 async function loadSettings(){
