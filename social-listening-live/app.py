@@ -194,6 +194,64 @@ async def analyze_pending(limit=200):
         except Exception as e: failed.append({'video_id':v['id'],'error':str(e)})
     return {'analyzed':done,'failed':failed}
 
+
+async def reanalyze_fallback(limit=500):
+    if not openai_key():
+        return {'reanalyzed':0,'skipped':'OpenAI not configured'}
+    with db() as c:
+        rows=[dict(x) for x in c.execute("""
+          SELECT v.* FROM videos v JOIN analyses a ON a.video_id=v.id
+          WHERE a.model='fallback-rules-v2'
+          ORDER BY a.analyzed_at DESC LIMIT ?
+        """,(limit,)).fetchall()]
+    done=0; failed=[]
+    for v in rows:
+        try:
+            a=await ai_analysis(v)
+            with db() as c:
+                c.execute("""UPDATE analyses SET topic=?,sentiment=?,sentiment_score=?,pain_points=?,questions=?,
+                  purchase_intent=?,opportunity=?,opportunity_score=?,risk_level=?,summary=?,model=?,analyzed_at=?
+                  WHERE video_id=?""",
+                  (a['topic'],a['sentiment'],a['sentiment_score'],json.dumps(a['pain_points'],ensure_ascii=False),
+                   json.dumps(a['questions'],ensure_ascii=False),a['purchase_intent'],a['opportunity'],
+                   a['opportunity_score'],a['risk_level'],a['summary'],a['model'],now_iso(),v['id']))
+            done+=1
+        except Exception as e:
+            failed.append({'video_id':v['id'],'error':str(e)})
+    return {'reanalyzed':done,'failed':failed}
+
+async def bootstrap_meltwater_search():
+    token=meltwater_token()
+    if not token:
+        return {'ok':False,'error':'Meltwater API token not configured'}
+    async with httpx.AsyncClient(timeout=45) as client:
+        r=await client.get('https://api.meltwater.com/v3/searches',
+            headers={'Accept':'application/json','apikey':token})
+        if r.status_code!=200:
+            return {'ok':False,'status':r.status_code,'error':r.text[:500]}
+        data=r.json()
+        searches=data.get('searches') or []
+        target=next((x for x in searches if str(x.get('name','')).strip().lower()=='pawdy tiktok listening'),None)
+        if not target:
+            with db() as c:
+                kws=[x['keyword'] for x in c.execute('SELECT keyword FROM keywords WHERE enabled=1 ORDER BY category,keyword').fetchall()]
+            if not kws:
+                return {'ok':False,'error':'No enabled keywords'}
+            def q(s):
+                return '"' + str(s).replace('\\','\\\\').replace('"','\\"') + '"'
+            boolean=' OR '.join(q(x) for x in kws[:60])
+            payload={'search':{'name':'Pawdy TikTok Listening','query':{'case_sensitivity':'no','boolean':boolean,'type':'boolean'}}}
+            cr=await client.post('https://api.meltwater.com/v3/searches',
+                headers={'Accept':'application/json','Content-Type':'application/json','apikey':token},json=payload)
+            if cr.status_code not in (200,201):
+                return {'ok':False,'status':cr.status_code,'error':cr.text[:700]}
+            target=(cr.json().get('search') or {})
+        sid=str(target.get('id') or '').strip()
+        if not sid:
+            return {'ok':False,'error':'Search ID missing from Meltwater response'}
+        set_secret('meltwater_search_id',sid)
+        return {'ok':True,'search_id':sid,'name':target.get('name') or 'Pawdy TikTok Listening'}
+
 def generate_insight():
     now=datetime.now(timezone.utc); a0=now-timedelta(days=7); b0=now-timedelta(days=14)
     with db() as c:
@@ -465,17 +523,30 @@ async def settings_test(_=Depends(admin)):
             async with httpx.AsyncClient(timeout=30) as client:
                 r=await client.get('https://api.openai.com/v1/models',headers={'Authorization':f'Bearer {key}'})
             out['openai']={'ok':r.status_code==200,'status':r.status_code}
+            if r.status_code==200:
+                out['openai']['reanalyze']=await reanalyze_fallback(500)
         except Exception as e: out['openai']={'ok':False,'error':str(e)}
     else: out['openai']={'ok':False,'error':'not configured'}
-    mt=meltwater_token()
-    if mt:
+    if meltwater_token():
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                r=await client.get('https://api.meltwater.com/v3/searches',headers={'Accept':'application/json','apikey':mt})
-            out['meltwater']={'ok':r.status_code==200,'status':r.status_code}
+            boot=await bootstrap_meltwater_search()
+            out['meltwater']=boot
+            if boot.get('ok'):
+                try:
+                    out['meltwater']['sync']=await sync_meltwater(24)
+                except Exception as e:
+                    out['meltwater']['sync_error']=str(e)
         except Exception as e: out['meltwater']={'ok':False,'error':str(e)}
     else: out['meltwater']={'ok':False,'error':'not configured'}
     return out
+
+@app.post('/api/meltwater/bootstrap')
+async def meltwater_bootstrap(_=Depends(admin)):
+    result=await bootstrap_meltwater_search()
+    if result.get('ok'):
+        try: result['sync']=await sync_meltwater(24)
+        except Exception as e: result['sync_error']=str(e)
+    return result
 
 @app.get('/api/tiktok/oauth/url')
 def tiktok_oauth_url(_=Depends(admin)):
@@ -632,7 +703,7 @@ textarea{box-sizing:border-box}table{width:100%;border-collapse:collapse}td,th{t
 <div class="row">
   <input id="openaiKey" type="password" placeholder="OpenAI API key">
   <input id="mwToken" type="password" placeholder="Meltwater API token">
-  <input id="mwSearch" placeholder="Meltwater Search ID">
+  <input id="mwSearch" placeholder="Meltwater Search ID (optional)">
 </div>
 <div class="row" style="margin-top:8px">
   <input id="ttKey" type="password" placeholder="TikTok Client Key">
@@ -741,7 +812,7 @@ async function saveSecrets(){
     };
     await api('/api/settings/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const t=await api('/api/settings/test',{method:'POST'});
-    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Meltwater: '+(t.meltwater.ok?'OK':'FAILED'));
+    alert('OpenAI: '+(t.openai.ok?'OK':'FAILED')+' • Meltwater: '+(t.meltwater.ok?'OK':'FAILED')+(t.meltwater.search_id?' • Search '+t.meltwater.search_id:''));
     ['openaiKey','mwToken','ttKey','ttSecret'].forEach(id=>$(id).value='');
     await Promise.all([loadSettings(),loadStatus()]);
   }catch(e){alert(e.message)}
