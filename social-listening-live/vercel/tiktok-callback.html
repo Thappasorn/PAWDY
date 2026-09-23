@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="th">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TikTok Authorization</title></head>
+<body style="font-family:system-ui;max-width:720px;margin:60px auto;padding:24px">
+<h2>กำลังเชื่อม TikTok กับ Pawdy Social Intelligence…</h2>
+<p id="status">กำลังส่ง authorization code ไปยังระบบอย่างปลอดภัย</p>
+<script>
+(function(){
+  const src=new URLSearchParams(location.search);
+  const dst=new URLSearchParams();
+  for(const k of ['auth_code','code','state','error','error_description']){
+    const v=src.get(k); if(v) dst.set(k,v);
+  }
+  if(!(dst.get('auth_code')||dst.get('code')||dst.get('error'))){
+    document.getElementById('status').textContent='ไม่พบ authorization code จาก TikTok กรุณากด Connect TikTok ใหม่';
+    return;
+  }
+  location.replace('https://pawdy-social-listening-production.up.railway.app/api/tiktok/business/callback?'+dst.toString());
+})();
+</script>
+</body></html>
