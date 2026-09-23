@@ -35,7 +35,9 @@ APP_SECRET_KEY = os.getenv('APP_SECRET_KEY','').strip()
 TIKTOK_REDIRECT_URI = os.getenv('TIKTOK_REDIRECT_URI','https://pawdycontent.vercel.app/tiktok-callback.html').strip()
 TIKTOK_BUSINESS_BASE = 'https://business-api.tiktok.com/open_api/v1.3'
 TIKTOK_BUSINESS_CALLBACK = os.getenv('TIKTOK_BUSINESS_CALLBACK','https://pawdy-social-listening-production.up.railway.app/api/tiktok/business/callback').strip()
-TIKTOK_BUSINESS_SCOPES = os.getenv('TIKTOK_BUSINESS_SCOPES','video.list,video.insights').strip()
+TIKTOK_BUSINESS_SCOPES = os.getenv('TIKTOK_BUSINESS_SCOPES','').strip()
+TIKTOK_MENTIONS_REGIONS = [x.strip().upper() for x in os.getenv('TIKTOK_MENTIONS_REGIONS','TH').split(',') if x.strip()]
+TIKTOK_MENTIONS_DAYS = max(1,min(int(os.getenv('TIKTOK_MENTIONS_DAYS','90')),90))
 
 app = FastAPI(title='Pawdy Social Intelligence', version='4.0')
 
@@ -471,48 +473,175 @@ def _mention_items(payload):
 
 async def sync_tiktok_mentions():
     token=await get_valid_tiktok_token()
-    if not token: return {'skipped':'TikTok API for Business not connected'}
-    endpoints=[
-      ('content','/business/mention/video/list/'),
-      ('comments','/business/mention/comment/list/')
+    if not token:
+        return {'skipped':'TikTok API for Business not connected'}
+
+    business_id=get_secret('tiktok_business_open_id')
+    if not business_id:
+        info=await tiktok_business_token_info()
+        data=info.get('data') if isinstance(info,dict) else None
+        if isinstance(data,dict):
+            business_id=str(data.get('open_id') or data.get('business_id') or '').strip()
+            if business_id:
+                set_secret('tiktok_business_open_id',business_id)
+    if not business_id:
+        return {'skipped':'TikTok business_id/open_id missing; re-authorize TikTok Business'}
+
+    video_fields=[
+      'item_id','video_link','caption','likes','comments','shares',
+      'create_time','thumbnail_url','views','reach','creator_handle_name'
     ]
-    out={'ingested':0,'content':{},'comments':{}}
+    comment_fields=[
+      'item_id','video_link','caption','video_likes','thumbnail_url',
+      'commenter_display_name','comment_id','comment_type','comment_text',
+      'comment_create_time','comment_likes'
+    ]
+
+    out={
+      'ingested':0,
+      'content':{'ok':False,'items':0,'pages':0},
+      'comments':{'ok':False,'items':0,'pages':0},
+      'business_id_present':True,
+      'regions':TIKTOK_MENTIONS_REGIONS,
+      'number_of_days':TIKTOK_MENTIONS_DAYS
+    }
+
     async with httpx.AsyncClient(timeout=45) as client:
-        for kind,path in endpoints:
-            try:
-                r=await client.get(TIKTOK_BUSINESS_BASE+path,
-                  headers={'Access-Token':token,'Accept':'application/json'})
-                try: d=r.json()
-                except: d={'message':r.text[:700]}
-                ok=r.status_code==200 and d.get('code') in (0,None)
-                out[kind]={'ok':ok,'status':r.status_code,'code':d.get('code'),'message':d.get('message')}
-                if not ok: continue
-                if kind=='content':
-                    items=[]
-                    for x in _mention_items(d):
-                        pid=str(x.get('video_id') or x.get('item_id') or x.get('id') or '').strip()
-                        url=str(x.get('share_url') or x.get('url') or x.get('video_url') or '').strip()
-                        if not pid: continue
-                        if not url: url=f'https://www.tiktok.com/video/{pid}'
-                        creator=x.get('creator') or x.get('author') or {}
-                        if isinstance(creator,dict):
-                            creator=creator.get('username') or creator.get('unique_id') or creator.get('display_name')
-                        stats=x.get('stats') or x.get('metrics') or {}
-                        items.append({
-                          'platform_video_id':pid,'url':url,'creator':{'username':creator or 'tiktok_mention'},
-                          'caption':x.get('caption') or x.get('text') or x.get('video_description') or '',
-                          'transcript':'','search_keyword':'TikTok Official Mention',
-                          'view_count':stats.get('view_count') or stats.get('views') or x.get('view_count') or 0,
-                          'like_count':stats.get('like_count') or stats.get('likes') or x.get('like_count') or 0,
-                          'comment_count':stats.get('comment_count') or stats.get('comments') or x.get('comment_count') or 0,
-                          'share_count':stats.get('share_count') or stats.get('shares') or x.get('share_count') or 0,
-                          'published_at':x.get('create_time') or x.get('published_at'),'comments':[]
-                        })
-                    n=upsert_items(items,'tiktok_business_mentions','TikTok Official Mention')
-                    out['content']['items']=len(items); out['ingested']+=n
-            except Exception as e:
-                out[kind]={'ok':False,'error':str(e)}
-    set_provider_health('tiktok_business_mentions',bool(out['content'].get('ok')),out)
+        # Content mentions: up to TikTok's top 1,000 results, 100 per page.
+        cursor=0
+        content_items=[]
+        for page in range(10):
+            params={
+              'business_id':business_id,
+              'fields':json.dumps(video_fields,separators=(',',':')),
+              'sort_field':'CREATE_TIME',
+              'sort_type':'DESC',
+              'number_of_days':TIKTOK_MENTIONS_DAYS,
+              'cursor':cursor,
+              'max_count':100
+            }
+            if TIKTOK_MENTIONS_REGIONS:
+                params['regions']=json.dumps(TIKTOK_MENTIONS_REGIONS,separators=(',',':'))
+            r=await client.get(
+              TIKTOK_BUSINESS_BASE+'/business/mention/video/list/',
+              headers={'Access-Token':token,'Accept':'application/json'},
+              params=params
+            )
+            try: d=r.json()
+            except: d={'message':r.text[:700]}
+            ok=r.status_code==200 and d.get('code') in (0,None)
+            out['content'].update({'ok':ok,'status':r.status_code,'code':d.get('code'),'message':d.get('message')})
+            if not ok:
+                break
+            data=d.get('data') or {}
+            rows=data.get('videos') or []
+            out['content']['pages']+=1
+            for x in rows:
+                pid=str(x.get('item_id') or '').strip()
+                if not pid: continue
+                ct=x.get('create_time')
+                published=None
+                try:
+                    if ct is not None: published=datetime.fromtimestamp(int(ct),timezone.utc).isoformat()
+                except: published=str(ct) if ct else None
+                content_items.append({
+                  'platform_video_id':pid,
+                  'url':x.get('video_link') or f'https://www.tiktok.com/@/video/{pid}',
+                  'creator':{'username':x.get('creator_handle_name') or 'tiktok_mention'},
+                  'caption':x.get('caption') or '',
+                  'transcript':'',
+                  'search_keyword':'TikTok Official @Mention',
+                  'view_count':x.get('views') or 0,
+                  'like_count':x.get('likes') or 0,
+                  'comment_count':x.get('comments') or 0,
+                  'share_count':x.get('shares') or 0,
+                  'published_at':published,
+                  'comments':[]
+                })
+            if not data.get('has_more') or not rows:
+                break
+            cursor=int(data.get('cursor') or (cursor+len(rows)))
+        if content_items:
+            out['ingested']+=upsert_items(content_items,'tiktok_business_mentions','TikTok Official @Mention')
+        out['content']['items']=len(content_items)
+
+        # Comment mentions: group comments by source video so OpenAI gets conversation evidence.
+        cursor=0
+        grouped={}
+        for page in range(10):
+            params={
+              'business_id':business_id,
+              'fields':json.dumps(comment_fields,separators=(',',':')),
+              'sort_field':'COMMENT_CREATE_TIME',
+              'sort_type':'DESC',
+              'number_of_days':TIKTOK_MENTIONS_DAYS,
+              'cursor':cursor,
+              'max_count':100
+            }
+            if TIKTOK_MENTIONS_REGIONS:
+                params['regions']=json.dumps(TIKTOK_MENTIONS_REGIONS,separators=(',',':'))
+            r=await client.get(
+              TIKTOK_BUSINESS_BASE+'/business/mention/comment/list/',
+              headers={'Access-Token':token,'Accept':'application/json'},
+              params=params
+            )
+            try: d=r.json()
+            except: d={'message':r.text[:700]}
+            ok=r.status_code==200 and d.get('code') in (0,None)
+            out['comments'].update({'ok':ok,'status':r.status_code,'code':d.get('code'),'message':d.get('message')})
+            if not ok:
+                break
+            data=d.get('data') or {}
+            rows=data.get('comments') or []
+            out['comments']['pages']+=1
+            for x in rows:
+                pid=str(x.get('item_id') or '').strip()
+                txt=str(x.get('comment_text') or '').strip()
+                if not pid or not txt: continue
+                g=grouped.setdefault(pid,{
+                  'platform_video_id':pid,
+                  'url':x.get('video_link') or f'https://www.tiktok.com/@/video/{pid}',
+                  'creator':{'username':'tiktok_mention'},
+                  'caption':x.get('caption') or '',
+                  'transcript':'',
+                  'search_keyword':'TikTok Official Comment Mention',
+                  'view_count':0,
+                  'like_count':x.get('video_likes') or 0,
+                  'comment_count':0,
+                  'share_count':0,
+                  'published_at':None,
+                  'comments':[]
+                })
+                ct=x.get('comment_create_time')
+                try:
+                    published=datetime.fromtimestamp(int(ct),timezone.utc).isoformat() if ct is not None else None
+                except: published=str(ct) if ct else None
+                g['comments'].append({
+                  'text':txt,
+                  'author':x.get('commenter_display_name'),
+                  'likes':_num(x.get('comment_likes')),
+                  'published_at':published,
+                  'comment_id':str(x.get('comment_id') or ''),
+                  'comment_type':x.get('comment_type')
+                })
+                g['comment_count']=len(g['comments'])
+            if not data.get('has_more') or not rows:
+                break
+            cursor=int(data.get('cursor') or (cursor+len(rows)))
+
+        comment_items=list(grouped.values())
+        if comment_items:
+            out['ingested']+=upsert_items(comment_items,'tiktok_business_mentions','TikTok Official Comment Mention')
+            # Existing analyses must be regenerated now that comments are richer evidence.
+            ids=[x['platform_video_id'] for x in comment_items]
+            with db() as c:
+                q=','.join('?' for _ in ids)
+                rows=c.execute(f'SELECT id FROM videos WHERE platform_video_id IN ({q})',ids).fetchall()
+                for row in rows:
+                    c.execute('DELETE FROM analyses WHERE video_id=?',(row['id'],))
+        out['comments']['items']=sum(len(x.get('comments') or []) for x in comment_items)
+
+    set_provider_health('tiktok_business_mentions',bool(out['content'].get('ok') or out['comments'].get('ok')),out)
     return out
 
 async def sync_tiktok_owned():
